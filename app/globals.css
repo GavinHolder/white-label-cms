@@ -1,0 +1,463 @@
+/* Bootstrap is imported directly in layout.tsx */
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --navbar-height: 100px; /* Navbar + safe clearance */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+/* ===== SCROLL CONTAINER SETUP ===== */
+
+/*
+ * Scroll snap uses a wrapper div (#snap-container) instead of html as the
+ * scroll container. This is more reliable across Chromium browsers where
+ * viewport-level scroll-snap-type on html doesn't consistently engage.
+ *
+ * When #snap-container exists (public pages), html/body are overflow:hidden
+ * and the wrapper handles all scrolling + snap.
+ * When it doesn't exist (admin pages), body scrolls normally.
+ */
+
+html {
+  overflow-x: hidden !important;
+  width: 100%;
+}
+
+/* When snap container present, html/body don't scroll */
+html:has(#snap-container) {
+  overflow-y: hidden !important;
+  height: 100vh;
+}
+
+body {
+  background: #ffffff;
+  color: #171717;
+  font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden !important;
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+body:has(#snap-container) {
+  overflow-y: hidden !important;
+  height: 100vh;
+}
+
+/* The actual scroll + snap container for public pages */
+#snap-container {
+  height: 100vh;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  position: relative;
+  width: 100%;
+}
+
+/* ===== SECTION STYLING (matching prototype exactly) ===== */
+
+/* Each section is exactly 100vh - content scrolls internally via .section-content-wrapper.
+   Scoped to #snap-container so admin modals and third-party <section> elements
+   (e.g. Monaco Editor) aren't affected. */
+#snap-container section:not(.hero-carousel) {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* Multi-screen sections: allow content to exceed 100vh.
+   Must use #snap-container prefix to beat the specificity of
+   #snap-container section:not(.hero-carousel) { height:100vh } rule above. */
+#snap-container section[data-content-mode="multi"],
+section[data-content-mode="multi"] {
+  height: auto !important;
+  min-height: 100vh;
+  max-height: none !important;
+  overflow: visible !important;
+  scroll-snap-align: start;  /* snap to start so section is reachable; section can grow past 100vh */
+  scroll-snap-stop: normal;
+}
+
+/* Multi-section content wrapper must NOT clip/scroll — let it grow to full designed height */
+#snap-container section[data-content-mode="multi"] .section-content-wrapper,
+section[data-content-mode="multi"] .section-content-wrapper {
+  overflow: visible !important;
+  flex: unset !important;
+  min-height: unset !important;
+  height: auto !important;
+}
+
+/* Gavin branch: CSS custom properties for dynamic CMS values */
+.sonic-section {
+  position: relative; /* Required for absolutely-positioned children (AnimBgRenderer, overlays) */
+  background-color: var(--section-bg, #ffffff);
+}
+
+/* ===== HERO CAROUSEL ===== */
+
+/* Hero carousel snaps like all other sections */
+.hero-carousel {
+  height: 100vh !important;
+  min-height: 100vh !important;
+  max-height: 100vh !important;
+  position: relative;
+  overflow: hidden !important;
+  display: block;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  clip-path: inset(0);
+  contain: layout style paint;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.hero-carousel-item {
+  height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  opacity: 0;
+  transition: opacity 500ms ease-in-out;
+  overflow: hidden;
+  clip-path: inset(0);
+}
+
+.hero-carousel-item.active {
+  opacity: 1;
+}
+
+.hero-carousel img,
+.hero-carousel video {
+  width: 100%;
+  height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
+  object-fit: cover;
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* ===== FOOTER ===== */
+
+/* Footer is exactly 100vh like sections, with internal scrolling if needed */
+footer {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* ===== CUSTOM SCROLLBAR ===== */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* ===== NAVBAR STYLES ===== */
+
+.navbar-transparent {
+  background-color: rgba(17, 24, 39, 0.05);
+  backdrop-filter: blur(4px);
+  transition: all 300ms ease-in-out;
+}
+
+.navbar-scrolled {
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Tab-page content scrollbars */
+.tab-page-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.tab-page-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tab-page-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tab-page-content::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.tab-page-content::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* ===== ANIMATIONS ===== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInCenter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Dropdown link hover */
+.dropdown-link {
+  transition: background-color 200ms ease-in-out;
+}
+
+.dropdown-link:hover {
+  background-color: rgba(243, 244, 246, 1);
+}
+
+/* Hero Carousel Overlay Animations */
+@keyframes overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlay-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes overlay-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes overlay-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes overlay-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes overlay-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+/* Main - completely transparent to scroll-snap */
+main {
+  display: block;
+  position: relative;
+  z-index: 0;
+}
+
+/* Section content wrapper - scrolls internally when content exceeds 100vh */
+.section-content-wrapper {
+  flex: 1;
+  min-height: 0; /* CRITICAL: overrides flex min-height:auto so content can scroll */
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  /* Gavin branch: CMS-controlled padding */
+  padding-top: var(--section-pt, 100px);
+  padding-bottom: var(--section-pb, 80px);
+}
+
+/* Ensure sections don't overlap (scoped to snap container) */
+#snap-container section {
+  position: relative;
+  z-index: 1;
+  display: block;
+  clear: both;
+  overflow: hidden;
+}
+
+/* Sections with triangle overlays need:
+   1. overflow: visible - so the triangle isn't clipped by its own section
+   2. z-index: 2 - so the triangle (which extends upward via negative top)
+      renders ABOVE the previous section's stacking context (z-index: 1).
+      Without this, the section above covers the triangle because both have
+      z-index: 1 and DOM order determines paint order. */
+section:has(.triangle-overlay-wrapper) {
+  overflow: visible;
+  z-index: 2;
+}
+
+/* ===== TRIANGLE OVERLAY MOBILE SCALING ===== */
+/* Scale triangles down on mobile for better proportions */
+.triangle-overlay-wrapper {
+  transition: transform 0.3s ease;
+}
+
+@media (max-width: 575.98px) {
+  /* Mobile: 50% scale */
+  .triangle-overlay-wrapper {
+    transform: scale(0.5);
+  }
+}
+
+@media (min-width: 576px) and (max-width: 767.98px) {
+  /* Small tablets: 65% scale */
+  .triangle-overlay-wrapper {
+    transform: scale(0.65);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 991.98px) {
+  /* Tablets: 80% scale */
+  .triangle-overlay-wrapper {
+    transform: scale(0.8);
+  }
+}
+
+/* Container max-width constraints */
+.container-fluid {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Hide Next.js error overlay in production */
+nextjs-portal {
+  display: none;
+}
+
+/* Fix Bootstrap checkbox stretching issue */
+input[type="checkbox"] {
+  width: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  height: 16px;
+  min-height: 16px;
+  max-height: 16px;
+  flex-shrink: 0;
+  flex-grow: 0;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0;
+  padding: 0;
+}
+
+/* Accessibility: Visually hidden but screen-reader accessible */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ===== ADAPTIVE CURSOR SYSTEM ===== */
+
+/* Automatic cursor color adaptation based on background brightness */
+.adaptive-cursor-light {
+  cursor: url('/cursors/cursor-white.svg') 0 0, auto;
+}
+
+.adaptive-cursor-dark {
+  cursor: url('/cursors/cursor-black.svg') 0 0, auto;
+}
+
+/* Apply to all interactive elements within adaptive sections */
+.adaptive-cursor-light a,
+.adaptive-cursor-light button,
+.adaptive-cursor-light [role="button"] {
+  cursor: url('/cursors/cursor-white.svg') 0 0, pointer;
+}
+
+.adaptive-cursor-dark a,
+.adaptive-cursor-dark button,
+.adaptive-cursor-dark [role="button"] {
+  cursor: url('/cursors/cursor-black.svg') 0 0, pointer;
+}

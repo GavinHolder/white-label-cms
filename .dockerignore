@@ -1,0 +1,43 @@
+# Version control
+.git
+.gitignore
+
+# Dependencies (reinstalled inside Docker)
+node_modules
+
+# Next.js build output
+.next
+out
+
+# Documentation and local-only files
+docs
+*.md
+!README.md
+
+# Environment files (secrets must be injected at runtime, never baked in)
+.env
+.env.*
+!.env.example
+
+# Deploy configs (not needed inside the app image)
+deploy
+
+# Dev tooling
+.claude
+.playwright-mcp
+.vscode
+.idea
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Temporary / debug files
+*.log
+*.png
+*.jpg
+*.jpeg
+*.gif
+/nul
+/temp-*.js
+/check-*.js

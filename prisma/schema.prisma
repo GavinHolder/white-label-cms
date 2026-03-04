@@ -1,0 +1,339 @@
+// Prisma Schema for Sonic Website Visual Page Builder CMS
+// PostgreSQL database with flexible JSONB storage
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER MANAGEMENT
+// ============================================
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  username     String    @unique
+  passwordHash String
+  firstName    String?
+  lastName     String?
+  role         UserRole  @default(EDITOR)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+
+  // Relations
+  pages        Page[]
+  sections     Section[]
+  mediaAssets  MediaAsset[]
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  PUBLISHER
+  EDITOR
+  VIEWER
+}
+
+// ============================================
+// PAGE MANAGEMENT
+// ============================================
+
+model Page {
+  id              String      @id @default(uuid())
+  slug            String      @unique
+  title           String
+  type            PageType    @default(LANDING)
+  metaDescription String?
+  ogImage         String?
+  status          PageStatus  @default(DRAFT)
+  publishedAt     DateTime?
+  publishedBy     String?
+
+  // Relations
+  sections        Section[]
+
+  createdBy       String
+  createdByUser   User        @relation(fields: [createdBy], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([slug])
+  @@index([status])
+  @@map("pages")
+}
+
+enum PageType {
+  LANDING
+  TAB_PAGE
+  FULL_PAGE
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// ============================================
+// SECTION MANAGEMENT
+// ============================================
+
+model Section {
+  id            String          @id @default(uuid())
+  pageId        String
+  page          Page            @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  type          SectionType
+  enabled       Boolean         @default(true)
+  order         Float           @default(0) // Float for fractional ordering
+
+  // Display name for admin panel
+  displayName   String?
+
+  // Short label for navbar (single word, e.g., "About", "Plans", "Coverage")
+  navLabel      String?
+
+  // Spacing (direct pixel values)
+  paddingTop    Int             @default(80)
+  paddingBottom Int             @default(80)
+
+  // Background color (white, gray, blue, lightblue, transparent)
+  background    String          @default("white")
+
+  // Banner configuration
+  banner        Json?
+
+  // Section content (flexible JSON for all section types)
+  // For hero: slides, autoPlay, showDots, etc.
+  // For normal: heading, subheading, body, layout, layoutPreset, imageSrc, etc.
+  // For cta: heading, subheading, buttons, style, etc.
+  // For footer: logo, columns, socialLinks, etc.
+  content       Json            @default("{}")
+
+  // Draft version (used in editor before publishing)
+  contentDraft  Json?
+
+  // Triangle overlay configuration
+  triangleEnabled      Boolean   @default(false)
+  triangleSide         String?   // "left" | "right"
+  triangleShape        String?   @default("classic") // "classic" | "modern"
+  triangleHeight       Int?      @default(200)
+  triangleTargetId     String?   // ID of section to navigate to
+
+  // Triangle styling
+  triangleGradientType String?   @default("solid") // "solid" | "linear" | "radial"
+  triangleColor1       String?   @default("#4ecdc4")
+  triangleColor2       String?   @default("#6a82fb")
+  triangleAlpha1       Int?      @default(100)
+  triangleAlpha2       Int?      @default(100)
+  triangleAngle        Int?      @default(45)
+
+  // Triangle image
+  triangleImageUrl     String?
+  triangleImageSize    String?   @default("cover") // "cover" | "contain" | "auto"
+  triangleImagePos     String?   @default("center")
+  triangleImageOpacity Int?      @default(100)
+
+  // Hover text configuration
+  hoverTextEnabled     Boolean   @default(false)
+  hoverText            String?
+  hoverTextStyle       Int?      @default(1) // 1=inside, 2=outside
+  hoverFontSize        Int?      @default(18)
+  hoverFontFamily      String?   @default("Arial")
+  hoverAnimationType   String?   @default("slide") // "slide" | "fade" | "scale" | "sweep"
+  hoverAnimateBehind   Boolean   @default(true)
+  hoverAlwaysShow      Boolean   @default(false)
+  hoverOffsetX         Int?      @default(0)
+
+  // Background image configuration
+  bgImageUrl           String?
+  bgImageSize          String?   @default("cover") // "cover" | "contain" | "auto"
+  bgImagePosition      String?   @default("center")
+  bgImageRepeat        String?   @default("no-repeat") // "no-repeat" | "repeat" | "repeat-x" | "repeat-y"
+  bgImageOpacity       Int?      @default(100)
+  bgParallax           Boolean   @default(false)
+
+  // Custom elements (for freeform sections only)
+  elements      CustomElement[]
+
+  // Version history
+  versions      SectionVersion[]
+
+  createdBy     String
+  createdByUser User            @relation(fields: [createdBy], references: [id])
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([pageId, order])
+  @@index([enabled])
+  @@map("sections")
+}
+
+enum SectionType {
+  HERO
+  NORMAL
+  CTA
+  FOOTER
+}
+
+// ============================================
+// CUSTOM ELEMENTS (Freeform Layout)
+// ============================================
+
+model CustomElement {
+  id            String          @id @default(uuid())
+  sectionId     String
+  section       Section         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  // Nested element support (containers within containers)
+  parentId      String?
+  parent        CustomElement?  @relation("ElementHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children      CustomElement[] @relation("ElementHierarchy")
+
+  type          ElementType
+  order         Int
+
+  // Element-specific content
+  // For HEADING: { text, level }
+  // For IMAGE: { src, alt, width, height }
+  // For BUTTON: { text, href, variant }
+  // For CONTAINER/ROW/COLUMN: { justify, align, gap }
+  content       Json?
+
+  // Layout & positioning (optional for absolute positioning)
+  // For future use: { x, y, width, height }
+  position      Json?
+
+  // Spacing (pixel-perfect control)
+  // { marginTop, marginRight, marginBottom, marginLeft, paddingTop, ... }
+  spacing       Json
+
+  // Styling (colors, fonts, borders, etc.)
+  // { color, fontSize, fontWeight, backgroundColor, border, borderRadius, ... }
+  styles        Json?
+
+  // Responsive overrides (optional, for future enhancement)
+  // { mobile: {...}, tablet: {...}, desktop: {...} }
+  responsiveStyles Json?
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([sectionId, order])
+  @@index([parentId])
+  @@map("custom_elements")
+}
+
+enum ElementType {
+  // Text elements
+  TEXT
+  HEADING
+  PARAGRAPH
+
+  // Media elements
+  IMAGE
+  VIDEO
+  ICON
+
+  // Interactive elements
+  BUTTON
+  LINK
+
+  // Layout elements
+  CONTAINER
+  ROW
+  COLUMN
+  SPACER
+  DIVIDER
+
+  // Advanced elements
+  HTML
+}
+
+// ============================================
+// MEDIA ASSET MANAGEMENT
+// ============================================
+
+model MediaAsset {
+  id              String    @id @default(uuid())
+  filename        String
+  originalName    String
+  mimeType        String
+  fileSize        Int
+  width           Int?
+  height          Int?
+  url             String
+  thumbnailUrl    String?
+
+  altText         String?
+  caption         String?
+  tags            String[]
+
+  uploadedBy      String
+  uploadedByUser  User      @relation(fields: [uploadedBy], references: [id])
+  usageCount      Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([mimeType])
+  @@index([tags])
+  @@map("media_assets")
+}
+
+// ============================================
+// VERSION HISTORY (Optional)
+// ============================================
+
+model SectionVersion {
+  id          String    @id @default(uuid())
+  sectionId   String
+  section     Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  version     Int
+  config      Json
+  createdBy   String
+  createdAt   DateTime  @default(now())
+
+  @@unique([sectionId, version])
+  @@index([sectionId])
+  @@map("section_versions")
+}
+
+// ============================================
+// SYSTEM SETTINGS (key-value store)
+// ============================================
+
+model SystemSettings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+// ============================================
+// OTP TOKENS (email verification)
+// ============================================
+
+model OtpToken {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  purpose   String   // "cta-form" | "form-page"
+  used      Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email, purpose])
+  @@map("otp_tokens")
+}

@@ -1,0 +1,2409 @@
+"use client";
+
+import { useEffect, useRef, useState, useCallback, useId } from "react";
+import { createPortal } from "react-dom";
+import dynamic from "next/dynamic";
+import type { FlexibleSection, FlexibleElement, FlexibleAnimationType } from "@/types/section";
+import type { AnimBgConfig } from "@/lib/anim-bg/types";
+import { DEFAULT_ANIM_BG_CONFIG } from "@/lib/anim-bg/defaults";
+import { animate } from "animejs";
+
+const AnimBgRenderer = dynamic(() => import("./AnimBgRenderer"), { ssr: false });
+
+interface FlexibleSectionRendererProps {
+  section: FlexibleSection;
+}
+
+/** Sanitize a URL for use inside CSS url() — only allows safe patterns */
+const safeUrl = (url: string) => /^(https?:\/\/|\/)[^"')]*$/.test(url) ? url : "";
+
+/** Convert hex color + opacity (0-100) to rgba string — used for block/sub-element transparent backgrounds */
+function applyBgOpacity(hex: string, opacity: number): string {
+  if (!hex || hex === "transparent" || opacity >= 100) return hex || "transparent";
+  const full = hex.replace("#", "").replace(/^(.)(.)(.)$/, "$1$1$2$2$3$3");
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${opacity / 100})`;
+}
+
+/** Inline styles injected once for hover/animation effects */
+const FLEXIBLE_CSS = `
+  .flexible-card {
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s cubic-bezier(0.4,0,0.2,1);
+    will-change: transform;
+  }
+  .flexible-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25) !important;
+  }
+  .flexible-card.card-glass {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .flexible-card.card-glow:hover {
+    box-shadow: 0 0 30px var(--card-glow-color, rgba(9,105,218,0.5)) !important;
+  }
+  .flexible-stats {
+    transition: transform 0.3s ease;
+  }
+  .flexible-stats:hover { transform: scale(1.05); }
+  .flexible-element-button a {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .flexible-element-button a:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  }
+  @keyframes flex-pulse-glow {
+    0%, 100% { box-shadow: 0 0 12px var(--glow-color, #0969da); }
+    50%       { box-shadow: 0 0 32px var(--glow-color, #0969da), 0 0 60px var(--glow-color, #0969da); }
+  }
+  .flexible-card.card-pulse-glow { animation: flex-pulse-glow 2.5s ease-in-out infinite; }
+  @keyframes flex-rgb-glow {
+    0%   { box-shadow: 0 0 16px #ff0000, 0 0 32px #ff000066; }
+    16%  { box-shadow: 0 0 16px #ff8800, 0 0 32px #ff880066; }
+    33%  { box-shadow: 0 0 16px #ffff00, 0 0 32px #ffff0066; }
+    50%  { box-shadow: 0 0 16px #00ff00, 0 0 32px #00ff0066; }
+    66%  { box-shadow: 0 0 16px #0088ff, 0 0 32px #0088ff66; }
+    83%  { box-shadow: 0 0 16px #8800ff, 0 0 32px #8800ff66; }
+    100% { box-shadow: 0 0 16px #ff0000, 0 0 32px #ff000066; }
+  }
+  .flexible-card.card-rgb { animation: flex-rgb-glow 3s linear infinite; }
+  @keyframes flex-shimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position:  200% center; }
+  }
+  .flexible-card.card-shimmer::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: flex-shimmer 2.5s linear infinite;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  .flex-banner-float-left  { float: left;  margin-right: 24px; margin-bottom: 16px; }
+  .flex-banner-float-right { float: right; margin-left:  24px; margin-bottom: 16px; }
+
+  /* ── Designer block scroll animations ───────────────────────────────── */
+  .flex-block-hidden { opacity: 0 !important; }
+  @keyframes flex-ba-fadeIn    { from{opacity:0}                                           to{opacity:1} }
+  @keyframes flex-ba-slideUp   { from{opacity:0;transform:translateY(48px)}                to{opacity:1;transform:none} }
+  @keyframes flex-ba-slideDown { from{opacity:0;transform:translateY(-48px)}               to{opacity:1;transform:none} }
+  @keyframes flex-ba-slideInLeft  { from{opacity:0;transform:translateX(-60px)}            to{opacity:1;transform:none} }
+  @keyframes flex-ba-slideInRight { from{opacity:0;transform:translateX(60px)}             to{opacity:1;transform:none} }
+  @keyframes flex-ba-scaleIn   { from{opacity:0;transform:scale(0.75)}                     to{opacity:1;transform:none} }
+  @keyframes flex-ba-zoomIn    { from{opacity:0;transform:scale(1.18)}                     to{opacity:1;transform:none} }
+  @keyframes flex-ba-flipInX   { from{opacity:0;transform:perspective(800px) rotateX(-80deg)} to{opacity:1;transform:perspective(800px) rotateX(0)} }
+  @keyframes flex-ba-flipInY   { from{opacity:0;transform:perspective(800px) rotateY(-80deg)} to{opacity:1;transform:perspective(800px) rotateY(0)} }
+  @keyframes flex-ba-bounceIn  { 0%{opacity:0;transform:scale(0.3)} 55%{opacity:1;transform:scale(1.08)} 80%{transform:scale(0.96)} 100%{transform:scale(1)} }
+  @keyframes flex-ba-rotateIn  { from{opacity:0;transform:rotate(-180deg) scale(0.5)}      to{opacity:1;transform:none} }
+  .flex-ba-fadeIn     { animation: flex-ba-fadeIn     0.65s cubic-bezier(0.16,1,0.3,1) both; }
+  .flex-ba-slideUp    { animation: flex-ba-slideUp    0.65s cubic-bezier(0.16,1,0.3,1) both; }
+  .flex-ba-slideDown  { animation: flex-ba-slideDown  0.65s cubic-bezier(0.16,1,0.3,1) both; }
+  .flex-ba-slideInLeft    { animation: flex-ba-slideInLeft  0.65s cubic-bezier(0.16,1,0.3,1) both; }
+  .flex-ba-slideInRight   { animation: flex-ba-slideInRight 0.65s cubic-bezier(0.16,1,0.3,1) both; }
+  .flex-ba-scaleIn    { animation: flex-ba-scaleIn    0.55s cubic-bezier(0.34,1.56,0.64,1) both; }
+  .flex-ba-zoomIn     { animation: flex-ba-zoomIn     0.55s cubic-bezier(0.16,1,0.3,1) both; }
+  .flex-ba-flipInX    { animation: flex-ba-flipInX    0.7s  cubic-bezier(0.16,1,0.3,1) both; }
+  .flex-ba-flipInY    { animation: flex-ba-flipInY    0.7s  cubic-bezier(0.16,1,0.3,1) both; }
+  .flex-ba-bounceIn   { animation: flex-ba-bounceIn   0.8s  cubic-bezier(0.36,0.07,0.19,0.97) both; }
+  .flex-ba-rotateIn   { animation: flex-ba-rotateIn   0.7s  cubic-bezier(0.16,1,0.3,1) both; }
+
+  /* ── Designer block visual effects ──────────────────────────────────── */
+  .db-effect-glow       { box-shadow: 0 0 20px var(--db-glow-color, rgba(9,105,218,0.5)); transition: box-shadow 0.3s ease, transform 0.3s ease; }
+  .db-effect-glow:hover { box-shadow: 0 0 40px var(--db-glow-color, rgba(9,105,218,0.75)), 0 8px 32px rgba(0,0,0,0.15) !important; }
+  @keyframes db-pulse-glow { 0%,100%{ box-shadow:0 0 14px var(--db-glow-color,#0969da); } 50%{ box-shadow:0 0 36px var(--db-glow-color,#0969da),0 0 64px var(--db-glow-color,#0969da); } }
+  .db-effect-pulse-glow { animation: db-pulse-glow 2.5s ease-in-out infinite; }
+  @keyframes db-rgb { 0%{box-shadow:0 0 18px #ff0000} 16%{box-shadow:0 0 18px #ff8800} 33%{box-shadow:0 0 18px #ffff00} 50%{box-shadow:0 0 18px #00ff00} 66%{box-shadow:0 0 18px #0088ff} 83%{box-shadow:0 0 18px #8800ff} 100%{box-shadow:0 0 18px #ff0000} }
+  .db-effect-rgb { animation: db-rgb 3s linear infinite; }
+  .db-effect-shimmer::after { content:''; position:absolute; inset:0; pointer-events:none; border-radius:inherit; background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.22) 50%,transparent 100%); background-size:200% 100%; animation:flex-shimmer 2.5s linear infinite; }
+
+  /* ── Box shadow presets ──────────────────────────────────────────────── */
+  .db-shadow-sm   { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .db-shadow-md   { box-shadow: 0 4px 18px rgba(0,0,0,0.14); }
+  .db-shadow-lg   { box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+  .db-shadow-xl   { box-shadow: 0 16px 60px rgba(0,0,0,0.28); }
+  .db-shadow-glow { box-shadow: 0 0 32px var(--db-glow-color, rgba(9,105,218,0.45)); }
+
+  /* ── ISP Price Card ── */
+  .isp-price-card {
+    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), box-shadow 0.35s cubic-bezier(0.4,0,0.2,1);
+    will-change: transform;
+    position: relative;
+    overflow: hidden;
+  }
+  .isp-price-card:hover { transform: translateY(-8px); }
+  .isp-price-card .isp-speed-num {
+    transition: color 0.2s;
+    font-variant-numeric: tabular-nums;
+  }
+  /* fire border for featured fibre */
+  @keyframes isp-fire {
+    0%   { box-shadow: 0 0 10px #ff4500, 0 0 22px #ff6a0088, 0 0 40px #ff450044; border-color: #ff6a00; }
+    25%  { box-shadow: 0 0 16px #ff6a00, 0 0 32px #ffaa0088, 0 0 56px #ff6a0044; border-color: #ffaa00; }
+    50%  { box-shadow: 0 0 22px #ffaa00, 0 0 44px #ffdd0088, 0 0 64px #ffaa0044; border-color: #ffdd00; }
+    75%  { box-shadow: 0 0 16px #ff6a00, 0 0 32px #ffaa0088, 0 0 56px #ff6a0044; border-color: #ff6a00; }
+    100% { box-shadow: 0 0 10px #ff4500, 0 0 22px #ff6a0088, 0 0 40px #ff450044; border-color: #ff4500; }
+  }
+  .isp-price-card.featured-fire {
+    border: 2px solid #ff6a00 !important;
+    animation: isp-fire 2.2s ease-in-out infinite;
+  }
+  /* wifi-ring pulse for featured wifi */
+  @keyframes isp-wifi-pulse {
+    0%   { box-shadow: 0 0 0 0px rgba(0,200,255,0.6), 0 0 12px #00c8ff, 0 0 0 0px rgba(0,200,255,0.3); border-color: #00c8ff; }
+    50%  { box-shadow: 0 0 0 10px rgba(0,200,255,0), 0 0 24px #00c8ff, 0 0 0 20px rgba(0,200,255,0); border-color: #00eaff; }
+    100% { box-shadow: 0 0 0 0px rgba(0,200,255,0.6), 0 0 12px #00c8ff, 0 0 0 0px rgba(0,200,255,0.3); border-color: #00c8ff; }
+  }
+  .isp-price-card.featured-wifi {
+    border: 2px solid #00c8ff !important;
+    animation: isp-wifi-pulse 2.0s ease-in-out infinite;
+  }
+  /* LTE/generic featured */
+  @keyframes isp-lte-pulse {
+    0%,100% { box-shadow: 0 0 10px rgba(108,117,250,0.7), 0 0 24px rgba(108,117,250,0.3); border-color: #6c75fa; }
+    50%     { box-shadow: 0 0 20px rgba(108,117,250,0.9), 0 0 48px rgba(108,117,250,0.5); border-color: #a78bfa; }
+  }
+  .isp-price-card.featured-lte {
+    border: 2px solid #6c75fa !important;
+    animation: isp-lte-pulse 2.0s ease-in-out infinite;
+  }
+  .isp-price-card .isp-featured-banner {
+    position: absolute; top: 0; left: 0; right: 0;
+    text-align: center; font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+    padding: 4px 8px; text-transform: uppercase;
+  }
+  .isp-price-card .isp-price-big {
+    font-size: clamp(2.4rem, 5vw, 3.2rem);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .isp-price-card .isp-speed-row {
+    display: flex; gap: 12px; justify-content: center;
+    font-size: 13px;
+  }
+  .isp-price-card .isp-speed-row span {
+    display: flex; align-items: center; gap: 4px;
+  }
+  .isp-price-card .isp-features li {
+    list-style: none; padding: 3px 0;
+    font-size: 13px; display: flex; align-items: center; gap: 6px;
+  }
+  .isp-price-card .isp-features li::before {
+    content: '✓'; font-weight: 700; color: var(--isp-accent, #4ecdc4);
+  }
+
+  /* ── ISP Price Card Presets ── */
+  @keyframes isp-aurora-blob {
+    0%   { transform: translate(-20%, -20%) scale(1);   opacity: 0.7; }
+    33%  { transform: translate(10%, -30%) scale(1.2);  opacity: 0.9; }
+    66%  { transform: translate(-10%, 20%) scale(0.9);  opacity: 0.75; }
+    100% { transform: translate(-20%, -20%) scale(1);   opacity: 0.7; }
+  }
+  .isp-aurora-blob {
+    position: absolute; width: 160%; height: 160%;
+    top: -30%; left: -30%; border-radius: 50%;
+    filter: blur(60px); pointer-events: none; z-index: 0;
+    animation: isp-aurora-blob 6s ease-in-out infinite;
+  }
+  .isp-aurora-blob-2 {
+    position: absolute; width: 120%; height: 120%;
+    top: -10%; left: -10%; border-radius: 50%;
+    filter: blur(80px); pointer-events: none; z-index: 0;
+    animation: isp-aurora-blob 9s ease-in-out infinite reverse; opacity: 0.5;
+  }
+  .isp-preset-aurora { overflow: hidden; }
+  .isp-preset-aurora:hover .isp-aurora-blob { animation-duration: 3s; }
+  .isp-preset-aurora > *:not(.isp-featured-banner) { position: relative; z-index: 1; }
+
+  @keyframes isp-header-shift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  .isp-header-gradient { background-size: 200% 200%; animation: isp-header-shift 5s ease infinite; }
+  .isp-preset-hero-header { overflow: hidden; }
+
+  @keyframes isp-neon-border {
+    0%,100% { box-shadow: 0 0 8px var(--neon-c,#00eaff),0 0 20px var(--neon-c,#00eaff),inset 0 0 8px rgba(0,234,255,0.1); border-color: var(--neon-c,#00eaff); }
+    50%     { box-shadow: 0 0 16px var(--neon-c,#00eaff),0 0 40px var(--neon-c,#00eaff),0 0 80px var(--neon-c2,#ff00aa),inset 0 0 16px rgba(0,234,255,0.2); border-color: var(--neon-c2,#ff00aa); }
+  }
+  .isp-preset-neon-edge { border: 1.5px solid var(--neon-c,#00eaff) !important; animation: isp-neon-border 3s ease-in-out infinite; }
+  .isp-preset-neon-edge:hover { animation-duration: 1.2s; transform: translateY(-8px) scale(1.02) !important; }
+
+  .isp-preset-scattered { transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease !important; }
+
+  .isp-flip-scene { perspective: 1000px; width: 100%; height: 100%; }
+  .isp-flip-card { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.55s cubic-bezier(0.4,0,0.2,1); cursor: pointer; }
+  .isp-flip-card.flipped { transform: rotateY(180deg); }
+  .isp-flip-front, .isp-flip-back { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: inherit; }
+  .isp-flip-back { transform: rotateY(180deg); }
+
+  .isp-modal-overlay { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); animation: isp-modal-in 0.25s ease; }
+  @keyframes isp-modal-in { from { opacity: 0; } to { opacity: 1; } }
+  .isp-modal-inner { position: relative; max-width: 560px; width: 90vw; max-height: 88vh; overflow-y: auto; border-radius: 20px; animation: isp-modal-slide 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes isp-modal-slide { from { transform: scale(0.85) translateY(30px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+  .isp-modal-close { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.15); color: #fff; transition: background 0.2s; z-index: 2; }
+  .isp-modal-close:hover { background: rgba(255,255,255,0.3); }
+`;
+
+/** Module-level flag so FLEXIBLE_CSS is only injected into <head> once per page load. */
+let styleInjected = false;
+
+/**
+ * FlexibleSectionRenderer — top-level section component for the FLEXIBLE section type.
+ *
+ * Responsibilities:
+ * - Inject shared CSS animations and card effects once into <head>
+ * - Render an optional background image layer and optional animated background
+ * - Render optional header/footer graphic overlays
+ * - Delegate block rendering to DesignerBlocksRenderer (designer mockup format)
+ *   or to GridLayout / AbsoluteLayout / PresetLayout (classic FlexibleElement format)
+ */
+export default function FlexibleSectionRenderer({ section }: FlexibleSectionRendererProps) {
+  const { content, background, paddingTop, paddingBottom } = section;
+  // contentMode: "single" = 100vh snap section; "multi" = free-growing height
+  const contentMode = section.contentMode || (content as any).contentMode || "single";
+  const {
+    layout = { type: "preset" as const, preset: "2-col-split" as const },
+    elements = [],
+    headerGraphic,
+    footerGraphic,
+  } = content;
+  // Designer data (mockup format) — used when elements array is empty
+  const designerData = (content as any).designerData as string | null | undefined;
+
+  // Animated background config from content.animBg
+  const animBg: AnimBgConfig = (content as any).animBg || DEFAULT_ANIM_BG_CONFIG;
+
+  // Section ref passed to AnimBgRenderer for IntersectionObserver
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // Background image fields stored directly on section (not inside content)
+  const bgImageUrl      = (section as any).bgImageUrl      as string | undefined;
+  const bgImageSize     = (section as any).bgImageSize     as string | undefined;
+  const bgImagePosition = (section as any).bgImagePosition as string | undefined;
+  const bgImageRepeat   = (section as any).bgImageRepeat   as string | undefined;
+  const bgImageOpacity  = (section as any).bgImageOpacity  as number | undefined;
+
+  // Inject shared card/animation CSS once — avoids duplicate <style> tags on re-renders
+  useEffect(() => {
+    if (styleInjected) return;
+    const el = document.createElement("style");
+    el.textContent = FLEXIBLE_CSS;
+    document.head.appendChild(el);
+    styleInjected = true;
+  }, []);
+
+  // Resolve the background to a CSS color/gradient string and determine text contrast
+  const bgColor  = resolveBgColor(background);
+  const darkBg   = isDarkBackground(background);
+  // Gradient backgrounds require the `background` shorthand instead of `background-color`
+  const isBgGrad = isGradient(bgColor);
+
+  return (
+    <section
+      ref={sectionRef}
+      id={section.id}
+      className="sonic-section flexible-section"
+      data-content-mode={contentMode || "single"}
+      style={{
+        "--section-bg":  isBgGrad ? "#0f0c29" : bgColor,
+        "--section-pt":  `${paddingTop  ?? 80}px`,
+        "--section-pb":  `${paddingBottom ?? 80}px`,
+        position: "relative",
+        ...(isBgGrad ? { background: bgColor } : {}),
+      } as React.CSSProperties}
+    >
+      {/* Background image layer — absolute fill, z-index 0, below everything */}
+      {bgImageUrl && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 0,
+            backgroundImage: `url(${bgImageUrl})`,
+            backgroundSize: bgImageSize || "cover",
+            backgroundPosition: bgImagePosition || "center",
+            backgroundRepeat: bgImageRepeat || "no-repeat",
+            opacity: (bgImageOpacity ?? 100) / 100,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
+      {/* Animated background layers — rendered below content (z-index 0–10).
+          Disabled when a background image is set (bgImageUrl takes priority). */}
+      {animBg?.enabled && !bgImageUrl && (
+        <AnimBgRenderer
+          config={animBg}
+          colorPalette={section.colorPalette}
+          sectionRef={sectionRef}
+          sectionBackground={background}
+        />
+      )}
+
+      {headerGraphic?.enabled && (
+        <div className="section-header-graphic" style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 1 }}>
+          <GraphicRenderer config={headerGraphic} />
+        </div>
+      )}
+
+      <div className="section-content-wrapper" style={{ position: "relative", zIndex: 11 }}>
+        <div className="container-fluid">
+          {/* If we have designer data (mockup block format), render that first */}
+          {designerData
+            ? <DesignerBlocksRenderer designerData={designerData} darkBg={darkBg} />
+            : <>
+                {layout.type === "grid"     && <GridLayout    layout={layout} elements={elements} darkBg={darkBg} />}
+                {layout.type === "absolute" && <AbsoluteLayout elements={elements} darkBg={darkBg} />}
+                {layout.type === "preset"   && <PresetLayout  preset={layout.preset!} elements={elements} darkBg={darkBg} />}
+              </>
+          }
+        </div>
+      </div>
+
+      {footerGraphic?.enabled && (
+        <div className="section-footer-graphic" style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 1 }}>
+          <GraphicRenderer config={footerGraphic} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── Designer block helpers ───────────────────────────────────────────────────
+
+/**
+ * BlockStyleInjector — mounts a bare style element and keeps its textContent
+ * in sync with the css prop via a ref+effect.
+ * Used to apply per-block customCss from the designer without global side-effects.
+ */
+function BlockStyleInjector({ css }: { css: string }) {
+  const ref = useRef<HTMLStyleElement>(null);
+  // Sync CSS string into the DOM node whenever the prop changes
+  useEffect(() => { if (ref.current) ref.current.textContent = css; }, [css]);
+  return <style ref={ref} />;
+}
+
+// ─── Designer Blocks Renderer (mockup format) ────────────────────────────────
+
+/** Pixel coordinates and dimensions for a block within the designer canvas. */
+type PixelPos = { x: number; y: number; w: number; h: number };
+
+/**
+ * Convert an absolute pixel value to a percentage of a canvas dimension.
+ * Guards against non-finite inputs (e.g. undefined or NaN from JSON) by defaulting to 0.
+ */
+function pct(px: unknown, canvas: number): string {
+  const n = isFinite(Number(px)) ? Number(px) : 0;
+  return ((n / canvas) * 100).toFixed(3) + "%";
+}
+
+/**
+ * Return the correct PixelPos for the current screen width using
+ * the responsive breakpoints matching the designer canvas (mobile ≤575, tablet ≤991).
+ * Falls back to the desktop pixelPos or a safe default if none is defined.
+ */
+function pickPos(block: { pixelPos?: PixelPos; tabletPos?: PixelPos; mobilePos?: PixelPos }, screenW: number): PixelPos {
+  if (screenW <= 575 && block.mobilePos) return block.mobilePos;
+  if (screenW <= 991 && block.tabletPos) return block.tabletPos;
+  return block.pixelPos || { x: 0, y: 0, w: 300, h: 180 };
+}
+
+/**
+ * Return the canonical canvas reference width for the active breakpoint.
+ * This is needed to convert pixel positions to correct percentages — each
+ * breakpoint has its own canvas width (mobile=375, tablet=768, desktop=variable).
+ */
+function canvasRefW(block: { pixelPos?: PixelPos; tabletPos?: PixelPos; mobilePos?: PixelPos }, desktopCW: number, screenW: number): number {
+  if (screenW <= 575 && block.mobilePos) return 375;
+  if (screenW <= 991 && block.tabletPos) return 768;
+  return desktopCW;
+}
+
+/**
+ * DesignerBlocksRenderer — parses the JSON blob saved by flexible-designer.html
+ * and renders the contained blocks using the correct layout engine:
+ *   - "free"  → absolute percentage-based positioning
+ *   - "grid"  → CSS grid with row/col coordinates from block.position
+ *   - preset  → flex fallback (single-row or stacked for multi-section mode)
+ *
+ * Tracks window width via state so blocks re-position correctly across breakpoints.
+ * Renders a graceful error message if designerData fails to parse.
+ */
+function DesignerBlocksRenderer({ designerData, darkBg }: { designerData: string; darkBg: boolean }) {
+  // Hooks must be called before any conditional returns
+  const [screenW, setScreenW] = useState(typeof window !== "undefined" ? window.innerWidth : 1440);
+  // Update screen width on resize so responsive positions re-calculate
+  useEffect(() => {
+    const onResize = () => setScreenW(window.innerWidth);
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  try {
+    const data = JSON.parse(designerData);
+    const blocks: Array<{
+      id: number; type: string;
+      position?: { row: number; col: number; colSpan?: number; rowSpan?: number; section?: number };
+      pixelPos?: PixelPos;
+      tabletPos?: PixelPos;
+      mobilePos?: PixelPos;
+      props?: Record<string, unknown>;
+      subElements?: Array<{ type: string; props?: Record<string, unknown>; x?: number; y?: number; w?: number | null }>;
+    }> = data.blocks || [];
+
+    // Nothing to render — return null to avoid empty DOM nodes
+    if (blocks.length === 0) {
+      return null;
+    }
+
+    const isFreeMode = data.positionMode === "free" || data.layoutType === "free";
+    const isMulti    = data.contentMode === "multi";
+    // multiLimit defines how many 100vh screens the section spans in multi mode
+    const multiLimit = isMulti ? (data.multiLimit || 1) : 1;
+    const containerH = isMulti ? `${multiLimit * 100}vh` : "100vh";
+
+    // ── Free / absolute positioning mode ──────────────────────────────────
+    if (isFreeMode) {
+      // cw/ch are the canvas dimensions recorded by the designer at save time
+      const cw = data.designerCanvasW || 1200;
+      const ch = data.designerCanvasH || 800;
+
+      return (
+        <div style={{
+          position: "relative",
+          width: "100%",
+          height: containerH,
+          minHeight: containerH,
+          overflow: "hidden",
+        }}>
+          {blocks.map((block) => {
+            // Pick the responsive position set and reference canvas width for this block
+            const pos = pickPos(block, screenW);
+            const refW = canvasRefW(block, cw, screenW);
+            return (
+              <div key={block.id} style={{
+                position: "absolute",
+                left:   pct(pos.x, refW),
+                top:    pct(pos.y, ch),
+                width:  pct(pos.w, refW),
+                height: pct(pos.h, ch),
+                overflow: "hidden",
+              }}>
+                <DesignerBlock block={block} darkBg={darkBg} />
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ── Grid layout mode ──────────────────────────────────────────────────
+    const isGrid = data.layoutType === "grid";
+    const cols   = data.grid?.cols || 3;
+    const rows   = data.grid?.rows || 2;
+    // In multi-section mode the grid must accommodate rows from all stacked sections
+    const totalRows = rows * multiLimit;
+    const gap    = data.grid?.gap  || 16;
+    const gridH  = containerH;
+
+    if (isGrid) {
+      return (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${cols}, 1fr)`,
+          gridTemplateRows: `repeat(${totalRows}, 1fr)`,
+          gap: `${gap}px`,
+          height: gridH,
+          minHeight: gridH,
+        }}>
+          {blocks.map((block) => {
+            const pos           = block.position || { row: 1, col: 1, colSpan: 1, rowSpan: 1, section: 0 };
+            // Offset the block's row by the section index so multi-section grids stack correctly
+            const sectionOffset = (pos.section || 0) * rows;
+            const absoluteRow   = sectionOffset + pos.row;
+            return (
+              <div key={block.id} style={{
+                gridColumn: `${pos.col} / span ${pos.colSpan || 1}`,
+                gridRow:    `${absoluteRow} / span ${pos.rowSpan || 1}`,
+              }}>
+                <DesignerBlock block={block} darkBg={darkBg} />
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // Preset / fallback: flex layout
+    // In multi mode blocks stack vertically, each taking an equal fraction of the total height
+    return (
+      <div style={{
+        display: "flex",
+        flexDirection: isMulti ? "column" : "row",
+        flexWrap: isMulti ? "nowrap" : "wrap",
+        gap: `${gap ?? 16}px`,
+        minHeight: gridH,
+      }}>
+        {blocks.map((block) => (
+          <div key={block.id} style={{ flex: isMulti ? `0 0 calc(${100 / multiLimit}%)` : "1 1 280px", minWidth: 0 }}>
+            <DesignerBlock block={block} darkBg={darkBg} />
+          </div>
+        ))}
+      </div>
+    );
+  } catch {
+    // JSON.parse or property access failed — show a non-crashing fallback
+    return <div className="text-muted text-center py-4">Unable to render section layout.</div>;
+  }
+}
+
+/**
+ * DesignerBlock — renders a single block from the flexible-designer JSON format.
+ *
+ * Handles:
+ * - Shell construction (background image/gradient, border, glow, shadow, shimmer)
+ * - Optional per-block customCss injection via BlockStyleInjector
+ * - Optional overlay colour layer (z-index 1) above the background
+ * - Scroll-triggered entrance animation via IntersectionObserver
+ * - Content delegation to renderInner() which switches on block.type
+ */
+function DesignerBlock({ block, darkBg }: {
+  block: { type: string; props?: Record<string, unknown>; subElements?: Array<{ type: string; props?: Record<string, unknown>; x?: number; y?: number; w?: number | null }> };
+  darkBg: boolean;
+}) {
+  const blockRef = useRef<HTMLDivElement>(null);
+  const p = block.props || {};
+  // Default text colour based on the section's background luminance
+  const tc = darkBg ? "#fff" : "#212529";
+  const subs = block.subElements || [];
+
+  // Padding / gap helpers
+  /** Build padding CSS from block props, falling back to the provided defaults. */
+  function blockPadding(defaultPx: string, defaultPxX: string): React.CSSProperties {
+    const pt  = p.paddingTop    !== undefined ? `${Number(p.paddingTop)}px`    : defaultPx;
+    const pb  = p.paddingBottom !== undefined ? `${Number(p.paddingBottom)}px` : defaultPx;
+    const pxv = p.paddingX      !== undefined ? `${Number(p.paddingX)}px`      : defaultPxX;
+    return { paddingTop: pt, paddingBottom: pb, paddingLeft: pxv, paddingRight: pxv };
+  }
+  const blockGap    = p.gap !== undefined ? `${Number(p.gap)}px` : undefined;
+  const borderRadius = p.borderRadius !== undefined ? `${Number(p.borderRadius)}px` : "8px";
+
+  // ── Scroll-in animation ────────────────────────────────────────────────
+  const scrollAnim = (p.scrollAnim as string) || "none";
+  // Hide the block immediately then reveal it with the chosen CSS animation class
+  // the first time the block intersects the viewport (one-shot, observer disconnects).
+  useEffect(() => {
+    if (scrollAnim === "none" || !blockRef.current) return;
+    const el = blockRef.current;
+    el.classList.add("flex-block-hidden");
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) {
+        el.classList.remove("flex-block-hidden");
+        el.classList.add(`flex-ba-${scrollAnim}`);
+        obs.disconnect();
+      }
+    }, { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [scrollAnim]);
+
+  // ── Visual shell props ─────────────────────────────────────────────────
+  const bgImageSafe  = safeUrl((p.bgImage as string) || "");
+  const bgGradient   = (p.bgGradient as string) || "";
+  const overlayColor = (p.bgOverlayColor as string) || "#000000";
+  const overlayOpac  = Number(p.bgOverlayOpacity ?? 0);
+  const borderWidthV = Number(p.borderWidth ?? 0);
+  const borderColorV = (p.borderColor as string) || "";
+  const boxShadowPre = (p.boxShadow as string) || "none";
+  const cardEffect   = (p.cardEffect as string) || "none";
+  const glowColor    = (p.glowColor as string) || "";
+  const customCss    = (p.customCss as string) || "";
+  // Tracks whether an external background (image or gradient) overrides the default bg
+  const hasExtBg     = !!(bgImageSafe || bgGradient);
+
+  // Divider is standalone — render as a plain <hr> with no shell wrapper
+  if (block.type === "divider") {
+    return <hr style={{ borderColor: (p.dividerColor as string) || "#dee2e6", borderWidth: `${Number(p.thickness) || 2}px 0 0`, margin: "8px 0" }} />;
+  }
+
+  // Build CSS class list for the shell: effect and shadow preset classes
+  const shellClasses = ["flex-designer-block"];
+  // shimmer uses ::before pseudo-element so it needs its own class rather than db-effect-shimmer
+  if (cardEffect === "shimmer") shellClasses.push("db-effect-shimmer");
+  else if (cardEffect !== "none") shellClasses.push(`db-effect-${cardEffect}`);
+  if (boxShadowPre !== "none") shellClasses.push(`db-shadow-${boxShadowPre}`);
+
+  const shellStyle: React.CSSProperties = {
+    position: "relative", height: "100%", overflow: "hidden", borderRadius,
+    ...(bgImageSafe ? { background: `url("${bgImageSafe}") center/cover no-repeat` } : {}),
+    ...(!bgImageSafe && bgGradient ? { background: bgGradient } : {}),
+    ...(borderWidthV > 0 && borderColorV ? { border: `${borderWidthV}px solid ${borderColorV}` } : {}),
+    ...(glowColor ? { ["--db-glow-color" as string]: glowColor } : {}),
+  };
+
+  /**
+   * renderInner — switch dispatcher that returns the inner JSX for the block.
+   * Each case maps a block type string to its dedicated render output.
+   * Called inside the shell wrapper so the shell handles background/overlay/effects.
+   */
+  function renderInner(): React.ReactNode {
+    switch (block.type) {
+      // ── hero: full-bleed heading + subtext + optional CTA button ──────────
+      case "hero":
+        return (
+          <div style={{
+            background: hasExtBg ? "transparent" : ((p.bgColor as string) || "#1e3a5f"),
+            color: (p.textColor as string) || "#fff",
+            padding: "40px 24px", height: "100%",
+            display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center",
+          }}>
+            {!!p.heading && <h2 style={{ margin: 0, marginBottom: "12px", fontSize: "clamp(20px,3vw,36px)", fontWeight: 700 }}>{p.heading as string}</h2>}
+            {!!p.subtext && <p style={{ margin: 0, opacity: 0.85, fontSize: "clamp(14px,2vw,18px)" }}>{p.subtext as string}</p>}
+            {!!p.showBtn && !!p.btnText && (
+              <a href={String(p.btnNavTarget || "#")} style={{ marginTop: "20px", background: (p.btnColor as string) || "#0d6efd", color: (p.btnTextColor as string) || "#fff", padding: "10px 24px", borderRadius: "6px", textDecoration: "none", fontWeight: 600, fontSize: "14px" }}>{p.btnText as string}</a>
+            )}
+          </div>
+        );
+
+      // ── card: content container with optional glass morphism effect ──────
+      case "card": {
+        const cardGlass = (p.glassEffect as string) || "none";
+        // Determine translucent background for glass variants; null means no glass
+        const cardGlassBg = cardGlass === "light" ? "rgba(255,255,255,0.15)" : cardGlass === "dark" ? "rgba(0,0,0,0.35)" : null;
+        // If an external background is set, keep card bg transparent so the shell bg shows through
+        const cardBg = cardGlassBg ?? (hasExtBg ? "transparent" : ((p.bgColor as string) || "transparent"));
+        const cardGlassStyle: React.CSSProperties = cardGlassBg ? {
+          backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+          border: `1px solid ${cardGlass === "light" ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.1)"}`,
+        } : {};
+        return (
+          <div style={{
+            background: cardBg, color: (p.textColor as string) || tc,
+            height: "100%", ...cardGlassStyle,
+            display: "flex", flexDirection: "column", gap: blockGap,
+            ...blockPadding("24px", "24px"),
+          }}>
+            {!!p.label && <h3 style={{ fontSize: "18px", fontWeight: 600, margin: 0 }}>{p.label as string}</h3>}
+            {subs.map((sub, i) => <DesignerSubElement key={i} sub={sub} />)}
+          </div>
+        );
+      }
+
+      // ── text-block / text: sub-element container with optional glass effect ─
+      case "text-block":
+      case "text": {
+        const tbGlass = (p.glassEffect as string) || "none";
+        // Same glass logic as card — light/dark/none
+        const tbGlassBg = tbGlass === "light" ? "rgba(255,255,255,0.15)" : tbGlass === "dark" ? "rgba(0,0,0,0.35)" : null;
+        const tbBg = tbGlassBg ?? (hasExtBg ? "transparent" : ((p.bgColor as string) || "transparent"));
+        const tbGlassStyle: React.CSSProperties = tbGlassBg ? {
+          backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+          border: `1px solid ${tbGlass === "light" ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.1)"}`,
+        } : {};
+        return (
+          <div style={{
+            background: tbBg, color: (p.textColor as string) || tc,
+            textAlign: (p.textAlign as React.CSSProperties["textAlign"]) || undefined,
+            height: "100%", display: "flex", flexDirection: "column", gap: blockGap,
+            ...tbGlassStyle, ...blockPadding("20px", "0px"),
+          }}>
+            {subs.map((sub, i) => <DesignerSubElement key={i} sub={sub} />)}
+          </div>
+        );
+      }
+
+      // ── banner: coloured strip with centred heading or sub-elements ─────
+      case "banner":
+        return (
+          <div style={{
+            background: hasExtBg ? "transparent" : ((p.bgColor as string) || "#1e3a5f"),
+            color: (p.textColor as string) || "#fff",
+            height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            gap: blockGap || "12px", ...blockPadding("24px", "24px"),
+          }}>
+            {subs.length > 0
+              ? subs.map((sub, i) => <DesignerSubElement key={i} sub={sub} />)
+              : !!p.heading && <span style={{ fontSize: "18px", fontWeight: 600 }}>{p.heading as string}</span>
+            }
+          </div>
+        );
+
+      // ── stats: centred metric display — number, label, optional icon ─────
+      case "stats": {
+        // Apply bgOpacity (0-100) to produce transparent rgba background when needed
+        const statsBgRaw  = (p.bgColor as string) || "transparent";
+        const statsBgOpac = p.bgOpacity !== undefined ? Number(p.bgOpacity) : 100;
+        const statsBg     = hasExtBg ? "transparent" : applyBgOpacity(statsBgRaw, statsBgOpac);
+        return (
+          <div style={{
+            background: statsBg,
+            color: (p.textColor as string) || tc,
+            padding: "24px", height: "100%",
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center",
+          }}>
+            {subs.length > 0
+              ? subs.map((sub, i) => <DesignerSubElement key={i} sub={sub} />)
+              : <>
+                  {!!p.icon && <i className={`bi ${p.icon as string}`} style={{ fontSize: "2rem", marginBottom: "8px", color: "#0d6efd" }} />}
+                  {!!p.number && <div style={{ fontSize: "2.5rem", fontWeight: 800, lineHeight: 1 }}>{p.number as string}</div>}
+                  {!!p.statLabel && <div style={{ fontSize: "13px", opacity: 0.7, marginTop: "4px" }}>{p.statLabel as string}</div>}
+                </>
+            }
+          </div>
+        );
+      }
+
+      // ── image: cover-fit image with placeholder icon when no src is set ──
+      case "image":
+        return (
+          <div style={{ height: "100%", overflow: "hidden", minHeight: "200px" }}>
+            {p.src
+              ? <img src={p.src as string} alt={(p.alt as string) || ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#adb5bd", background: "#f8f9fa" }}><i className="bi bi-image" style={{ fontSize: "3rem" }} /></div>
+            }
+          </div>
+        );
+
+      // ── video: autoplay/loop cover video with poster and empty-state icon ─
+      case "video":
+        return (
+          <div style={{ height: "100%", overflow: "hidden", minHeight: "200px", background: "#000" }}>
+            {p.src
+              ? <video src={p.src as string} poster={(p.poster as string) || undefined} autoPlay={!!p.autoplay} loop={!!p.loop} muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#adb5bd" }}><i className="bi bi-play-circle" style={{ fontSize: "3rem" }} /></div>
+            }
+          </div>
+        );
+
+      // ── html: raw HTML block — only shown as placeholder in admin preview;
+      //    actual HTML is rendered server-side via the FlexibleElement pipeline ─
+      case "html":
+        return (
+          <div style={{ height: "100%", color: tc, padding: "8px", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.5, fontSize: "0.8rem" }}>
+            HTML block — visible on live page
+          </div>
+        );
+
+      // ── isp-price-card: ISP pricing card with animations and presets ──────
+      case "isp-price-card": {
+        const pkg      = (p.packageType as string) || "fibre";
+        const dlNum    = parseFloat((p.downloadSpeed as string) || "0") || 0;
+        const ulNum    = parseFloat((p.uploadSpeed   as string) || "0") || 0;
+        const features = ((p.features as string) || "").split("\n").filter(Boolean);
+        const pkgIcon  = pkg === "wifi" ? "bi-wifi" : pkg === "lte" ? "bi-reception-4" : pkg === "fwa" ? "bi-broadcast" : "bi-lightning-charge";
+        return (
+          <ISPPriceCard
+            packageName={(p.packageName as string) || "Package"}
+            packageIcon={pkgIcon}
+            packageType={pkg}
+            price={(p.price as string) || "R0"}
+            priceLabel={(p.priceLabel as string) || "/pm"}
+            downloadSpeed={dlNum}
+            uploadSpeed={ulNum}
+            speedUnit={(p.speedUnit as string) || "Mbps"}
+            features={features}
+            isFeatured={!!p.isFeatured}
+            featuredLabel={(p.featuredLabel as string) || "MOST POPULAR"}
+            accentColor={(p.accentColor as string) || "#4ecdc4"}
+            cardBg={(p.cardBgColor as string) || "#0f172a"}
+            textColor={(p.textColor as string) || "#ffffff"}
+            buttonText={(p.buttonText as string) || "Get Started"}
+            buttonHref={(p.navTarget as string) || "#"}
+            cardPreset={(p.cardPreset as any) || "aurora"}
+            expandMode={(p.expandMode as any) || "flip"}
+            headerImage={(p.headerImage as string) || ""}
+          />
+        );
+      }
+
+      // ── default: unknown block type — render the type name as a placeholder ─
+      default:
+        return (
+          <div style={{ padding: "20px", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#6c757d" }}>
+            <span style={{ fontSize: "12px" }}>{block.type}</span>
+          </div>
+        );
+    }
+  }
+
+  return (
+    <div ref={blockRef} className={shellClasses.join(" ")} style={shellStyle}>
+      {customCss && <BlockStyleInjector css={customCss} />}
+      {overlayOpac > 0 && (
+        <div aria-hidden style={{
+          position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none",
+          background: overlayColor, opacity: overlayOpac / 100, borderRadius: "inherit",
+        }} />
+      )}
+      <div style={{ position: "relative", zIndex: 2, height: "100%" }}>
+        {renderInner()}
+      </div>
+    </div>
+  );
+}
+
+// ─── ISP Price Card Component ────────────────────────────────────────────────
+
+interface ISPPriceCardProps {
+  packageName: string;
+  packageIcon: string;
+  packageType: string;
+  price: string;
+  priceLabel: string;
+  downloadSpeed: number;
+  uploadSpeed: number;
+  speedUnit: string;
+  features: string[];
+  isFeatured: boolean;
+  featuredLabel: string;
+  accentColor: string;
+  cardBg: string;
+  textColor: string;
+  buttonText: string;
+  buttonHref: string;
+  cardPreset?: "aurora" | "hero-header" | "neon-edge" | "scattered" | "flip-modal";
+  expandMode?: "flip" | "modal" | "both";
+  headerImage?: string;
+}
+
+/**
+ * ISPPriceCard — animated pricing card for ISP packages.
+ *
+ * Features:
+ * - Count-up animation on download/upload speeds when the user hovers (requestAnimationFrame,
+ *   ease-out cubic, 900ms duration)
+ * - Featured badge + package-type-specific animated border (fire/wifi/LTE CSS animations)
+ * - Routes rendering to one of five visual presets via cardPreset prop
+ *
+ * State: dlDisplay / ulDisplay track the currently shown animated speed values.
+ * The `hovering` ref prevents a prop-change effect from overwriting an in-progress animation.
+ */
+function ISPPriceCard({
+  packageName, packageIcon, packageType,
+  price, priceLabel,
+  downloadSpeed, uploadSpeed, speedUnit,
+  features, isFeatured, featuredLabel,
+  accentColor, cardBg, textColor,
+  buttonText, buttonHref,
+  cardPreset = "aurora" as const,
+  expandMode = "flip" as const,
+  headerImage = "",
+}: ISPPriceCardProps) {
+  const [dlDisplay, setDlDisplay] = useState(downloadSpeed);
+  const [ulDisplay, setUlDisplay] = useState(uploadSpeed);
+  // Store rAF IDs so we can cancel them on unmount or prop change
+  const dlAnimRef = useRef<number | null>(null);
+  const ulAnimRef = useRef<number | null>(null);
+  // Tracks whether the card is currently hovered so prop-change effects don't interfere
+  const hovering = useRef(false);
+
+  /**
+   * runCountUp — drives a single count-up animation from 0 to target using
+   * requestAnimationFrame with an ease-out cubic curve over 900ms.
+   */
+  const runCountUp = useCallback((
+    target: number,
+    setter: (v: number) => void,
+    ref: React.MutableRefObject<number | null>,
+  ) => {
+    const duration = 900;
+    const start = performance.now();
+    function step(now: number) {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setter(Math.round(eased * target));
+      if (progress < 1) ref.current = requestAnimationFrame(step);
+    }
+    ref.current = requestAnimationFrame(step);
+  }, []);
+
+  /** On hover start: reset displays to 0 and launch count-up animations. */
+  const handleMouseEnter = useCallback(() => {
+    hovering.current = true;
+    setDlDisplay(0);
+    setUlDisplay(0);
+    runCountUp(downloadSpeed, setDlDisplay, dlAnimRef);
+    runCountUp(uploadSpeed,   setUlDisplay, ulAnimRef);
+  }, [downloadSpeed, uploadSpeed, runCountUp]);
+
+  /** On hover end: snap back to the actual speed values immediately. */
+  const handleMouseLeave = useCallback(() => {
+    hovering.current = false;
+    setDlDisplay(downloadSpeed);
+    setUlDisplay(uploadSpeed);
+  }, [downloadSpeed, uploadSpeed]);
+
+  // Keep display values in sync with props when not hovering (e.g. admin edits)
+  useEffect(() => {
+    if (!hovering.current) {
+      setDlDisplay(downloadSpeed);
+      setUlDisplay(uploadSpeed);
+    }
+  }, [downloadSpeed, uploadSpeed]);
+
+  // Cancel any in-flight rAF loops on unmount to prevent state updates on dead components
+  useEffect(() => { return () => {
+    if (dlAnimRef.current) cancelAnimationFrame(dlAnimRef.current);
+    if (ulAnimRef.current) cancelAnimationFrame(ulAnimRef.current);
+  }; }, []);
+
+  // Determine the CSS animation class for the featured border based on package type
+  const featuredClass =
+    isFeatured && packageType === "wifi" ? "featured-wifi" :
+    isFeatured && (packageType === "lte" || packageType === "fwa") ? "featured-lte" :
+    isFeatured ? "featured-fire" : "";
+
+  // Collect shared props passed to whichever preset sub-component is active
+  const baseProps: CardBaseProps = {
+    packageName, packageIcon, packageType,
+    price, priceLabel,
+    downloadSpeed, uploadSpeed, speedUnit,
+    features, isFeatured, featuredLabel,
+    accentColor, cardBg, textColor,
+    buttonText, buttonHref,
+    dlDisplay, ulDisplay,
+    handleMouseEnter, handleMouseLeave,
+    featuredClass,
+  };
+
+  // Route to the correct visual preset component; aurora is the default
+  if (cardPreset === "hero-header")  return <HeroHeaderCard  {...baseProps} headerImage={headerImage} />;
+  if (cardPreset === "neon-edge")    return <NeonEdgeCard    {...baseProps} />;
+  if (cardPreset === "scattered")    return <ScatteredCard   {...baseProps} />;
+  if (cardPreset === "flip-modal")   return <FlipModalCard   {...baseProps} expandMode={expandMode} />;
+  return <AuroraCard {...baseProps} />;
+}
+
+// ─── ISP Price Card Preset Sub-Components ────────────────────────────────────
+
+interface CardBaseProps {
+  packageName: string; packageIcon: string; packageType: string;
+  price: string; priceLabel: string;
+  downloadSpeed: number; uploadSpeed: number; speedUnit: string;
+  features: string[];
+  isFeatured: boolean; featuredLabel: string;
+  accentColor: string; cardBg: string; textColor: string;
+  buttonText: string; buttonHref: string;
+  dlDisplay: number; ulDisplay: number;
+  handleMouseEnter: () => void; handleMouseLeave: () => void;
+  featuredClass: string;
+  headerImage?: string;
+  expandMode?: string;
+}
+
+/**
+ * AuroraCard — default ISP card preset.
+ * Featured cards render two animated radial-gradient blobs that drift behind the content
+ * and are elevated slightly with translateY(-12px) scale(1.03) to draw visual focus.
+ */
+function AuroraCard({
+  packageName, packageIcon, price, priceLabel,
+  dlDisplay, ulDisplay, speedUnit, features, isFeatured, featuredLabel,
+  accentColor, cardBg, textColor, buttonText, buttonHref,
+  handleMouseEnter, handleMouseLeave, featuredClass,
+}: CardBaseProps) {
+  return (
+    <div
+      className={`isp-price-card isp-preset-aurora ${featuredClass}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        background: cardBg, color: textColor, borderRadius: "20px",
+        padding: isFeatured ? "36px 28px 28px" : "28px",
+        height: "100%", display: "flex", flexDirection: "column", gap: "16px",
+        border: isFeatured ? "2px solid transparent" : "1px solid rgba(255,255,255,0.08)",
+        "--isp-accent": accentColor,
+        position: "relative",
+        transform: isFeatured ? "translateY(-12px) scale(1.03)" : undefined,
+        boxShadow: isFeatured ? `0 24px 60px ${accentColor}44` : "0 8px 32px rgba(0,0,0,0.3)",
+      } as React.CSSProperties}
+    >
+      {isFeatured && (
+        <>
+          <div className="isp-aurora-blob" style={{ background: `radial-gradient(circle, ${accentColor}cc 0%, ${accentColor}22 60%, transparent 100%)` }} />
+          <div className="isp-aurora-blob-2" style={{ background: `radial-gradient(circle, ${accentColor}88 0%, transparent 70%)` }} />
+        </>
+      )}
+      {isFeatured && (
+        <div className="isp-featured-banner" style={{ background: `linear-gradient(90deg, ${accentColor}cc, ${accentColor})`, color: "#fff" }}>{featuredLabel}</div>
+      )}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <i className={`bi ${packageIcon}`} style={{ fontSize: "1.2rem", color: accentColor }} />
+        <span style={{ fontWeight: 700, fontSize: "15px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{packageName}</span>
+      </div>
+      <div style={{ textAlign: "center", lineHeight: 1 }}>
+        <div className="isp-price-big" style={{ color: accentColor }}>{price}</div>
+        <div style={{ fontSize: "13px", opacity: 0.6, marginTop: "4px" }}>{priceLabel}</div>
+      </div>
+      <div className="isp-speed-row" style={{ color: textColor }}>
+        <span><i className="bi bi-arrow-down-circle" style={{ color: accentColor }} /><span className="isp-speed-num" style={{ fontWeight: 700 }}>{dlDisplay}</span><span style={{ opacity: 0.6 }}> {speedUnit}</span></span>
+        <span style={{ opacity: 0.3 }}>|</span>
+        <span><i className="bi bi-arrow-up-circle" style={{ color: accentColor }} /><span className="isp-speed-num" style={{ fontWeight: 700 }}>{ulDisplay}</span><span style={{ opacity: 0.6 }}> {speedUnit}</span></span>
+      </div>
+      {features.length > 0 && (
+        <ul className="isp-features" style={{ margin: 0, padding: 0, flex: 1 }}>
+          {features.map((f, i) => <li key={i} style={{ color: textColor }}>{f}</li>)}
+        </ul>
+      )}
+      <a href={buttonHref || "#"}
+        style={{ display: "block", textAlign: "center", background: accentColor, color: "#fff", padding: "12px 20px", borderRadius: "10px", textDecoration: "none", fontWeight: 700, fontSize: "14px", marginTop: "auto", transition: "filter 0.2s" }}
+        onMouseEnter={e => (e.currentTarget.style.filter = "brightness(1.2)")}
+        onMouseLeave={e => (e.currentTarget.style.filter = "")}
+      >{buttonText}</a>
+    </div>
+  );
+}
+
+/**
+ * HeroHeaderCard — ISP card with a full-width coloured/image header strip.
+ * The header uses an animated background-position shift (isp-header-shift keyframe).
+ * When `headerImage` is provided it renders as a cover image; otherwise falls back to
+ * an accent-colour gradient.
+ */
+function HeroHeaderCard({
+  packageName, packageIcon, price, priceLabel,
+  dlDisplay, ulDisplay, speedUnit, features, isFeatured, featuredLabel,
+  accentColor, cardBg, textColor, buttonText, buttonHref,
+  handleMouseEnter, handleMouseLeave, featuredClass, headerImage,
+}: CardBaseProps) {
+  // Fallback gradient used when no headerImage URL is provided
+  const grad = `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}88 50%, #0a0a2e 100%)`;
+  return (
+    <div
+      className={`isp-price-card isp-preset-hero-header ${featuredClass}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        background: cardBg, color: textColor, borderRadius: "20px",
+        height: "100%", display: "flex", flexDirection: "column", overflow: "hidden",
+        border: isFeatured ? `2px solid ${accentColor}` : "1px solid rgba(255,255,255,0.08)",
+        boxShadow: isFeatured ? `0 20px 50px ${accentColor}44` : "0 8px 32px rgba(0,0,0,0.3)",
+        "--isp-accent": accentColor,
+      } as React.CSSProperties}
+    >
+      <div className="isp-header-gradient" style={{
+        background: headerImage && safeUrl(headerImage) ? `url(${safeUrl(headerImage)}) center/cover no-repeat` : grad,
+        minHeight: "140px", display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center", gap: "8px",
+        padding: "20px", position: "relative",
+      }}>
+        {isFeatured && (
+          <div style={{ position: "absolute", top: "10px", right: "10px", background: "rgba(0,0,0,0.5)", color: "#fff", fontSize: "10px", fontWeight: 800, letterSpacing: "0.1em", padding: "4px 10px", borderRadius: "20px", textTransform: "uppercase" }}>
+            {featuredLabel}
+          </div>
+        )}
+        <i className={`bi ${packageIcon}`} style={{ fontSize: "2rem", color: "#fff", filter: "drop-shadow(0 0 8px rgba(255,255,255,0.5))" }} />
+        <span style={{ fontWeight: 800, fontSize: "16px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#fff" }}>{packageName}</span>
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "14px", padding: "22px" }}>
+        <div style={{ textAlign: "center", lineHeight: 1 }}>
+          <div className="isp-price-big" style={{ color: accentColor }}>{price}</div>
+          <div style={{ fontSize: "13px", opacity: 0.6, marginTop: "4px" }}>{priceLabel}</div>
+        </div>
+        <div className="isp-speed-row" style={{ color: textColor }}>
+          <span><i className="bi bi-arrow-down-circle" style={{ color: accentColor }} /><span className="isp-speed-num" style={{ fontWeight: 700 }}>{dlDisplay}</span><span style={{ opacity: 0.6 }}> {speedUnit}</span></span>
+          <span style={{ opacity: 0.3 }}>|</span>
+          <span><i className="bi bi-arrow-up-circle" style={{ color: accentColor }} /><span className="isp-speed-num" style={{ fontWeight: 700 }}>{ulDisplay}</span><span style={{ opacity: 0.6 }}> {speedUnit}</span></span>
+        </div>
+        {features.length > 0 && (
+          <ul className="isp-features" style={{ margin: 0, padding: 0, flex: 1 }}>
+            {features.map((f, i) => <li key={i} style={{ color: textColor }}>{f}</li>)}
+          </ul>
+        )}
+        <a href={buttonHref || "#"}
+          style={{ display: "block", textAlign: "center", background: accentColor, color: "#fff", padding: "12px 20px", borderRadius: "10px", textDecoration: "none", fontWeight: 700, fontSize: "14px", marginTop: "auto", transition: "filter 0.2s" }}
+          onMouseEnter={e => (e.currentTarget.style.filter = "brightness(1.2)")}
+          onMouseLeave={e => (e.currentTarget.style.filter = "")}
+        >{buttonText}</a>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * NeonEdgeCard — ISP card preset with a pulsing neon border animation.
+ * Uses CSS custom properties --neon-c and --neon-c2 for the animated dual-colour
+ * border glow defined by the isp-preset-neon-edge class in FLEXIBLE_CSS.
+ */
+function NeonEdgeCard({
+  packageName, packageIcon, price, priceLabel,
+  dlDisplay, ulDisplay, speedUnit, features, isFeatured, featuredLabel,
+  accentColor, cardBg, textColor, buttonText, buttonHref,
+  handleMouseEnter, handleMouseLeave, featuredClass,
+}: CardBaseProps) {
+  return (
+    <div
+      className={`isp-price-card isp-preset-neon-edge ${featuredClass}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        background: cardBg, color: textColor, borderRadius: "16px",
+        padding: isFeatured ? "36px 28px 28px" : "28px",
+        height: "100%", display: "flex", flexDirection: "column", gap: "16px",
+        "--neon-c": accentColor,
+        "--neon-c2": "#ff00cc",
+        "--isp-accent": accentColor,
+      } as React.CSSProperties}
+    >
+      {isFeatured && (
+        <div className="isp-featured-banner" style={{ background: `linear-gradient(90deg, ${accentColor}, #ff00cc)`, color: "#fff" }}>{featuredLabel}</div>
+      )}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <i className={`bi ${packageIcon}`} style={{ fontSize: "1.3rem", color: accentColor, filter: `drop-shadow(0 0 6px ${accentColor})` }} />
+        <span style={{ fontWeight: 700, fontSize: "15px", textTransform: "uppercase", letterSpacing: "0.1em", textShadow: `0 0 10px ${accentColor}88` }}>{packageName}</span>
+      </div>
+      <div style={{ textAlign: "center", lineHeight: 1 }}>
+        <div className="isp-price-big" style={{ color: accentColor, textShadow: `0 0 20px ${accentColor}` }}>{price}</div>
+        <div style={{ fontSize: "13px", opacity: 0.6, marginTop: "4px" }}>{priceLabel}</div>
+      </div>
+      <div className="isp-speed-row" style={{ color: textColor }}>
+        <span><i className="bi bi-arrow-down-circle" style={{ color: accentColor }} /><span className="isp-speed-num" style={{ fontWeight: 700 }}>{dlDisplay}</span><span style={{ opacity: 0.6 }}> {speedUnit}</span></span>
+        <span style={{ opacity: 0.3 }}>|</span>
+        <span><i className="bi bi-arrow-up-circle" style={{ color: accentColor }} /><span className="isp-speed-num" style={{ fontWeight: 700 }}>{ulDisplay}</span><span style={{ opacity: 0.6 }}> {speedUnit}</span></span>
+      </div>
+      {features.length > 0 && (
+        <ul className="isp-features" style={{ margin: 0, padding: 0, flex: 1 }}>
+          {features.map((f, i) => <li key={i} style={{ color: textColor }}>{f}</li>)}
+        </ul>
+      )}
+      <a href={buttonHref || "#"}
+        style={{ display: "block", textAlign: "center", background: "transparent", color: accentColor, border: `1.5px solid ${accentColor}`, padding: "12px 20px", borderRadius: "10px", textDecoration: "none", fontWeight: 700, fontSize: "14px", marginTop: "auto", transition: "all 0.2s", boxShadow: `0 0 12px ${accentColor}44` }}
+        onMouseEnter={e => { e.currentTarget.style.background = accentColor; e.currentTarget.style.color = "#fff"; e.currentTarget.style.boxShadow = `0 0 24px ${accentColor}`; }}
+        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = accentColor; e.currentTarget.style.boxShadow = `0 0 12px ${accentColor}44`; }}
+      >{buttonText}</a>
+    </div>
+  );
+}
+
+/**
+ * ScatteredCard — ISP card preset where each card has a deterministic non-zero tilt.
+ * The tilt angle is derived from the first character of packageName so sibling cards
+ * in the same section get different (but stable) rotations without needing a prop.
+ * On hover the tilt snaps to 0° and the card lifts — on leave it returns to its tilt.
+ */
+function ScatteredCard({
+  packageName, packageIcon, price, priceLabel,
+  dlDisplay, ulDisplay, speedUnit, features, isFeatured, featuredLabel,
+  accentColor, cardBg, textColor, buttonText, buttonHref,
+  handleMouseEnter, handleMouseLeave, featuredClass,
+}: CardBaseProps) {
+  // Derive a stable tilt in the range -4..+4 degrees from the first character code
+  const tilt = ((packageName.charCodeAt(0) || 65) % 9) - 4;
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  /** On enter: run count-up and animate the card to flat/lifted position. */
+  const handleEnter = useCallback(() => {
+    handleMouseEnter();
+    if (cardRef.current) cardRef.current.style.transform = "rotate(0deg) translateY(-10px) scale(1.03)";
+  }, [handleMouseEnter]);
+  /** On leave: restore the unique tilt angle. */
+  const handleLeave = useCallback(() => {
+    handleMouseLeave();
+    if (cardRef.current) cardRef.current.style.transform = `rotate(${tilt}deg)`;
+  }, [handleMouseLeave, tilt]);
+
+  return (
+    <div
+      ref={cardRef}
+      className={`isp-price-card isp-preset-scattered ${featuredClass}`}
+      onMouseEnter={handleEnter}
+      onMouseLeave={handleLeave}
+      style={{
+        background: cardBg, color: textColor, borderRadius: "18px",
+        padding: isFeatured ? "36px 28px 28px" : "28px",
+        height: "100%", display: "flex", flexDirection: "column", gap: "16px",
+        border: isFeatured ? `2px solid ${accentColor}` : "1px solid rgba(255,255,255,0.08)",
+        transform: `rotate(${tilt}deg)`,
+        boxShadow: "0 12px 40px rgba(0,0,0,0.4)",
+        "--isp-accent": accentColor,
+      } as React.CSSProperties}
+    >
+      {isFeatured && (
+        <div className="isp-featured-banner" style={{ background: `linear-gradient(90deg, ${accentColor}cc, ${accentColor})`, color: "#fff" }}>{featuredLabel}</div>
+      )}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <i className={`bi ${packageIcon}`} style={{ fontSize: "1.2rem", color: accentColor }} />
+        <span style={{ fontWeight: 700, fontSize: "15px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{packageName}</span>
+      </div>
+      <div style={{ textAlign: "center", lineHeight: 1 }}>
+        <div className="isp-price-big" style={{ color: accentColor }}>{price}</div>
+        <div style={{ fontSize: "13px", opacity: 0.6, marginTop: "4px" }}>{priceLabel}</div>
+      </div>
+      <div className="isp-speed-row" style={{ color: textColor }}>
+        <span><i className="bi bi-arrow-down-circle" style={{ color: accentColor }} /><span className="isp-speed-num" style={{ fontWeight: 700 }}>{dlDisplay}</span><span style={{ opacity: 0.6 }}> {speedUnit}</span></span>
+        <span style={{ opacity: 0.3 }}>|</span>
+        <span><i className="bi bi-arrow-up-circle" style={{ color: accentColor }} /><span className="isp-speed-num" style={{ fontWeight: 700 }}>{ulDisplay}</span><span style={{ opacity: 0.6 }}> {speedUnit}</span></span>
+      </div>
+      {features.length > 0 && (
+        <ul className="isp-features" style={{ margin: 0, padding: 0, flex: 1 }}>
+          {features.map((f, i) => <li key={i} style={{ color: textColor }}>{f}</li>)}
+        </ul>
+      )}
+      <a href={buttonHref || "#"}
+        style={{ display: "block", textAlign: "center", background: accentColor, color: "#fff", padding: "12px 20px", borderRadius: "10px", textDecoration: "none", fontWeight: 700, fontSize: "14px", marginTop: "auto", transition: "filter 0.2s" }}
+        onMouseEnter={e => (e.currentTarget.style.filter = "brightness(1.2)")}
+        onMouseLeave={e => (e.currentTarget.style.filter = "")}
+      >{buttonText}</a>
+    </div>
+  );
+}
+
+/**
+ * FlipModalCard — ISP card preset with a 3-D CSS flip reveal and optional modal expansion.
+ *
+ * expandMode controls what happens when the user clicks:
+ *   "flip"  — only rotates the card to show the features back face
+ *   "modal" — flips then opens a full-screen portal modal after 300ms (flip animation completes)
+ *   "both"  — flip + modal simultaneously
+ *
+ * The modal is rendered via createPortal(document.body) so it escapes any overflow:hidden
+ * container. Escape key and overlay click both close the modal.
+ */
+function FlipModalCard({
+  packageName, packageIcon, price, priceLabel,
+  dlDisplay, ulDisplay, speedUnit, features, isFeatured, featuredLabel,
+  accentColor, cardBg, textColor, buttonText, buttonHref,
+  handleMouseEnter, handleMouseLeave, featuredClass, expandMode,
+}: CardBaseProps) {
+  const [flipped, setFlipped] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  // Store the setTimeout ID so it can be cancelled on unmount
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up the delayed modal timer on unmount to prevent state updates on dead components
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  // Escape key closes modal
+  useEffect(() => {
+    if (!modalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setModalOpen(false); setFlipped(false); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [modalOpen]);
+
+  /**
+   * handleFlip — toggles the flip state and, depending on expandMode,
+   * schedules the modal to open after 300ms so the flip animation finishes first.
+   */
+  const handleFlip = useCallback(() => {
+    if (!flipped) {
+      setFlipped(true);
+      // Delay modal open to let the CSS flip animation (0.55s) finish
+      if (expandMode === "modal" || expandMode === "both") {
+        timerRef.current = setTimeout(() => setModalOpen(true), 300);
+      }
+    } else {
+      setFlipped(false);
+    }
+  }, [flipped, expandMode]);
+
+  return (
+    <>
+      <div
+        className={`isp-flip-scene ${featuredClass}`}
+        role="button"
+        tabIndex={0}
+        aria-label={flipped ? `Flip ${packageName} card back` : `Flip ${packageName} card to see details`}
+        style={{ height: "100%", cursor: "pointer" }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleFlip}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleFlip(); } }}
+      >
+        <div className={`isp-flip-card${flipped ? " flipped" : ""}`}>
+          <div className="isp-flip-front" style={{
+            background: cardBg, color: textColor, borderRadius: "20px",
+            padding: isFeatured ? "36px 28px 28px" : "28px",
+            display: "flex", flexDirection: "column", alignItems: "center",
+            justifyContent: "center", gap: "16px",
+            border: isFeatured ? `2px solid ${accentColor}` : "1px solid rgba(255,255,255,0.12)",
+            boxShadow: isFeatured ? `0 20px 50px ${accentColor}44` : "0 8px 24px rgba(0,0,0,0.3)",
+            textAlign: "center",
+            "--isp-accent": accentColor,
+          } as React.CSSProperties}>
+            {isFeatured && <div className="isp-featured-banner" style={{ background: `linear-gradient(90deg, ${accentColor}cc, ${accentColor})`, color: "#fff" }}>{featuredLabel}</div>}
+            <i className={`bi ${packageIcon}`} style={{ fontSize: "2.5rem", color: accentColor }} />
+            <div style={{ fontWeight: 800, fontSize: "15px", textTransform: "uppercase", letterSpacing: "0.08em" }}>{packageName}</div>
+            <div>
+              <div className="isp-price-big" style={{ color: accentColor }}>{price}</div>
+              <div style={{ fontSize: "13px", opacity: 0.6 }}>{priceLabel}</div>
+            </div>
+            <div className="isp-speed-row" style={{ color: textColor }}>
+              <span><i className="bi bi-arrow-down-circle" style={{ color: accentColor }} /><span className="isp-speed-num" style={{ fontWeight: 700 }}>{dlDisplay}</span><span style={{ opacity: 0.6 }}> {speedUnit}</span></span>
+              <span style={{ opacity: 0.3 }}>|</span>
+              <span><i className="bi bi-arrow-up-circle" style={{ color: accentColor }} /><span className="isp-speed-num" style={{ fontWeight: 700 }}>{ulDisplay}</span><span style={{ opacity: 0.6 }}> {speedUnit}</span></span>
+            </div>
+            <div style={{ fontSize: "12px", opacity: 0.5, marginTop: "auto" }}>Click to see details →</div>
+          </div>
+          <div className="isp-flip-back" style={{
+            background: `linear-gradient(160deg, ${cardBg} 0%, ${accentColor}22 100%)`,
+            color: textColor, borderRadius: "20px", padding: "24px",
+            display: "flex", flexDirection: "column", gap: "12px",
+            border: `2px solid ${accentColor}66`,
+            boxShadow: `0 20px 50px ${accentColor}33`,
+          }}>
+            <div style={{ fontWeight: 800, fontSize: "14px", textTransform: "uppercase", letterSpacing: "0.08em", color: accentColor, borderBottom: `1px solid ${accentColor}44`, paddingBottom: "10px" }}>
+              {packageName} — Features
+            </div>
+            {features.length > 0 ? (
+              <ul className="isp-features" style={{ margin: 0, padding: 0, flex: 1 }}>
+                {features.map((f, i) => <li key={i} style={{ color: textColor }}>{f}</li>)}
+              </ul>
+            ) : (
+              <p style={{ opacity: 0.5, fontSize: "13px" }}>No features listed.</p>
+            )}
+            <a href={buttonHref || "#"} onClick={e => e.stopPropagation()}
+              style={{ display: "block", textAlign: "center", background: accentColor, color: "#fff", padding: "12px 20px", borderRadius: "10px", textDecoration: "none", fontWeight: 700, fontSize: "14px", marginTop: "auto", transition: "filter 0.2s" }}
+              onMouseEnter={e => (e.currentTarget.style.filter = "brightness(1.2)")}
+              onMouseLeave={e => (e.currentTarget.style.filter = "")}
+            >{buttonText}</a>
+            <button onClick={e => { e.stopPropagation(); setFlipped(false); }} style={{ background: "transparent", border: "none", color: textColor, opacity: 0.5, fontSize: "12px", cursor: "pointer", marginTop: "4px" }}>← Flip back</button>
+          </div>
+        </div>
+      </div>
+      {modalOpen && createPortal(
+        <div className="isp-modal-overlay" onClick={() => { setModalOpen(false); setFlipped(false); }}>
+          <div className="isp-modal-inner" role="dialog" aria-modal="true" aria-label={`${packageName} details`} style={{ background: cardBg, color: textColor, border: `2px solid ${accentColor}66` }} onClick={e => e.stopPropagation()}>
+            <button className="isp-modal-close" onClick={() => { setModalOpen(false); setFlipped(false); }}>✕</button>
+            <div style={{ background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}66 100%)`, padding: "32px 28px", borderRadius: "18px 18px 0 0", textAlign: "center" }}>
+              <i className={`bi ${packageIcon}`} style={{ fontSize: "3rem", color: "#fff", filter: "drop-shadow(0 0 12px rgba(255,255,255,0.5))" }} />
+              <div style={{ fontWeight: 900, fontSize: "20px", textTransform: "uppercase", letterSpacing: "0.1em", color: "#fff", marginTop: "10px" }}>{packageName}</div>
+            </div>
+            <div style={{ padding: "28px" }}>
+              <div style={{ textAlign: "center", marginBottom: "20px" }}>
+                <div className="isp-price-big" style={{ color: accentColor }}>{price}</div>
+                <div style={{ fontSize: "14px", opacity: 0.6 }}>{priceLabel}</div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "center", gap: "32px", marginBottom: "20px" }}>
+                <div style={{ textAlign: "center" }}>
+                  <i className="bi bi-arrow-down-circle" style={{ color: accentColor, fontSize: "1.5rem" }} />
+                  <div style={{ fontWeight: 800, fontSize: "1.4rem" }}>{dlDisplay}</div>
+                  <div style={{ opacity: 0.6, fontSize: "12px" }}>{speedUnit} Down</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <i className="bi bi-arrow-up-circle" style={{ color: accentColor, fontSize: "1.5rem" }} />
+                  <div style={{ fontWeight: 800, fontSize: "1.4rem" }}>{ulDisplay}</div>
+                  <div style={{ opacity: 0.6, fontSize: "12px" }}>{speedUnit} Up</div>
+                </div>
+              </div>
+              {features.length > 0 && (
+                <ul className="isp-features" style={{ margin: "0 0 20px", padding: 0 }}>
+                  {features.map((f, i) => <li key={i} style={{ color: textColor, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>{f}</li>)}
+                </ul>
+              )}
+              <a href={buttonHref || "#"}
+                style={{ display: "block", textAlign: "center", background: accentColor, color: "#fff", padding: "14px 24px", borderRadius: "12px", textDecoration: "none", fontWeight: 800, fontSize: "16px", transition: "filter 0.2s" }}
+                onMouseEnter={e => (e.currentTarget.style.filter = "brightness(1.15)")}
+                onMouseLeave={e => (e.currentTarget.style.filter = "")}
+              >{buttonText}</a>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
+/**
+ * DesignerSubElement — renders a single sub-element within a designer block.
+ *
+ * Sub-elements are the leaf-level content pieces (heading, paragraph, button, image,
+ * badge, divider, icon) defined in a block's subElements array from the designer JSON.
+ *
+ * When the sub-element has any visual override (background, clip-path, opacity, etc.),
+ * it wraps the content in a shell div so those styles don't bleed into the element itself.
+ * If there are no overrides, the content is returned unwrapped to keep the DOM shallow.
+ *
+ * Per-element customCss is scoped with a unique class generated by useId() so rules
+ * from different sub-elements do not interfere with each other.
+ */
+/**
+ * DesignerSubElement — renders a single sub-element inside a DesignerBlock.
+ *
+ * Handles:
+ * - Per-type inner content (heading, paragraph, button, image, badge, divider, icon)
+ * - Optional visual shell wrapper for background/clip/opacity overrides
+ * - Per-element entrance animations (countUp, zoomIn, pulse, fadeIn, slideUp,
+ *   bounceIn, blurIn, typewriter) triggered on first viewport intersection
+ */
+function DesignerSubElement({ sub }: { sub: { type: string; props?: Record<string, unknown>; x?: number; y?: number; w?: number | null } }) {
+  const uid    = useId();
+  // Sanitise the React useId string (contains colons) for use as a CSS class name
+  const scopeClass = `dsub-${uid.replace(/:/g, "")}`;
+  const styleRef   = useRef<HTMLStyleElement>(null);
+  const p      = sub.props || {};
+
+  // ── Animation props ───────────────────────────────────────────────────────
+  const animEffect   = (p.animEffect   as string) || "none";
+  const animDuration = Number(p.animDuration) || 1000;
+  const animDelay    = Number(p.animDelay)    || 0;
+  const animRepeat   = !!p.animRepeat;
+  // Ref to the animation wrapper div (anime.js targets this element)
+  const subRef       = useRef<HTMLDivElement>(null);
+  // Ref to the <span> used for countUp / typewriter text animation
+  const countSpanRef = useRef<HTMLSpanElement>(null);
+  // Prevent retriggering non-looping animations
+  const animDone     = useRef(false);
+
+  // Trigger entrance animation when sub-element first enters the viewport
+  useEffect(() => {
+    if (animEffect === "none" || sub.type === "divider" || !subRef.current) return;
+    const el = subRef.current;
+    animDone.current = false;
+
+    const obs = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      if (!animRepeat && animDone.current) return;
+      animDone.current = true;
+      // Pulse loops so we don't disconnect — everything else disconnects after first trigger
+      if (animEffect !== "pulse") obs.disconnect();
+
+      const doAnim = () => {
+        switch (animEffect) {
+          case "countUp": {
+            // Animate the counter span from 0 → target number using rAF ease-out cubic
+            const span = countSpanRef.current;
+            if (!span) return;
+            const target = Number(span.dataset.target) || 0;
+            const start  = performance.now();
+            function stepCount(now: number) {
+              const t = Math.min((now - start) / animDuration, 1);
+              const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+              span.textContent = Math.round(eased * target).toLocaleString();
+              if (t < 1) requestAnimationFrame(stepCount);
+            }
+            requestAnimationFrame(stepCount);
+            break;
+          }
+          case "zoomIn":
+            animate(el, { scale: [0.3, 1], opacity: [0, 1], duration: animDuration, ease: "spring(1, 80, 10, 8)" });
+            break;
+          case "pulse":
+            // Loop: scale up and back down continuously
+            animate(el, { scale: [1, 1.1, 1], duration: animDuration, ease: "easeInOutSine", loop: animRepeat ? true : 1 });
+            break;
+          case "fadeIn":
+            animate(el, { opacity: [0, 1], duration: animDuration, ease: "cubicBezier(0.4,0,0.2,1)" });
+            break;
+          case "slideUp":
+            animate(el, { translateY: [40, 0], opacity: [0, 1], duration: animDuration, ease: "cubicBezier(0.4,0,0.2,1)" });
+            break;
+          case "bounceIn":
+            animate(el, { scale: [0.3, 1.08, 0.95, 1.02, 1], opacity: [0, 1, 1, 1, 1], duration: animDuration, ease: "spring(1, 80, 10, 0)" });
+            break;
+          case "blurIn":
+            animate(el, { filter: ["blur(14px)", "blur(0px)"], opacity: [0, 1], duration: animDuration, ease: "cubicBezier(0.4,0,0.2,1)" });
+            break;
+          case "typewriter": {
+            // Reveal full text one character at a time
+            const span = countSpanRef.current;
+            if (!span) return;
+            const fullText = span.dataset.fulltext || "";
+            span.textContent = "";
+            let i = 0;
+            const charDur = animDuration / Math.max(fullText.length, 1);
+            function typeNext() {
+              if (i < fullText.length) { span.textContent = fullText.slice(0, ++i); setTimeout(typeNext, charDur); }
+            }
+            typeNext();
+            break;
+          }
+        }
+      };
+
+      // Respect the per-element delay setting
+      if (animDelay > 0) setTimeout(doAnim, animDelay);
+      else doAnim();
+    }, { threshold: 0.2 });
+
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [animEffect, animDuration, animDelay, animRepeat, sub.type]);
+
+  // ── Visual layer props ────────────────────────────────────────────────────
+  const bgColor    = (p.bgColor    as string) || "";
+  const bgImage    = safeUrl((p.bgImage    as string) || "");
+  const bgGradient = (p.bgGradient as string) || "";
+  const clipPath   = (p.clipPath   as string) || "";
+  // Convert 0-100 opacity prop to a CSS 0.0-1.0 value; undefined means inherit
+  const elOpacity  = p.opacity    !== undefined ? Number(p.opacity) / 100 : undefined;
+  const zIdx       = p.zIndex     !== undefined ? Number(p.zIndex)        : undefined;
+  const elPad      = p.elPadding  !== undefined ? `${Number(p.elPadding)}px` : undefined;
+  const elRadius   = p.elRadius   !== undefined ? `${Number(p.elRadius)}px`  : undefined;
+  const customCss  = (p.customCss  as string) || "";
+
+  // Determine whether a shell wrapper is needed for any visual override
+  const hasShell = !!(bgColor || bgImage || bgGradient || clipPath ||
+                      elOpacity !== undefined || zIdx !== undefined || elPad || elRadius || customCss);
+
+  // Inject scoped customCss into the accompanying <style> element whenever it changes
+  useEffect(() => {
+    if (styleRef.current && customCss) {
+      styleRef.current.textContent = `.${scopeClass}{${customCss}}`;
+    }
+  }, [customCss, scopeClass]);
+
+  // ── Inner content per type ────────────────────────────────────────────────
+  /**
+   * inner — switch dispatcher that returns the raw JSX for the sub-element type.
+   * Kept separate from the shell so the same content can be rendered with or without a wrapper.
+   */
+  function inner(): React.ReactNode {
+    switch (sub.type) {
+      // ── heading: styled block-level heading (not a semantic h-tag — respects font props) ─
+      case "heading": {
+        const mb   = p.marginBottom !== undefined ? `${Number(p.marginBottom)}px` : "8px";
+        const text = (p.text as string) || "Heading";
+        // countUp: extract a numeric value from the text and animate 0→num
+        const cuMatch = animEffect === "countUp" ? text.match(/^([^0-9]*)(\d[\d,.]*)(.*)$/) : null;
+        const cuNum   = cuMatch ? parseFloat(cuMatch[2].replace(/[,.]/g, "")) : NaN;
+        const textContent = (cuMatch && !isNaN(cuNum))
+          ? <>{cuMatch[1]}<span ref={countSpanRef} data-target={String(cuNum)}>0</span>{cuMatch[3]}</>
+          : animEffect === "typewriter"
+          ? <span ref={countSpanRef} data-fulltext={text} />
+          : text;
+        return (
+          <div style={{
+            fontSize:      `${Number(p.fontSize) || 22}px`,
+            fontFamily:    (p.fontFamily as string) || undefined,
+            fontWeight:    (p.fontWeight as string) || "700",
+            color:         (p.color as string) || undefined,
+            textAlign:     (p.textAlign as React.CSSProperties["textAlign"]) || undefined,
+            lineHeight:    p.lineHeight !== undefined ? Number(p.lineHeight) : undefined,
+            letterSpacing: p.letterSpacing !== undefined ? `${Number(p.letterSpacing)}px` : undefined,
+            textTransform: (p.textTransform as React.CSSProperties["textTransform"]) || undefined,
+            marginBottom:  hasShell ? 0 : mb,
+            marginTop:     0,
+          }}>
+            {textContent}
+          </div>
+        );
+      }
+      // ── paragraph: flowing text block with configurable typography ──────
+      case "paragraph": {
+        const mb   = p.marginBottom !== undefined ? `${Number(p.marginBottom)}px` : "8px";
+        const text = (p.text as string) || "";
+        const cuMatch = animEffect === "countUp" ? text.match(/^([^0-9]*)(\d[\d,.]*)(.*)$/) : null;
+        const cuNum   = cuMatch ? parseFloat(cuMatch[2].replace(/[,.]/g, "")) : NaN;
+        const textContent = (cuMatch && !isNaN(cuNum))
+          ? <>{cuMatch[1]}<span ref={countSpanRef} data-target={String(cuNum)}>0</span>{cuMatch[3]}</>
+          : animEffect === "typewriter"
+          ? <span ref={countSpanRef} data-fulltext={text} />
+          : text;
+        return (
+          <p style={{
+            fontSize:      `${Number(p.fontSize) || 15}px`,
+            fontFamily:    (p.fontFamily as string) || undefined,
+            fontWeight:    (p.fontWeight as string) || undefined,
+            color:         (p.color as string) || undefined,
+            textAlign:     (p.textAlign as React.CSSProperties["textAlign"]) || undefined,
+            lineHeight:    p.lineHeight !== undefined ? Number(p.lineHeight) : 1.65,
+            letterSpacing: p.letterSpacing !== undefined ? `${Number(p.letterSpacing)}px` : undefined,
+            textTransform: (p.textTransform as React.CSSProperties["textTransform"]) || undefined,
+            maxWidth:      p.maxWidth && Number(p.maxWidth) > 0 ? `${Number(p.maxWidth)}px` : undefined,
+            marginBottom:  hasShell ? 0 : mb,
+            marginTop:     0,
+          }}>
+            {textContent}
+          </p>
+        );
+      }
+      // ── button: anchor styled as a button, navigates to navTarget ────────
+      case "button": {
+        const px   = p.paddingX     !== undefined ? Number(p.paddingX)     : 20;
+        const py   = p.paddingY     !== undefined ? Number(p.paddingY)     : 8;
+        const br   = p.borderRadius !== undefined ? `${Number(p.borderRadius)}px` : "6px";
+        const mt   = p.marginTop    !== undefined ? `${Number(p.marginTop)}px`    : "4px";
+        const icon = p.icon as string | undefined;
+        return (
+          <a href={String(p.navTarget || "#")} style={{
+            display:        "inline-block",
+            background:     (p.bgColor   as string) || "#0d6efd",
+            color:          (p.textColor as string) || "#fff",
+            padding:        `${py}px ${px}px`,
+            borderRadius:   br,
+            textDecoration: "none",
+            fontWeight:     600,
+            fontSize:       "14px",
+            marginTop:      mt,
+          }}>
+            {icon && <i className={`bi ${icon} me-1`} />}
+            {(p.text as string) || "Button"}
+          </a>
+        );
+      }
+      // ── image: inline image with optional clip-path and opacity override ─
+      case "image": {
+        const imgRadius = p.elRadius !== undefined ? `${Number(p.elRadius)}px` : "6px";
+        const imgOpacity = p.opacity !== undefined ? Number(p.opacity) / 100 : undefined;
+        return p.src
+          ? <img src={p.src as string} alt={(p.alt as string) || ""} style={{
+              maxWidth:     "100%",
+              display:      "block",
+              borderRadius: imgRadius,
+              marginBottom: "8px",
+              ...(imgOpacity !== undefined ? { opacity: imgOpacity } : {}),
+              ...(clipPath ? { clipPath } : {}),
+            }} />
+          : null;
+      }
+      // ── badge: pill-shaped inline label ──────────────────────────────────
+      case "badge": {
+        const br = p.borderRadius !== undefined ? `${Number(p.borderRadius)}px` : "20px";
+        return (
+          <span style={{
+            display:       "inline-block",
+            background:    (p.bgColor   as string) || "#0d6efd",
+            color:         (p.textColor as string) || "#fff",
+            padding:       "2px 10px",
+            borderRadius:  br,
+            fontSize:      p.fontSize ? `${Number(p.fontSize)}px` : "11px",
+            fontWeight:    700,
+            marginBottom:  hasShell ? 0 : "8px",
+            letterSpacing: "0.5px",
+          }}>
+            {(p.text as string) || "Badge"}
+          </span>
+        );
+      }
+      // ── divider: simple horizontal rule with configurable colour ─────────
+      case "divider":
+        return <hr style={{ borderColor: (p.dividerColor as string) || "#dee2e6", margin: "8px 0" }} />;
+      // ── icon: Bootstrap Icon with configurable size and colour ────────────
+      case "icon":
+        return (
+          <i className={`bi ${(p.iconName as string) || "bi-star"}`} style={{
+            fontSize:   `${Number(p.size) || 48}px`,
+            color:      (p.color as string) || "#0d6efd",
+            display:    "block",
+            textAlign:  (p.textAlign as React.CSSProperties["textAlign"]) || "left",
+          }} />
+        );
+      // Unknown sub-element type — render nothing
+      default:
+        return null;
+    }
+  }
+
+  // Divider needs no shell and no animation wrapper
+  if (sub.type === "divider") return inner() as React.ReactElement;
+
+  // ── Shell wrapper with visual layer ──────────────────────────────────────
+  // Priority order for backgrounds: image > gradient > solid colour (first match wins)
+  const shellStyle: React.CSSProperties = {
+    ...(bgImage     ? { background: `url("${bgImage}") center/cover no-repeat` }      : {}),
+    ...(!bgImage && bgGradient ? { background: bgGradient }                           : {}),
+    ...(!bgImage && !bgGradient && bgColor ? { backgroundColor: bgColor }             : {}),
+    ...(clipPath    ? { clipPath }                                                     : {}),
+    ...(elOpacity   !== undefined  ? { opacity: elOpacity }                           : {}),
+    // zIndex requires position:relative to take effect
+    ...(zIdx        !== undefined  ? { position: "relative" as const, zIndex: zIdx }  : {}),
+    ...(elPad       ? { padding: elPad }                                              : {}),
+    // overflow:hidden clips content to the rounded corners
+    ...(elRadius    ? { borderRadius: elRadius, overflow: "hidden" as const }         : {}),
+    marginBottom: p.marginBottom !== undefined ? `${Number(p.marginBottom)}px` : "8px",
+  };
+
+  // Build the content node (shell or bare)
+  const contentNode = hasShell
+    ? (
+      <div className={scopeClass} style={shellStyle}>
+        {customCss && <style ref={styleRef} />}
+        {inner()}
+      </div>
+    )
+    : <>{inner()}</>;
+
+  // When an animation effect is active, wrap in a ref div so anime.js can target it
+  if (animEffect !== "none") {
+    return <div ref={subRef}>{contentNode}</div>;
+  }
+
+  return contentNode;
+}
+
+// ─── Layout Engines ───────────────────────────────────────────────────────────
+
+/**
+ * GridLayout — renders FlexibleElements into an explicit row×column grid.
+ *
+ * Builds a 2-D array (grid[row][col]) by placing each element at its declared
+ * grid coordinates (1-indexed, converted to 0-indexed internally).
+ *
+ * A `consumed` matrix tracks columns that are covered by a preceding element's
+ * gridColSpan so those cells are skipped during rendering (avoids empty ghost cells).
+ *
+ * Rendered using CSS flexbox rows with percentage-based column widths so the layout
+ * degrades gracefully when the container is narrower than expected.
+ */
+function GridLayout({ layout, elements, darkBg }: {
+  layout: FlexibleSection["content"]["layout"];
+  elements: FlexibleElement[];
+  darkBg: boolean;
+}) {
+  const { gridRows = 1, gridCols = 12, gridGap = 20 } = layout;
+
+  // Initialise an empty 2-D array of element buckets indexed by [row][col]
+  const grid: FlexibleElement[][][] = Array.from({ length: gridRows }, () =>
+    Array.from({ length: gridCols }, () => [])
+  );
+
+  // Place each grid-mode element into the correct cell (0-indexed)
+  elements.forEach((el) => {
+    if (el.position.mode === "grid" && el.position.gridRow && el.position.gridCol) {
+      const r = el.position.gridRow - 1;
+      const c = el.position.gridCol - 1;
+      if (r >= 0 && r < gridRows && c >= 0 && c < gridCols) grid[r][c].push(el);
+    }
+  });
+
+  // Mark columns that are spanned by a multi-column element so they are not rendered separately
+  const consumed: boolean[][] = Array.from({ length: gridRows }, () => Array(gridCols).fill(false));
+  elements.forEach((el) => {
+    if (el.position.mode === "grid" && el.position.gridRow && el.position.gridCol) {
+      const r = el.position.gridRow - 1;
+      const c = el.position.gridCol - 1;
+      const span = (el.position.gridColSpan || 1) - 1;
+      for (let i = 1; i <= span && c + i < gridCols; i++) consumed[r][c + i] = true;
+    }
+  });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: `${gridGap}px` }}>
+      {grid.map((row, rowIdx) => (
+        <div key={rowIdx} style={{ display: "flex", gap: `${gridGap}px`, alignItems: "stretch" }}>
+          {row.map((cell, colIdx) => {
+            // Skip cells that are consumed by a spanning element starting in a previous column
+            if (consumed[rowIdx][colIdx]) return null;
+            const colSpan = cell[0]?.position.gridColSpan || 1;
+            // Calculate percentage width as a fraction of the total columns
+            const pct     = (colSpan / gridCols) * 100;
+            // Render an empty spacer for cells with no elements
+            if (cell.length === 0) {
+              return <div key={colIdx} style={{ flex: `0 0 ${pct}%` }} />;
+            }
+            return (
+              // Subtract a proportional share of the gap from the cell width to maintain alignment
+              <div key={colIdx} style={{ flex: `0 0 calc(${pct}% - ${(gridGap * (gridCols - 1) / gridCols)}px)`, minWidth: 0 }}>
+                {cell.map((el) => <ElementRenderer key={el.id} element={el} darkBg={darkBg} />)}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * AbsoluteLayout — renders FlexibleElements with CSS absolute positioning.
+ * Each element's position, size and z-index come directly from el.position.
+ * Only elements with position.mode === "absolute" are rendered; others are filtered out.
+ */
+function AbsoluteLayout({ elements, darkBg }: { elements: FlexibleElement[]; darkBg: boolean }) {
+  return (
+    <div style={{ position: "relative", minHeight: "400px" }}>
+      {elements
+        .filter((el) => el.position.mode === "absolute")
+        .map((el) => (
+          <div key={el.id} style={{ position: "absolute", left: el.position.x || "0", top: el.position.y || "0", width: el.position.width || "auto", height: el.position.height || "auto", zIndex: el.position.zIndex || 1 }}>
+            <ElementRenderer element={el} darkBg={darkBg} />
+          </div>
+        ))}
+    </div>
+  );
+}
+
+/**
+ * PresetLayout — renders FlexibleElements using Bootstrap responsive column classes.
+ *
+ * The `preset` string maps to a fixed array of col-md-* classes. Elements are placed
+ * into columns in order, cycling back to the start when there are more elements than
+ * columns (idx % colClasses.length).
+ *
+ * Falls back to "col-12" (full width) for unknown preset names.
+ */
+function PresetLayout({ preset, elements, darkBg }: { preset: string; elements: FlexibleElement[]; darkBg: boolean }) {
+  // Maps preset name to Bootstrap column classes for each column position
+  const colClassMap: Record<string, string[]> = {
+    "2-col-split":           ["col-md-6", "col-md-6"],
+    "3-col-grid":            ["col-md-4", "col-md-4", "col-md-4"],
+    "asymmetric-2col-60-40": ["col-md-7", "col-md-5"],
+    "asymmetric-2col-40-60": ["col-md-5", "col-md-7"],
+    "4-col-grid":            ["col-md-3", "col-md-3", "col-md-3", "col-md-3"],
+  };
+  const colClasses = colClassMap[preset] || ["col-12"];
+  return (
+    <div className="row g-3">
+      {elements.map((el, idx) => (
+        // Cycle through the column class array so extra elements wrap to the pattern
+        <div key={el.id} className={colClasses[idx % colClasses.length]}>
+          <ElementRenderer element={el} darkBg={darkBg} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Element Renderer ─────────────────────────────────────────────────────────
+
+/**
+ * ElementRenderer — wrapper component for all FlexibleElement types.
+ *
+ * Responsibilities:
+ * - Build a style object from element.styling (background, colour, font, spacing…)
+ * - Set up a one-shot IntersectionObserver to trigger the entrance animation when
+ *   the element first enters the viewport (animateElement via Anime.js)
+ * - Dispatch to the correct leaf component based on element.type
+ *
+ * The element starts invisible (opacity=0) when an animation is configured and
+ * becomes visible only after the observer fires, preventing a flash of content.
+ */
+function ElementRenderer({ element, darkBg }: { element: FlexibleElement; darkBg: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Set up scroll-triggered entrance animation — fires once then disconnects
+  useEffect(() => {
+    if (!element.animation?.type || !ref.current) return;
+    const el = ref.current;
+    // Hide the element before the animation starts to prevent a FOUC
+    el.style.opacity = "0";
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) { animateElement(el, element.animation!); observer.disconnect(); }
+        });
+      },
+      { threshold: 0.08 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [element.animation]);
+
+  // backgroundGradient takes priority over backgroundColor
+  const rawBg      = element.styling?.backgroundGradient || element.styling?.backgroundColor;
+  // CSS gradient strings require the `background` shorthand rather than `background-color`
+  const bgIsCssGrad = rawBg && isGradient(rawBg);
+
+  const style: React.CSSProperties = {
+    ...(bgIsCssGrad ? { background: rawBg } : { backgroundColor: rawBg }),
+    color:       element.styling?.textColor || (darkBg ? "#ffffff" : undefined),
+    fontSize:    element.styling?.fontSize ? `${element.styling.fontSize}px` : undefined,
+    fontWeight:  element.styling?.fontWeight,
+    fontFamily:  element.styling?.fontFamily,
+    padding:     element.styling?.padding,
+    margin:      element.styling?.margin,
+    borderRadius:element.styling?.borderRadius,
+    boxShadow:   element.styling?.boxShadow,
+    clipPath:    element.styling?.clipPath,
+    textAlign:   element.styling?.textAlign as React.CSSProperties["textAlign"],
+    height:      "100%",
+  };
+
+  return (
+    <div ref={ref} className={`flexible-element flexible-element-${element.type}`} style={style}>
+      {element.type === "text"    && <TextElement    element={element} darkBg={darkBg} />}
+      {element.type === "image"   && <ImageElement   element={element} />}
+      {element.type === "video"   && <VideoElement   element={element} />}
+      {element.type === "button"  && <ButtonElement  element={element} />}
+      {element.type === "banner"  && <BannerElement  element={element} />}
+      {element.type === "card"    && <CardElement    element={element} />}
+      {element.type === "stats"   && <StatsElement   element={element} />}
+      {element.type === "divider" && <DividerElement element={element} />}
+      {element.type === "html"    && <HTMLElement    element={element} />}
+      {element.type === "hero"    && <HeroElement    element={element} />}
+      {element.type === "isp-price-card" && <IspPriceCardElement element={element} />}
+    </div>
+  );
+}
+
+// ─── Element Components ───────────────────────────────────────────────────────
+
+/**
+ * TextElement — renders a rich text block with an optional badge, heading, subheading,
+ * and HTML body text. The fallback text colour adapts to the section's background luminance
+ * so content remains readable on both light and dark backgrounds.
+ */
+function TextElement({ element, darkBg }: { element: FlexibleElement; darkBg: boolean }) {
+  const { heading, subheading, text, badge, badgeColor, accent, headingAlign } = element.content;
+  // Use explicit textColor, or fall back to white/dark based on section background
+  const fallbackColor = element.styling?.textColor || (darkBg ? "#ffffff" : "#1a1a1a");
+
+  return (
+    <div className="text-element" style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+      {badge && (
+        <span className="badge mb-2 d-inline-block" style={{ background: badgeColor || accent || "#0969da", fontSize: "11px", letterSpacing: "0.06em", textTransform: "uppercase", padding: "5px 12px", borderRadius: "20px" }}>
+          {badge}
+        </span>
+      )}
+      {heading && (
+        <h2 style={{ fontWeight: element.styling?.fontWeight || 800, fontSize: element.styling?.fontSize ? `${element.styling.fontSize}px` : "2rem", textAlign: (headingAlign || element.styling?.textAlign) as React.CSSProperties["textAlign"] || "inherit", margin: "0 0 8px", color: fallbackColor, lineHeight: 1.2 }}>
+          {heading}
+        </h2>
+      )}
+      {subheading && (
+        <h4 style={{ fontWeight: 400, opacity: 0.75, fontSize: "1.1rem", margin: "0 0 12px", color: fallbackColor }}>
+          {subheading}
+        </h4>
+      )}
+      {text && (
+        <div
+          style={{ color: fallbackColor, opacity: 0.9 }}
+          /* SECURITY: admin-only CMS content, not public user input */
+          dangerouslySetInnerHTML={{ __html: text }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * ImageElement — renders a cover-fit image with an optional colour overlay and caption bar.
+ * imageHeight (in px) controls the container height; defaults to "100%" for fluid layouts.
+ */
+function ImageElement({ element }: { element: FlexibleElement }) {
+  const { imageSrc, imageAlt, imageOverlay, imageHeight, imageFit = "cover", imageCaption } = element.content;
+  return (
+    <div style={{ position: "relative", borderRadius: element.styling?.borderRadius, overflow: "hidden", height: imageHeight ? `${imageHeight}px` : "100%", minHeight: "140px" }}>
+      <img src={imageSrc} alt={imageAlt || ""} style={{ width: "100%", height: "100%", objectFit: imageFit as React.CSSProperties["objectFit"], display: "block" }} />
+      {imageOverlay && <div style={{ position: "absolute", inset: 0, background: imageOverlay }} />}
+      {imageCaption && <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.55)", color: "#fff", fontSize: "12px", padding: "6px 12px" }}>{imageCaption}</div>}
+    </div>
+  );
+}
+
+/**
+ * VideoElement — renders a native HTML5 video element. Muted is defaulted to true
+ * unless explicitly set to false; browsers require muted for autoplay to work.
+ */
+function VideoElement({ element }: { element: FlexibleElement }) {
+  const { videoSrc, videoPoster, autoplay, loop, muted, videoHeight, controls } = element.content;
+  return (
+    <video src={videoSrc} poster={videoPoster} autoPlay={autoplay} loop={loop} muted={muted !== false} controls={controls} style={{ width: "100%", height: videoHeight ? `${videoHeight}px` : "auto", display: "block", borderRadius: element.styling?.borderRadius }} />
+  );
+}
+
+/**
+ * ButtonElement — renders a Bootstrap-styled anchor button.
+ * Variant ("filled", "outline", "dark", "ghost") and size ("sm", "md", "lg") props
+ * are mapped to Bootstrap utility classes. textAlign drives flexbox justification.
+ */
+function ButtonElement({ element }: { element: FlexibleElement }) {
+  const { buttonText, buttonHref = "#", buttonVariant = "filled", buttonIcon, buttonSize = "md", buttonFullWidth } = element.content;
+  // Map size string to Bootstrap button-size class
+  const sizeClass    = buttonSize === "lg" ? "btn-lg" : buttonSize === "sm" ? "btn-sm" : "";
+  // Map variant string to Bootstrap button variant class
+  const variantClass = buttonVariant === "filled" ? "btn-primary" : buttonVariant === "outline" ? "btn-outline-primary" : buttonVariant === "dark" ? "btn-dark" : "btn-link";
+  // Map textAlign to a flexbox justify-content value for the wrapper div
+  const justify      = element.styling?.textAlign === "center" ? "center" : element.styling?.textAlign === "right" ? "flex-end" : "flex-start";
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: justify, height: "100%", padding: "8px 0" }}>
+      <a href={buttonHref} className={`btn ${variantClass} ${sizeClass}${buttonFullWidth ? " w-100" : ""}`} style={{ borderRadius: "8px" }}>
+        {buttonIcon && <i className={`bi ${buttonIcon} me-2`}></i>}
+        {buttonText}
+      </a>
+    </div>
+  );
+}
+
+/**
+ * BannerElement — full-width or floated image/video/gradient banner with optional
+ * heading, subheading and CTA button overlaid on top.
+ *
+ * bannerType: "image" | "video" | "gradient"
+ * bannerFloat: "left" | "right" — allows text content to flow around the banner
+ * bannerOverlay: semi-transparent scrim colour applied over media for text legibility
+ */
+function BannerElement({ element }: { element: FlexibleElement }) {
+  const { bannerType = "image", bannerSrc, bannerHeight = 280, bannerGradient, bannerHeading, bannerSubheading, bannerTextPosition = "center", bannerButton, bannerOverlay = "rgba(0,0,0,0.38)", bannerFloat, bannerFloatWidth = "45%" } = element.content;
+  const hasContent  = bannerHeading || bannerSubheading || bannerButton;
+  // Maps the bannerTextPosition string to a CSS alignItems value for flexbox centring
+  const alignMap: Record<string, React.CSSProperties["alignItems"]> = { left: "flex-start", center: "center", right: "flex-end" };
+  // CSS float class is applied when the banner should wrap inline with adjacent text
+  const floatClass  = bannerFloat === "left" ? "flex-banner-float-left" : bannerFloat === "right" ? "flex-banner-float-right" : "";
+
+  return (
+    <div className={`banner-element ${floatClass}`} style={{ height: `${bannerHeight}px`, overflow: "hidden", position: "relative", borderRadius: element.styling?.borderRadius || "12px", ...(bannerFloat ? { width: bannerFloatWidth, display: "inline-block" } : {}) }}>
+      {/* Background layer: gradient takes priority over image/video */}
+      {bannerGradient ? (
+        <div style={{ position: "absolute", inset: 0, background: bannerGradient }} />
+      ) : bannerType === "image" && bannerSrc ? (
+        <img src={bannerSrc} alt="Banner" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+      ) : bannerType === "video" && bannerSrc ? (
+        <video src={bannerSrc} autoPlay loop muted style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+      ) : null}
+      {hasContent && <div style={{ position: "absolute", inset: 0, background: bannerOverlay }} />}
+      {hasContent && (
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: alignMap[bannerTextPosition] || "center", padding: "32px", color: "#fff", textAlign: bannerTextPosition as React.CSSProperties["textAlign"] }}>
+          {bannerHeading && <h3 style={{ fontWeight: 800, fontSize: "1.6rem", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>{bannerHeading}</h3>}
+          {bannerSubheading && <p style={{ margin: "8px 0 0", opacity: 0.85, fontSize: "0.95rem" }}>{bannerSubheading}</p>}
+          {bannerButton && (
+            <a href={bannerButton.href || "#"} className="btn btn-light btn-sm mt-3" style={{ borderRadius: "6px", alignSelf: alignMap[bannerTextPosition] || "center" }}>
+              {bannerButton.icon && <i className={`bi ${bannerButton.icon} me-1`}></i>}
+              {bannerButton.text}
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * CardElement — Bootstrap card with support for five background types (default, colour,
+ * gradient, image, image+gradient overlay) and five visual effects (glass, glow, RGB,
+ * shimmer, pulse-glow) applied via FLEXIBLE_CSS classes.
+ *
+ * cardBgType drives which CSS background value is constructed. When an external background
+ * is present, the text colour automatically defaults to white for legibility.
+ */
+function CardElement({ element }: { element: FlexibleElement }) {
+  const { cardBgType = "default", cardBgColor, cardBgGradient, cardBgImage, cardBgImageGradient, cardEffect = "default", cardGlowColor, cardTitle, cardBody, cardImage, cardImageHeight = 180, cardButton, cardBadge, cardBadgeColor, cardTags, cardIcon, cardTextColor, cardFooter } = element.content;
+
+  // Determine the CSS background value from the active background type
+  let background: string | undefined;
+  if      (cardBgType === "gradient"       && cardBgGradient) background = cardBgGradient;
+  else if (cardBgType === "image"          && cardBgImage)    background = `url(${cardBgImage}) center/cover no-repeat`;
+  // image-gradient composites a gradient scrim over the image using CSS multiple-background syntax
+  else if (cardBgType === "image-gradient" && cardBgImage)    background = `${cardBgImageGradient || "linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7))"}, url(${cardBgImage}) center/cover no-repeat`;
+  else if (cardBgColor)                                        background = cardBgColor;
+
+  const isGlass    = cardEffect === "glass";
+  // Auto-set white text when a background image/gradient is present
+  const textColor  = cardTextColor || (background ? "#ffffff" : undefined);
+  // Compose Bootstrap + FLEXIBLE_CSS class names, filtering out empty strings for clean output
+  const cssClasses = ["card", "flexible-card", "h-100", isGlass ? "card-glass" : "", cardEffect === "glow" ? "card-glow" : "", cardEffect === "rgb" ? "card-rgb" : "", cardEffect === "shimmer" ? "card-shimmer" : "", cardEffect === "pulse-glow" ? "card-pulse-glow" : ""].filter(Boolean).join(" ");
+
+  const cardStyle: React.CSSProperties = {
+    background:    isGlass ? "rgba(255,255,255,0.12)" : background,
+    border:        isGlass ? "1px solid rgba(255,255,255,0.25)" : undefined,
+    borderRadius:  element.styling?.borderRadius || "14px",
+    boxShadow:     element.styling?.boxShadow || "0 4px 24px rgba(0,0,0,0.14)",
+    color:         textColor,
+    position:      "relative",
+    overflow:      "hidden",
+    "--card-glow-color": cardGlowColor || "rgba(9,105,218,0.55)",
+  } as React.CSSProperties;
+
+  return (
+    <div className={cssClasses} style={cardStyle}>
+      {cardImage && cardBgType !== "image" && cardBgType !== "image-gradient" && (
+        <div style={{ height: `${cardImageHeight}px`, overflow: "hidden" }}>
+          <img src={cardImage} alt="Card" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        </div>
+      )}
+      <div className="card-body" style={{ padding: "20px 22px" }}>
+        {cardIcon && <div style={{ marginBottom: "12px" }}><i className={`bi ${cardIcon}`} style={{ fontSize: "2rem", color: cardGlowColor || "#0969da" }}></i></div>}
+        {cardBadge && <span className="badge mb-2 d-inline-block" style={{ background: cardBadgeColor || "#0969da", fontSize: "10px", letterSpacing: "0.06em", borderRadius: "12px", padding: "4px 10px" }}>{cardBadge}</span>}
+        {cardTitle && <h5 className="card-title" style={{ fontWeight: 700, marginBottom: "8px" }}>{cardTitle}</h5>}
+        {cardBody  && <p  className="card-text"  style={{ opacity: 0.82, fontSize: "0.9rem", lineHeight: 1.6 }}>{cardBody}</p>}
+        {cardTags  && (
+          <div className="d-flex flex-wrap gap-1 mb-3">
+            {(Array.isArray(cardTags) ? cardTags : [cardTags]).map((tag: string, i: number) => (
+              <span key={i} style={{ fontSize: "11px", padding: "3px 10px", borderRadius: "20px", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)" }}>{tag}</span>
+            ))}
+          </div>
+        )}
+        {cardButton && (
+          <a href={cardButton.href || "#"} className={`btn btn-sm mt-1 ${cardButton.variant === "outline" ? "btn-outline-light" : cardButton.variant === "ghost" ? "btn-link" : "btn-primary"}`} style={{ borderRadius: "6px", fontSize: "13px" }}>
+            {cardButton.icon && <i className={`bi ${cardButton.icon} me-1`}></i>}
+            {cardButton.text}
+          </a>
+        )}
+      </div>
+      {cardFooter && <div className="card-footer" style={{ background: "rgba(0,0,0,0.12)", borderTop: "1px solid rgba(255,255,255,0.1)", fontSize: "12px", opacity: 0.75, padding: "10px 22px" }}>{cardFooter}</div>}
+    </div>
+  );
+}
+
+/**
+ * StatsElement — centred metric display with a large number, label, optional icon,
+ * optional sub-label, and optional trend indicator (up/down arrow + value).
+ * Supports a glass morphism background via the statsGlass flag.
+ */
+function StatsElement({ element }: { element: FlexibleElement }) {
+  const { statsNumber, statsLabel, statsIcon, statsSubLabel, statsAccentColor, statsTrend, statsTrendValue, statsGlass } = element.content;
+  const accent = statsAccentColor || "#0969da";
+
+  return (
+    <div className="flexible-stats" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 16px", textAlign: "center", height: "100%", borderRadius: element.styling?.borderRadius || "12px", ...(statsGlass ? { background: "rgba(255,255,255,0.1)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)" } : {}) }}>
+      {statsIcon && <i className={`bi ${statsIcon}`} style={{ fontSize: "2.4rem", color: accent, marginBottom: "10px" }}></i>}
+      <div style={{ fontSize: "2.8rem", fontWeight: 800, lineHeight: 1, color: accent, fontVariantNumeric: "tabular-nums" }}>{statsNumber}</div>
+      <div style={{ fontSize: "0.9rem", fontWeight: 600, marginTop: "6px", opacity: 0.85 }}>{statsLabel}</div>
+      {statsSubLabel   && <div style={{ fontSize: "0.78rem", opacity: 0.6, marginTop: "4px" }}>{statsSubLabel}</div>}
+      {statsTrend      && <div style={{ marginTop: "8px", fontSize: "12px", color: statsTrend === "up" ? "#22c55e" : "#ef4444" }}><i className={`bi bi-arrow-${statsTrend === "up" ? "up" : "down"}-right me-1`}></i>{statsTrendValue}</div>}
+    </div>
+  );
+}
+
+/**
+ * DividerElement — horizontal visual separator with three style variants:
+ *   "line"     — solid coloured rule (default)
+ *   "dots"     — three dots with the middle at full opacity
+ *   "gradient" — line that fades to transparent at both ends
+ *
+ * When dividerLabel is set, the line is split into two equal segments flanking the label text.
+ */
+function DividerElement({ element }: { element: FlexibleElement }) {
+  const { dividerType = "line", dividerHeight = 2, dividerColor = "#dee2e6", dividerLabel } = element.content;
+
+  // Label variant: two <hr> segments with the label centred between them
+  if (dividerLabel) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "16px 0" }}>
+        <hr style={{ flex: 1, height: `${dividerHeight}px`, background: dividerColor, border: "none", margin: 0 }} />
+        <span style={{ fontSize: "12px", fontWeight: 600, opacity: 0.6, whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: "0.05em" }}>{dividerLabel}</span>
+        <hr style={{ flex: 1, height: `${dividerHeight}px`, background: dividerColor, border: "none", margin: 0 }} />
+      </div>
+    );
+  }
+  // Dots variant: three circles, centre one at full opacity for visual emphasis
+  if (dividerType === "dots") {
+    return <div style={{ display: "flex", justifyContent: "center", gap: "8px", margin: "20px 0" }}>{[0,1,2].map(i => <span key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: dividerColor, display: "inline-block", opacity: i === 1 ? 1 : 0.4 }} />)}</div>;
+  }
+  // Gradient variant: rule that fades at both ends using a symmetric gradient
+  if (dividerType === "gradient") {
+    return <hr style={{ height: `${dividerHeight}px`, background: `linear-gradient(to right, transparent, ${dividerColor}, transparent)`, border: "none", margin: "20px 0" }} />;
+  }
+  // Default line variant
+  return <hr style={{ height: `${dividerHeight}px`, backgroundColor: dividerColor, border: "none", margin: "20px 0" }} />;
+}
+
+/**
+ * HTMLElement — injects raw HTML from element.content.html directly into the DOM.
+ * Restricted to admin-authored CMS content; not safe for arbitrary user input.
+ */
+function HTMLElement({ element }: { element: FlexibleElement }) {
+  /* SECURITY: admin-only CMS content */
+  return <div className="html-element" dangerouslySetInnerHTML={{ __html: element.content.html || "" }} />;
+}
+
+/**
+ * HeroElement — full-bleed hero section embedded within a FlexibleElement.
+ *
+ * Supports background image, autoplay cover video, and/or a gradient overlay.
+ * heroType "full-hero" expands to 100vh; "mini-hero" defaults to 320px minimum height.
+ * When both gradient and a dark overlay would appear, only the gradient is shown to avoid
+ * double-darkening the background.
+ */
+function HeroElement({ element }: { element: FlexibleElement }) {
+  const { heroType = "mini-hero", backgroundImage, backgroundVideo, gradient, gradientOpacity = 100, heroHeading, heroSubheading, heroText, heroButton, heroSecondButton, heroAlign = "center", heroMinHeight } = element.content;
+  // full-hero fills the entire viewport; mini-hero has a fixed minimum height
+  const minH   = heroMinHeight || (heroType === "full-hero" ? "100vh" : "320px");
+  const alignMap: Record<string, React.CSSProperties["alignItems"]> = { left: "flex-start", center: "center", right: "flex-end" };
+  const hasContent = heroHeading || heroSubheading || heroText || heroButton;
+
+  return (
+    <div className={`hero-element ${heroType}`} style={{ backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined, backgroundSize: "cover", backgroundPosition: "center", minHeight: minH, position: "relative", borderRadius: element.styling?.borderRadius || "14px", overflow: "hidden" }}>
+      {/* Video layer — renders below gradient (zIndex 0); muted required for autoplay */}
+      {backgroundVideo && (
+        <video autoPlay loop muted playsInline style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }}>
+          <source src={backgroundVideo} type="video/mp4" />
+        </video>
+      )}
+      {/* Gradient scrim — applied above the image/video layer */}
+      {gradient && <div style={{ position: "absolute", inset: 0, background: typeof gradient === "string" ? gradient : undefined, opacity: gradientOpacity / 100, zIndex: 1 }} />}
+      {/* Fallback dark overlay — only shown when no gradient is configured, to maintain text legibility */}
+      {!gradient && hasContent && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1 }} />}
+      {hasContent && (
+        <div style={{ position: "relative", zIndex: 2, minHeight: minH, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: alignMap[heroAlign] || "center", padding: "40px 36px", color: "#fff", textAlign: heroAlign as React.CSSProperties["textAlign"] }}>
+          {heroHeading    && <h2 style={{ fontWeight: 900, fontSize: "2.4rem", textShadow: "0 2px 16px rgba(0,0,0,0.45)", margin: 0, lineHeight: 1.15 }}>{heroHeading}</h2>}
+          {heroSubheading && <p  style={{ fontSize: "1.1rem", opacity: 0.88, margin: "12px 0 0", maxWidth: "580px" }}>{heroSubheading}</p>}
+          {/* SECURITY: admin-only CMS content */}
+          {heroText && <div style={{ margin: "16px 0 0", opacity: 0.82 }} dangerouslySetInnerHTML={{ __html: heroText }} />}
+          <div style={{ display: "flex", gap: "12px", marginTop: "24px", flexWrap: "wrap", justifyContent: heroAlign === "center" ? "center" : undefined }}>
+            {heroButton       && <a href={heroButton.href       || "#"} className="btn btn-primary btn-lg"      style={{ borderRadius: "8px", fontWeight: 600 }}>{heroButton.icon       && <i className={`bi ${heroButton.icon} me-2`}></i>}{heroButton.text}</a>}
+            {heroSecondButton && <a href={heroSecondButton.href || "#"} className="btn btn-outline-light btn-lg" style={{ borderRadius: "8px", fontWeight: 600 }}>{heroSecondButton.icon && <i className={`bi ${heroSecondButton.icon} me-2`}></i>}{heroSecondButton.text}</a>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── IspPriceCardElement — wraps ISPPriceCard for FlexibleElement content ────
+
+/**
+ * IspPriceCardElement — adapter that reads ISP pricing data from a FlexibleElement's
+ * content record and renders the shared ISPPriceCard component.
+ *
+ * Performs the same prop-extraction and type-coercion as the DesignerBlock isp-price-card
+ * case so both entry points produce identical card output.
+ */
+function IspPriceCardElement({ element }: { element: FlexibleElement }) {
+  const c = element.content as Record<string, unknown>;
+  const pkg      = (c.packageType as string) || "fibre";
+  // Ensure numeric types regardless of whether the stored value is a string or number
+  const dlNum    = parseFloat(String(c.downloadSpeed ?? 0)) || 0;
+  const ulNum    = parseFloat(String(c.uploadSpeed   ?? 0)) || 0;
+  // Features are stored as a newline-delimited string; split and filter empty lines
+  const features = (String(c.features || "")).split("\n").filter(Boolean);
+  // Select the appropriate Bootstrap Icon class for the package type
+  const pkgIcon  = pkg === "wifi" ? "bi-wifi" : pkg === "lte" ? "bi-reception-4" : pkg === "fwa" ? "bi-broadcast" : "bi-lightning-charge";
+  return (
+    <ISPPriceCard
+      packageName={(c.packageName as string) || "Package"}
+      packageIcon={pkgIcon}
+      packageType={pkg}
+      price={(c.price as string) || "R0"}
+      priceLabel={(c.priceLabel as string) || "/pm"}
+      downloadSpeed={dlNum}
+      uploadSpeed={ulNum}
+      speedUnit={(c.speedUnit as string) || "Mbps"}
+      features={features}
+      isFeatured={!!(c.isFeatured)}
+      featuredLabel={(c.featuredLabel as string) || "MOST POPULAR"}
+      accentColor={(c.accentColor as string) || "#4ecdc4"}
+      cardBg={(c.cardBgColor as string) || "#0f172a"}
+      textColor={(c.textColor as string) || "#ffffff"}
+      buttonText={(c.buttonText as string) || "Get Started"}
+      buttonHref={(c.navTarget as string) || "#"}
+      cardPreset={(c.cardPreset as any) || "aurora"}
+      expandMode={(c.expandMode as any) || "flip"}
+      headerImage={(c.headerImage as string) || ""}
+    />
+  );
+}
+
+// ─── Graphic Renderer ─────────────────────────────────────────────────────────
+
+/**
+ * GraphicRenderer — renders a decorative graphic element used for header/footer overlays.
+ *
+ * Supports three types:
+ *   "image"    — an <img> tag spanning the full container width/height
+ *   "gradient" — a CSS gradient fill (useful for fade-in/fade-out edge effects)
+ *   "shape"    — a solid-colour div clipped by a CSS clipPath (e.g. triangles)
+ *
+ * opacity (0-100) and blendMode (CSS mix-blend-mode) allow compositing over the section background.
+ */
+function GraphicRenderer({ config }: { config: any }) {
+  const { type, height, opacity = 100, blendMode = "normal" } = config;
+  return (
+    <div style={{ height: `${height}px`, opacity: opacity / 100, mixBlendMode: blendMode as React.CSSProperties["mixBlendMode"] }}>
+      {type === "image"    && <img src={config.image} alt="Graphic" style={{ width: "100%", height: "100%" }} />}
+      {type === "gradient" && <div style={{ background: config.gradient || "linear-gradient(to bottom, #000, transparent)", height: "100%" }} />}
+      {type === "shape"    && <div style={{ background: config.color || "#000", height: "100%", clipPath: config.clipPath }} />}
+    </div>
+  );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * resolveBgColor — converts a background preset name or raw CSS value to a concrete
+ * CSS color or gradient string.
+ *
+ * Preset names (white, gray, blue, etc.) map to specific values including CSS gradient
+ * strings for the midnight/teal/purple presets. Unknown strings are returned as-is,
+ * allowing arbitrary hex colours and CSS gradient strings to pass through.
+ */
+function resolveBgColor(background?: string): string {
+  const BG_PRESETS: Record<string, string> = {
+    white:       "#ffffff",
+    gray:        "#f8f9fa",
+    blue:        "#1e3a5f",
+    lightblue:   "#e8f4fd",
+    transparent: "transparent",
+    dark:        "#0d1117",
+    midnight:    "linear-gradient(135deg, #0f0c29, #302b63, #24243e)",
+    teal:        "linear-gradient(135deg, #0d4a4a, #0a2a2a)",
+    purple:      "linear-gradient(135deg, #2d1b69, #11073f)",
+  };
+  if (!background) return "#ffffff";
+  return BG_PRESETS[background] ?? background;
+}
+
+/**
+ * isDarkBackground — determines whether the section background is dark enough that
+ * white text should be used for contrast.
+ *
+ * Strategy:
+ * 1. Check known-dark/known-light preset name lists for O(1) lookup
+ * 2. Treat any CSS gradient as dark (gradients are typically dark in this design system)
+ * 3. For hex colours, calculate the W3C relative luminance with standard coefficients
+ *    (0.299 R + 0.587 G + 0.114 B) and compare against the 0.5 threshold
+ */
+function isDarkBackground(background?: string): boolean {
+  if (!background) return false;
+  const dark = ["blue", "dark", "midnight", "teal", "purple"];
+  if (dark.includes(background)) return true;
+  const light = ["white", "gray", "lightblue", "transparent"];
+  if (light.includes(background)) return false;
+  const resolved = resolveBgColor(background);
+  // CSS gradient strings — treated as dark
+  if (isGradient(resolved)) return true;
+  // Hex colour — compute luminance with W3C coefficients
+  if (resolved.startsWith("#") && resolved.length >= 7) {
+    const r = parseInt(resolved.slice(1, 3), 16);
+    const g = parseInt(resolved.slice(3, 5), 16);
+    const b = parseInt(resolved.slice(5, 7), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
+  }
+  return false;
+}
+
+/**
+ * isGradient — returns true if the CSS value string is a gradient (linear or radial).
+ * Used to decide whether to apply the `background` shorthand instead of `background-color`.
+ */
+function isGradient(value?: string): boolean {
+  if (!value) return false;
+  return value.includes("gradient") || value.startsWith("linear-") || value.startsWith("radial-");
+}
+
+/**
+ * animateElement — triggers an Anime.js entrance animation on a DOM element.
+ *
+ * The animation type string maps to a predefined keyframe definition (defs).
+ * bounceIn uses a spring easing for a natural overshoot; all others use
+ * cubicBezier(0.4, 0, 0.2, 1) (Material Design standard easing).
+ *
+ * The element's opacity is cleared first so the animation can take full control
+ * from its initial keyframe value (avoids a flash where opacity=0 persists).
+ */
+function animateElement(element: HTMLElement, animation: FlexibleElement["animation"]) {
+  const { type, duration = 600, delay = 0 } = animation!;
+  // Keyframe definitions indexed by animation type string
+  const defs: Record<string, any> = {
+    fadeIn:       { opacity: [0, 1] },
+    slideUp:      { translateY: [30, 0],  opacity: [0, 1] },
+    slideDown:    { translateY: [-30, 0], opacity: [0, 1] },
+    slideInLeft:  { translateX: [-40, 0], opacity: [0, 1] },
+    slideInRight: { translateX: [40, 0],  opacity: [0, 1] },
+    scaleIn:      { scale: [0.85, 1],     opacity: [0, 1] },
+    zoomIn:       { scale: [1.15, 1],     opacity: [0, 1] },
+    flipInX:      { rotateX: [90, 0],     opacity: [0, 1] },
+    flipInY:      { rotateY: [90, 0],     opacity: [0, 1] },
+    bounceIn:     { scale: [0.3, 1.08, 0.95, 1.02, 1], opacity: [0, 1, 1, 1, 1] },
+    rotateIn:     { rotate: [-15, 0],     opacity: [0, 1], scale: [0.9, 1] },
+  };
+  // Clear the hidden state set by ElementRenderer before animation starts
+  element.style.opacity = "";
+  if (defs[type!]) {
+    animate(element, {
+      ...defs[type!],
+      duration,
+      delay,
+      // bounceIn needs spring physics for the overshoot; others use standard ease-in-out
+      ease: type === "bounceIn" ? "spring(1, 80, 10, 0)" : "cubicBezier(0.4, 0, 0.2, 1)",
+    });
+  }
+}

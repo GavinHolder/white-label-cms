@@ -1,0 +1,18 @@
+{
+  "logoSrc": "/images/sonic-logo.png",
+  "logoAlt": "SONIC",
+  "logoHeight": 44,
+  "logoWidth": 0,
+  "cta": {
+    "show": true,
+    "text": "Client Login",
+    "style": "solid",
+    "href": "/client-login",
+    "linkMode": "external"
+  },
+  "scrolledBackground": {
+    "color": "#ffffff",
+    "opacity": 100
+  },
+  "updatedAt": "2026-02-20T13:32:03.427Z"
+}
