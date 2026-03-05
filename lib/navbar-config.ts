@@ -64,7 +64,7 @@ export interface NavbarConfig {
 }
 
 export const defaultNavbarConfig: NavbarConfig = {
-  logoSrc: "/images/logo-placeholder.png",
+  logoSrc: "/images/logo-placeholder.svg",
   logoAlt: "Your Company",
   logoHeight: 44,
   logoWidth: 0,

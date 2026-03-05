@@ -148,7 +148,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         href="/admin/dashboard"
         className="d-flex align-items-center p-3 mb-0 text-decoration-none border-bottom"
       >
-        <img src="/images/logo-placeholder.png" alt="CMS" style={{ height: "36px" }} />
+        <img src="/images/logo-placeholder.svg" alt="CMS" style={{ height: "36px" }} />
       </Link>
 
       {/* Navigation */}

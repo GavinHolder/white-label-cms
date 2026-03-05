@@ -447,7 +447,7 @@ export default function NavbarEditorPage() {
                   label="Logo Image"
                   value={config.logoSrc}
                   onChange={(url) => setField("logoSrc", url)}
-                  placeholder="/images/logo-placeholder.png"
+                  placeholder="/images/logo-placeholder.svg"
                   helpText="Transparent PNG or SVG — see dimensions guide above"
                   previewMaxHeight="80px"
                 />

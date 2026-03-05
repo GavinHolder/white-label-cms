@@ -108,7 +108,7 @@ export default function HeroCarousel({ section }: HeroCarouselProps) {
           initial: { opacity: 1 },
           animate: { opacity: 1 },
           exit: { opacity: 1 },
-          transition: { duration: 0 },
+          transition: { duration: 0.01 },
         };
     }
   };
@@ -226,7 +226,7 @@ export default function HeroCarousel({ section }: HeroCarouselProps) {
                 backgroundPosition: "center",
               }}
             />
-          ) : (
+          ) : slide.type === "video" ? (
             <video
               className="position-absolute top-0 start-0 w-100 h-100"
               style={{
@@ -242,7 +242,7 @@ export default function HeroCarousel({ section }: HeroCarouselProps) {
             >
               <source src={slide.src} type="video/mp4" />
             </video>
-          )}
+          ) : null /* type === "color" — gradient overlay provides background */}
 
           {/* Gradient Overlay */}
           {slide.gradient?.enabled && (
@@ -265,8 +265,8 @@ export default function HeroCarousel({ section }: HeroCarouselProps) {
                     key={`heading-${currentSlide}`}
                     {...getAnimationVariants(slide.overlay.heading.animation)}
                     transition={{
-                      duration: slide.overlay.heading.animationDuration / 1000,
-                      delay: slide.overlay.heading.animationDelay / 1000,
+                      duration: (slide.overlay.heading.animationDuration ?? 800) / 1000,
+                      delay: (slide.overlay.heading.animationDelay ?? 0) / 1000,
                     }}
                     className="hero-heading"
                     style={{
@@ -293,8 +293,8 @@ export default function HeroCarousel({ section }: HeroCarouselProps) {
                       key={`subheading-${currentSlide}`}
                       {...getAnimationVariants(slide.overlay.subheading.animation)}
                       transition={{
-                        duration: slide.overlay.subheading.animationDuration / 1000,
-                        delay: slide.overlay.subheading.animationDelay / 1000,
+                        duration: (slide.overlay.subheading.animationDuration ?? 800) / 1000,
+                        delay: (slide.overlay.subheading.animationDelay ?? 0) / 1000,
                       }}
                       className="hero-subheading"
                       style={{
@@ -325,8 +325,8 @@ export default function HeroCarousel({ section }: HeroCarouselProps) {
                           href={button.href}
                           {...getAnimationVariants(button.animation)}
                           transition={{
-                            duration: button.animationDuration / 1000,
-                            delay: button.animationDelay / 1000,
+                            duration: (button.animationDuration ?? 800) / 1000,
+                            delay: (button.animationDelay ?? 0) / 1000,
                           }}
                           className={`btn ${
                             button.variant === "filled"

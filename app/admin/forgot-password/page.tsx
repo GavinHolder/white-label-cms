@@ -82,7 +82,7 @@ export default function ForgotPasswordPage() {
             {/* Header */}
             <div className="text-center mb-4">
               <img
-                src="/images/logo-placeholder.png"
+                src="/images/logo-placeholder.svg"
                 alt="Your Company"
                 style={{ height: "60px", marginBottom: "1.5rem" }}
               />

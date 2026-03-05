@@ -860,7 +860,7 @@ export const defaultHomepageSections: LegacySectionConfig[] = [
     paddingTop: 80, // Space for navbar when scrolling into view
     paddingBottom: 40,
     content: {
-      logo: "/images/logo-placeholder.png",
+      logo: "/images/logo-placeholder.svg",
       logoPosition: "top-left",
       tagline: "Fast, reliable internet for the Your Region region",
       companyInfo: {
