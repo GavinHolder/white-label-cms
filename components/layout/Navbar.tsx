@@ -5,12 +5,20 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
 import { getSections } from "@/lib/section-manager";
+import { defaultNavbarConfig, type NavbarCtaButton } from "@/lib/navbar-config";
+
+const ctaStyleToVariant = (style: NavbarCtaButton["style"]): "primary" | "outline" | "ghost" => {
+  if (style === "outlined") return "outline";
+  if (style === "ghost") return "ghost";
+  return "primary";
+};
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [navLinks, setNavLinks] = useState<Array<{ id: string; label: string }>>([]);
   const [isDarkBackground, setIsDarkBackground] = useState(true); // Default to dark (white text)
+  const [ctaConfig, setCtaConfig] = useState<NavbarCtaButton>(defaultNavbarConfig.cta);
 
   // Load dynamic nav links from sections
   useEffect(() => {
@@ -56,12 +64,26 @@ export default function Navbar() {
       }
     };
 
-    loadNavLinks();
+    const loadCtaConfig = async () => {
+      try {
+        const res = await fetch("/api/navbar");
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.data?.cta) setCtaConfig(json.data.cta);
+        }
+      } catch {
+        // Keep default on error
+      }
+    };
 
-    // Reload links periodically to detect admin updates (every 5 seconds)
+    loadNavLinks();
+    loadCtaConfig();
+
+    // Reload links and CTA config periodically to detect admin updates (every 5 seconds)
     const interval = setInterval(() => {
       if (!document.hidden) {
         loadNavLinks();
+        loadCtaConfig();
       }
     }, 5000);
 
@@ -293,12 +315,14 @@ export default function Navbar() {
                 ))}
               </div>
             )}
-            {/* Client Login - always visible on desktop, always far right */}
-            <div className="d-none d-md-block">
-              <Button href="/client-login" variant="primary" size="sm">
-                Client Login
-              </Button>
-            </div>
+            {/* CTA button - always visible on desktop, always far right */}
+            {ctaConfig.show && (
+              <div className="d-none d-md-block">
+                <Button href={ctaConfig.href} variant={ctaStyleToVariant(ctaConfig.style)} size="sm">
+                  {ctaConfig.text}
+                </Button>
+              </div>
+            )}
 
             {/* Hamburger menu - Mobile (always visible) */}
             <div className="d-md-none">
@@ -353,16 +377,18 @@ export default function Navbar() {
                     {link.label}
                   </motion.button>
                 ))}
-                <motion.div
-                  className="px-4 py-2 text-center"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.2, delay: navLinks.length * 0.05 }}
-                >
-                  <Button href="/client-login" variant="primary" size="sm" className="w-100">
-                    Client Login
-                  </Button>
-                </motion.div>
+                {ctaConfig.show && (
+                  <motion.div
+                    className="px-4 py-2 text-center"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2, delay: navLinks.length * 0.05 }}
+                  >
+                    <Button href={ctaConfig.href} variant={ctaStyleToVariant(ctaConfig.style)} size="sm" className="w-100">
+                      {ctaConfig.text}
+                    </Button>
+                  </motion.div>
+                )}
               </div>
             </motion.div>
           )}
