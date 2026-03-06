@@ -4,6 +4,7 @@ import DOMPurify from "isomorphic-dompurify";
 import HeroCarousel from "./HeroCarousel";
 
 const AnimBgRenderer = dynamic(() => import("./AnimBgRenderer"), { ssr: false });
+const MotionElementRenderer = dynamic(() => import("./MotionElementRenderer"), { ssr: false });
 import TextImageSection from "./TextImageSection";
 import StatsGrid from "./StatsGrid";
 import CardGrid from "./CardGrid";
@@ -62,14 +63,19 @@ function shouldShowTriangle(section: SectionConfig, isFirstAfterHero: boolean): 
   return true;
 }
 
-/** Wraps any section JSX with LowerThirdRenderer if configured */
+/** Wraps any section JSX with LowerThirdRenderer and/or MotionElementRenderer if configured */
 function wrapSection(section: SectionConfig, el: React.ReactElement): React.ReactElement {
   const hasLt = section.lowerThird?.enabled;
-  if (!hasLt) return el;
+  const hasMotion = section.motionElements && section.motionElements.length > 0;
+  if (!hasLt && !hasMotion) return el;
+
   return (
     <div style={{ position: "relative" }}>
       {el}
-      <LowerThirdRenderer config={section.lowerThird!} />
+      {hasLt && <LowerThirdRenderer config={section.lowerThird!} />}
+      {hasMotion && (
+        <MotionElementRenderer elements={section.motionElements!} sectionId={section.id} />
+      )}
     </div>
   );
 }
