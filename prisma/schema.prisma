@@ -344,3 +344,18 @@ model OtpToken {
   @@index([email, purpose])
   @@map("otp_tokens")
 }
+
+// ============================================
+// CLIENT FEATURES (feature flag system)
+// ============================================
+
+model ClientFeature {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  enabled   Boolean  @default(false)
+  config    Json     @default("{}")
+  updatedAt DateTime @updatedAt
+
+  @@map("client_features")
+}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
+import FeaturesTab from "@/components/admin/FeaturesTab";
 import {
   getCMSSettings,
   saveCMSSettings,
@@ -17,9 +18,10 @@ type SettingsCategory =
   | "scroll"
   | "data"
   | "about"
-  | "email";
+  | "email"
+  | "features";
 
-const categories: Array<{
+const BASE_CATEGORIES: Array<{
   id: SettingsCategory;
   label: string;
   icon: string;
@@ -38,6 +40,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>("ui");
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   // Email settings state (stored in DB via /api/settings/email)
   const [emailSettings, setEmailSettings] = useState({
@@ -56,6 +59,17 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setSettings(getCMSSettings());
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.data?.user?.role) {
+          setUserRole(d.data.user.role);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -214,7 +228,12 @@ export default function SettingsPage() {
           style={{ width: "220px" }}
         >
           <nav className="nav nav-pills flex-column gap-1">
-            {categories.map((cat) => (
+            {[
+              ...BASE_CATEGORIES,
+              ...(userRole === "SUPER_ADMIN"
+                ? [{ id: "features" as SettingsCategory, label: "Features", icon: "bi-toggles" }]
+                : []),
+            ].map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
@@ -798,6 +817,11 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Features (SUPER_ADMIN only) */}
+          {activeCategory === "features" && userRole === "SUPER_ADMIN" && (
+            <FeaturesTab />
           )}
         </div>
       </div>
