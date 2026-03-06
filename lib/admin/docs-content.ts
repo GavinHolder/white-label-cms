@@ -2002,15 +2002,62 @@ export const LOWER_THIRD_DOCS = `
 `;
 
 export const MOTION_ELEMENTS_DOCS = `
+<style>
+@keyframes cms-float {
+  0%,100% { transform: translateY(-13px); }
+  50%     { transform: translateY(13px); }
+}
+@keyframes cms-bob {
+  0%,100% { transform: translateY(0px); }
+  50%     { transform: translateY(-20px); }
+}
+@keyframes cms-rotate {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes cms-pulse {
+  0%,100% { transform: scale(1); }
+  50%     { transform: scale(1.35); }
+}
+@keyframes cms-sway {
+  0%,100% { transform: rotateZ(-16deg); }
+  50%     { transform: rotateZ(16deg); }
+}
+@keyframes cms-slide-in-right {
+  0%   { transform: translateX(120px); opacity: 0; }
+  100% { transform: translateX(0px);  opacity: 1; }
+}
+@keyframes cms-parallax-slow {
+  0%   { transform: translateY(0px); }
+  50%  { transform: translateY(-20px); }
+  100% { transform: translateY(0px); }
+}
+@keyframes cms-parallax-fast {
+  0%   { transform: translateY(0px); }
+  50%  { transform: translateY(-50px); }
+  100% { transform: translateY(0px); }
+}
+@keyframes cms-parallax-counter {
+  0%   { transform: translateY(0px); }
+  50%  { transform: translateY(30px); }
+  100% { transform: translateY(0px); }
+}
+@keyframes cms-scroll-bg {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 100%; }
+}
+.cms-idle-icon { display:inline-block; width:44px; height:44px; border-radius:8px; }
+</style>
+
 <h4>Motion &amp; Parallax Elements</h4>
 <p class="lead">Layer animated images over any section — transparent PNGs, SVGs, or decorative graphics that <strong>float, slide, rotate, and parallax-scroll</strong> independently of the page content.</p>
 
-<div class="alert alert-info">
-  <strong>Z-index 20</strong> — Motion elements sit above section content and lower-third shapes, below intro text animations. They never block text or CTAs.
+<div class="alert alert-info mb-4">
+  <strong>Z-index 20</strong> — Motion elements sit above section content (z-5) and lower-third shapes (z-10), below intro text animations (z-30). They never block text or CTAs.
 </div>
 
-<h5 class="mt-4">The 4 Animation Modes</h5>
-<p>Each motion element can combine any or all of these independently:</p>
+<h5 class="mt-2 mb-3">The 4 Animation Modes</h5>
+<p class="text-muted small">Each motion element can combine any or all of these independently:</p>
 
 <div class="row g-3 mb-4">
 
@@ -2020,25 +2067,35 @@ export const MOTION_ELEMENTS_DOCS = `
         <span class="badge bg-primary">Mode 1</span>
         <strong>Scroll Parallax</strong>
       </div>
-      <p class="small mb-2">The element moves at a different speed to the page scroll — creating a 3D depth illusion.</p>
-      <svg viewBox="0 0 400 80" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:400px;height:80px;display:block;border:1px solid #dee2e6;border-radius:4px;background:#f8f9fa;">
-        <text x="10" y="20" font-size="11" fill="#6c757d">Page scrolls ↓</text>
-        <line x1="50" y1="30" x2="50" y2="70" stroke="#6c757d" stroke-width="1.5" stroke-dasharray="4,3"/>
-        <polygon points="45,68 55,68 50,75" fill="#6c757d"/>
-        <rect x="100" y="25" width="80" height="40" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
-        <text x="140" y="42" font-size="10" fill="#1d4ed8" text-anchor="middle">speed +0.3</text>
-        <text x="140" y="56" font-size="9" fill="#3b82f6" text-anchor="middle">moves slower</text>
-        <line x1="140" y1="65" x2="140" y2="72" stroke="#3b82f6" stroke-width="1.5"/>
-        <polygon points="136,70 144,70 140,75" fill="#3b82f6"/>
-        <rect x="230" y="25" width="80" height="40" rx="4" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
-        <text x="270" y="42" font-size="10" fill="#be185d" text-anchor="middle">speed -0.2</text>
-        <text x="270" y="56" font-size="9" fill="#ec4899" text-anchor="middle">moves opposite</text>
-        <line x1="270" y1="22" x2="270" y2="15" stroke="#ec4899" stroke-width="1.5"/>
-        <polygon points="266,17 274,17 270,12" fill="#ec4899"/>
-        <text x="340" y="20" font-size="9" fill="#6c757d">Speed range:</text>
-        <text x="340" y="32" font-size="9" fill="#6c757d">-1.0 to +1.0</text>
-        <text x="340" y="44" font-size="9" fill="#6c757d">0 = no effect</text>
-      </svg>
+      <p class="small mb-3">The element moves at a different speed than the page scroll — creating a 3D depth illusion. Speed is a multiplier from <code>-1.0</code> to <code>+1.0</code>.</p>
+      <div class="d-flex gap-4 align-items-end flex-wrap" style="overflow:hidden;border:1px solid #dee2e6;border-radius:6px;background:#f8f9fa;padding:16px 12px;min-height:110px;position:relative;">
+        <div class="text-center" style="position:relative;">
+          <div style="width:40px;height:40px;background:#6c757d;border-radius:6px;margin:0 auto 4px;animation:cms-parallax-slow 3s ease-in-out infinite;"></div>
+          <code style="font-size:0.7rem">speed 0.3</code>
+          <div class="text-muted" style="font-size:0.65rem">moves slower</div>
+        </div>
+        <div class="text-center">
+          <div style="width:40px;height:40px;background:#3b82f6;border-radius:6px;margin:0 auto 4px;animation:cms-parallax-slow 1.5s ease-in-out infinite;"></div>
+          <code style="font-size:0.7rem">speed 0.7</code>
+          <div class="text-muted" style="font-size:0.65rem">moves much slower</div>
+        </div>
+        <div class="text-center">
+          <div style="width:40px;height:40px;background:#10b981;border-radius:6px;margin:0 auto 4px;"></div>
+          <code style="font-size:0.7rem">speed 0</code>
+          <div class="text-muted" style="font-size:0.65rem">no parallax</div>
+        </div>
+        <div class="text-center">
+          <div style="width:40px;height:40px;background:#ec4899;border-radius:6px;margin:0 auto 4px;animation:cms-parallax-counter 3s ease-in-out infinite;"></div>
+          <code style="font-size:0.7rem">speed -0.3</code>
+          <div class="text-muted" style="font-size:0.65rem">counter-scrolls</div>
+        </div>
+        <div class="text-center">
+          <div style="width:40px;height:40px;background:#f59e0b;border-radius:6px;margin:0 auto 4px;animation:cms-parallax-fast 2s ease-in-out infinite;"></div>
+          <code style="font-size:0.7rem">speed 1.0</code>
+          <div class="text-muted" style="font-size:0.65rem">max depth effect</div>
+        </div>
+        <div class="text-muted" style="position:absolute;bottom:6px;right:10px;font-size:0.65rem;">↕ simulating scroll</div>
+      </div>
     </div>
   </div>
 
@@ -2048,28 +2105,16 @@ export const MOTION_ELEMENTS_DOCS = `
         <span class="badge bg-success">Mode 2</span>
         <strong>Scroll Entrance</strong>
       </div>
-      <p class="small mb-2">When the section scrolls into view, the element animates in from a direction.</p>
-      <svg viewBox="0 0 400 90" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:400px;height:90px;display:block;border:1px solid #dee2e6;border-radius:4px;background:#f8f9fa;">
-        <rect x="170" y="25" width="60" height="40" rx="4" fill="#d1fae5" stroke="#10b981" stroke-width="2"/>
-        <text x="200" y="47" font-size="10" fill="#065f46" text-anchor="middle">LANDS HERE</text>
-        <line x1="200" y1="5" x2="200" y2="22" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,3"/>
-        <polygon points="196,20 204,20 200,25" fill="#3b82f6"/>
-        <text x="200" y="4" font-size="9" fill="#3b82f6" text-anchor="middle">from top</text>
-        <line x1="200" y1="68" x2="200" y2="82" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4,3"/>
-        <polygon points="196,67 204,67 200,62" fill="#f59e0b"/>
-        <text x="200" y="90" font-size="9" fill="#f59e0b" text-anchor="middle">from bottom</text>
-        <line x1="5" y1="45" x2="168" y2="45" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3"/>
-        <polygon points="166,41 166,49 172,45" fill="#ef4444"/>
-        <text x="5" y="38" font-size="9" fill="#ef4444">from</text>
-        <text x="5" y="48" font-size="9" fill="#ef4444">left</text>
-        <line x1="232" y1="45" x2="390" y2="45" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="4,3"/>
-        <polygon points="234,41 234,49 228,45" fill="#8b5cf6"/>
-        <text x="360" y="38" font-size="9" fill="#8b5cf6">from</text>
-        <text x="360" y="48" font-size="9" fill="#8b5cf6">right</text>
-      </svg>
+      <p class="small mb-3">When the section scrolls into view, the element animates in from a chosen direction. The box below shows a <strong>right → center</strong> entrance repeating:</p>
+      <div style="height:64px;overflow:hidden;border:1px solid #dee2e6;border-radius:6px;background:#f8f9fa;position:relative;display:flex;align-items:center;padding:0 12px;">
+        <div style="width:50px;height:36px;background:#3b82f6;border-radius:6px;animation:cms-slide-in-right 1.8s ease-out infinite;display:flex;align-items:center;justify-content:center;">
+          <span style="color:#fff;font-size:0.65rem;font-weight:600;">↠ in</span>
+        </div>
+        <div class="ms-3 text-muted small">direction: <strong>right</strong> | distance: <strong>120px</strong> | duration: <strong>800ms</strong> | easing: <strong>easeOutCubic</strong></div>
+      </div>
       <div class="row g-2 mt-2">
         <div class="col-6"><small><strong>Direction:</strong> top / bottom / left / right</small></div>
-        <div class="col-6"><small><strong>Distance:</strong> px to travel (e.g. 200px)</small></div>
+        <div class="col-6"><small><strong>Distance:</strong> px to travel</small></div>
         <div class="col-6"><small><strong>Duration:</strong> ms (e.g. 800ms)</small></div>
         <div class="col-6"><small><strong>Delay:</strong> ms before start (stagger multiple elements)</small></div>
         <div class="col-12"><small><strong>Easing:</strong> easeOutCubic / easeOutBack / easeInOutSine / linear</small></div>
@@ -2083,10 +2128,10 @@ export const MOTION_ELEMENTS_DOCS = `
         <span class="badge bg-warning text-dark">Mode 3</span>
         <strong>Scroll Exit</strong>
       </div>
-      <p class="small mb-2">When the section scrolls out of view, the element animates away. Combine with entrance for full enter/leave animation.</p>
-      <div class="row g-2">
+      <p class="small mb-0">When the section scrolls out of view, the element animates away. Combine with entrance for a full enter/leave lifecycle.</p>
+      <div class="row g-2 mt-2">
         <div class="col-6"><small><strong>Direction:</strong> which way it leaves</small></div>
-        <div class="col-6"><small><strong>Distance:</strong> how far it travels</small></div>
+        <div class="col-6"><small><strong>Distance:</strong> how far it travels before disappearing</small></div>
         <div class="col-12"><small><strong>Duration:</strong> exit speed in ms</small></div>
       </div>
     </div>
@@ -2098,63 +2143,49 @@ export const MOTION_ELEMENTS_DOCS = `
         <span class="badge bg-danger">Mode 4</span>
         <strong>Idle Loop</strong>
       </div>
-      <p class="small mb-2">While the section is visible, the element loops a continuous animation. Stops automatically when section leaves viewport.</p>
-      <div class="row g-3">
-        <div class="col-4 text-center">
-          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" style="width:60px;height:60px;">
-            <circle cx="30" cy="20" r="10" fill="#6366f1" opacity="0.8"/>
-            <circle cx="30" cy="40" r="10" fill="#6366f1" opacity="0.4"/>
-            <line x1="30" y1="30" x2="30" y2="50" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="3,2"/>
-          </svg>
-          <div class="small fw-semibold">Float</div>
-          <div class="text-muted" style="font-size:0.7rem">Up-down oscillation</div>
+      <p class="small mb-3">While the section is visible, the element loops a continuous animation. Stops automatically when section leaves viewport.</p>
+      <div class="row g-3 text-center">
+        <div class="col-4 col-md-2">
+          <div style="height:64px;display:flex;align-items:center;justify-content:center;">
+            <div class="cms-idle-icon" style="background:#6366f1;animation:cms-float 2s ease-in-out infinite;"></div>
+          </div>
+          <div class="small fw-semibold mt-1">Float</div>
+          <div class="text-muted" style="font-size:0.7rem">up-down oscillation</div>
         </div>
-        <div class="col-4 text-center">
-          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" style="width:60px;height:60px;">
-            <rect x="20" y="25" width="20" height="20" rx="3" fill="#10b981" opacity="0.8"/>
-            <rect x="20" y="10" width="20" height="20" rx="3" fill="#10b981" opacity="0.4"/>
-            <line x1="30" y1="25" x2="30" y2="10" stroke="#10b981" stroke-width="1.5" stroke-dasharray="3,2"/>
-          </svg>
-          <div class="small fw-semibold">Bob</div>
-          <div class="text-muted" style="font-size:0.7rem">Gentle lift and return</div>
+        <div class="col-4 col-md-2">
+          <div style="height:64px;display:flex;align-items:center;justify-content:center;">
+            <div class="cms-idle-icon" style="background:#10b981;animation:cms-bob 1.6s ease-in-out infinite;"></div>
+          </div>
+          <div class="small fw-semibold mt-1">Bob</div>
+          <div class="text-muted" style="font-size:0.7rem">gentle lift &amp; return</div>
         </div>
-        <div class="col-4 text-center">
-          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" style="width:60px;height:60px;">
-            <rect x="18" y="18" width="24" height="24" rx="3" fill="#f59e0b" opacity="0.8" transform="rotate(20 30 30)"/>
-            <rect x="18" y="18" width="24" height="24" rx="3" fill="#f59e0b" opacity="0.3" transform="rotate(-20 30 30)"/>
-          </svg>
-          <div class="small fw-semibold">Rotate</div>
-          <div class="text-muted" style="font-size:0.7rem">Continuous spin</div>
+        <div class="col-4 col-md-2">
+          <div style="height:64px;display:flex;align-items:center;justify-content:center;">
+            <div class="cms-idle-icon" style="background:#f59e0b;animation:cms-rotate 2.5s linear infinite;"></div>
+          </div>
+          <div class="small fw-semibold mt-1">Rotate</div>
+          <div class="text-muted" style="font-size:0.7rem">continuous spin</div>
         </div>
-        <div class="col-4 text-center">
-          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" style="width:60px;height:60px;">
-            <circle cx="30" cy="30" r="16" fill="#ef4444" opacity="0.7"/>
-            <circle cx="30" cy="30" r="10" fill="#ef4444" opacity="0.9"/>
-          </svg>
-          <div class="small fw-semibold">Pulse</div>
-          <div class="text-muted" style="font-size:0.7rem">Scale in and out</div>
+        <div class="col-4 col-md-2">
+          <div style="height:64px;display:flex;align-items:center;justify-content:center;">
+            <div class="cms-idle-icon" style="background:#ef4444;border-radius:50%;animation:cms-pulse 1.4s ease-in-out infinite;"></div>
+          </div>
+          <div class="small fw-semibold mt-1">Pulse</div>
+          <div class="text-muted" style="font-size:0.7rem">scale in and out</div>
         </div>
-        <div class="col-4 text-center">
-          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" style="width:60px;height:60px;">
-            <rect x="18" y="18" width="24" height="24" rx="3" fill="#8b5cf6" opacity="0.8" transform="rotate(12 30 30)"/>
-            <rect x="18" y="18" width="24" height="24" rx="3" fill="#8b5cf6" opacity="0.4" transform="rotate(-12 30 30)"/>
-          </svg>
-          <div class="small fw-semibold">Sway</div>
-          <div class="text-muted" style="font-size:0.7rem">Left-right tilt</div>
-        </div>
-        <div class="col-4 text-center">
-          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" style="width:60px;height:60px;">
-            <text x="30" y="35" font-size="24" text-anchor="middle" fill="#6c757d">∞</text>
-          </svg>
-          <div class="small fw-semibold">All loop</div>
-          <div class="text-muted" style="font-size:0.7rem">While visible</div>
+        <div class="col-4 col-md-2">
+          <div style="height:64px;display:flex;align-items:center;justify-content:center;">
+            <div class="cms-idle-icon" style="background:#8b5cf6;border-radius:4px;animation:cms-sway 2s ease-in-out infinite;transform-origin:center bottom;"></div>
+          </div>
+          <div class="small fw-semibold mt-1">Sway</div>
+          <div class="text-muted" style="font-size:0.7rem">left-right tilt</div>
         </div>
       </div>
-      <table class="table table-sm mt-3">
+      <table class="table table-sm mt-3 mb-0">
         <thead class="table-light"><tr><th>Setting</th><th>Range</th><th>Effect</th></tr></thead>
         <tbody>
-          <tr><td>Speed</td><td>0.5×–3×</td><td>Multiplier — higher = faster</td></tr>
-          <tr><td>Amplitude</td><td>px or deg</td><td>Float/bob: px travel | Rotate/sway: degrees | Pulse: % scale</td></tr>
+          <tr><td>Speed</td><td>0.5×–3×</td><td>Multiplier — higher = faster loop</td></tr>
+          <tr><td>Amplitude</td><td>px or deg</td><td>Float/bob: px travel | Rotate/sway: degrees | Pulse: % scale change</td></tr>
         </tbody>
       </table>
     </div>
@@ -2169,17 +2200,17 @@ export const MOTION_ELEMENTS_DOCS = `
     <tr><td>Right</td><td><code>5%</code></td><td>Distance from section right edge</td></tr>
     <tr><td>Bottom</td><td><code>80px</code></td><td>Distance from section bottom edge</td></tr>
     <tr><td>Left</td><td><code>3%</code></td><td>Distance from section left edge</td></tr>
-    <tr><td>Width</td><td><code>200px</code> or <code>25%</code></td><td>Element width (height auto)</td></tr>
-    <tr><td>Z-Index</td><td><code>20</code></td><td>Default 20. Increase to overlay other motion elements.</td></tr>
+    <tr><td>Width</td><td><code>200px</code> or <code>25%</code></td><td>Element width (height is auto)</td></tr>
+    <tr><td>Z-Index</td><td><code>20</code></td><td>Default 20. Increase to layer multiple motion elements.</td></tr>
   </tbody>
 </table>
 
 <div class="alert alert-success">
-  <strong>Best Results:</strong> Use transparent PNGs or SVGs. Images with solid white backgrounds will look out of place. Use <code>20%</code>-based positioning to stay responsive across screen sizes.
+  <strong>Best Results:</strong> Use transparent PNGs or SVGs. Use <code>%</code>-based positioning to stay responsive. Combine <strong>entrance + idle</strong> for the richest effect — element slides in then continuously floats.
 </div>
 
 <div class="alert alert-warning">
-  <strong>Performance Tip:</strong> Keep motion elements under 200KB each. Use up to 3–4 per section maximum. All animations pause when the section is off-screen.
+  <strong>Performance Tip:</strong> Keep files under 200KB each. Max 3–4 per section. All animations pause automatically when the section is off-screen.
 </div>
 
 <h5 class="mt-4">Live Demo</h5>
