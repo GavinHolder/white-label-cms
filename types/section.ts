@@ -94,6 +94,81 @@ export interface ButtonConfig {
   variant?: "primary" | "secondary" | "outline";
 }
 
+// ─── Lower Third Graphic ─────────────────────────────────────────────────────
+
+export type LowerThirdPreset =
+  | "wave"
+  | "diagonal"
+  | "arch"
+  | "stepped"
+  | "mountain"
+  | "blob"
+  | "chevron"
+  | "ripple";
+
+export interface LowerThirdConfig {
+  enabled: boolean;
+  mode: "preset" | "image";
+  preset: LowerThirdPreset;
+  presetColor: string;        // hex e.g. "#ffffff"
+  presetOpacity: number;      // 0–1
+  imageSrc: string;           // URL for image mode
+  height: number;             // px, 40–400
+  flipHorizontal: boolean;
+  flipVertical: boolean;
+}
+
+// ─── Motion / Parallax Elements ──────────────────────────────────────────────
+
+export type MotionEntranceDirection = "top" | "bottom" | "left" | "right";
+export type MotionIdleType = "float" | "bob" | "rotate" | "pulse" | "sway";
+
+export interface MotionElementParallax {
+  enabled: boolean;
+  /** -1 to 1. Positive = moves in scroll direction (slower). Negative = counter-scroll. */
+  speed: number;
+}
+
+export interface MotionElementEntrance {
+  enabled: boolean;
+  direction: MotionEntranceDirection;
+  distance: number;   // px to travel
+  duration: number;   // ms
+  delay: number;      // ms
+  easing: string;     // anime.js easing string
+}
+
+export interface MotionElementExit {
+  enabled: boolean;
+  direction: MotionEntranceDirection;
+  distance: number;
+  duration: number;
+}
+
+export interface MotionElementIdle {
+  enabled: boolean;
+  type: MotionIdleType;
+  speed: number;       // 0.5–3 multiplier
+  amplitude: number;   // px or deg
+}
+
+export interface MotionElement {
+  id: string;
+  src: string;
+  alt: string;
+  // Position (CSS values, absolute within section)
+  top?: string;
+  left?: string;
+  right?: string;
+  bottom?: string;
+  width: string;        // e.g. "300px" or "25%"
+  zIndex: number;       // default 20
+  parallax: MotionElementParallax;
+  entrance: MotionElementEntrance;
+  exit: MotionElementExit;
+  idle: MotionElementIdle;
+}
+
 /**
  * Base Section Configuration
  * All sections inherit these properties
@@ -161,6 +236,11 @@ export interface BaseSectionConfig {
 
   // Content height mode
   contentMode?: "single" | "multi"; // "single" = 100vh locked, "multi" = >100vh allowed
+
+  // Motion/parallax overlay elements (z-index 20, above content and lower-third)
+  motionElements?: MotionElement[];
+  // Lower third decorative graphic (z-index 10, below motion elements)
+  lowerThird?: LowerThirdConfig;
 
   // Content (flexible JSON structure for each section type)
   content: Record<string, any>;
