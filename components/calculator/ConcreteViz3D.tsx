@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import type { CalcType, CalcResult } from "@/lib/concrete-calculator";
 
 interface ConcreteViz3DProps {
@@ -20,6 +20,23 @@ export default function ConcreteViz3D({ calcType, dimensions, result: _result }:
   const mountRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cleanupRef = useRef<(() => void) | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const controlsRef = useRef<any>(null);
+  const [isAutoRotating, setIsAutoRotating] = useState(false);
+
+  const toggleAutoRotate = useCallback(() => {
+    if (!controlsRef.current) return;
+    const next = !controlsRef.current.autoRotate;
+    controlsRef.current.autoRotate = next;
+    setIsAutoRotating(next);
+  }, []);
+
+  const resetCamera = useCallback(() => {
+    if (!controlsRef.current) return;
+    controlsRef.current.reset();
+    controlsRef.current.autoRotate = false;
+    setIsAutoRotating(false);
+  }, []);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -122,12 +139,29 @@ export default function ConcreteViz3D({ calcType, dimensions, result: _result }:
       const animTargets: import("three").Object3D[] = [];
       scene.traverse((obj) => { if ((obj as any).isMesh) animTargets.push(obj); });
 
-      // Controls — user-driven (no auto-rotate)
+      // Controls
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.autoRotate = false;
+      controls.autoRotateSpeed = 2.0;
+      controls.saveState(); // Save initial state so reset() can restore it
+      controlsRef.current = controls;
 
-      // Render loop — use shouldStop flag so we can reliably stop from cleanup
+      // Shift+drag to pan: swap LEFT from ROTATE(0) to PAN(2) while Shift is held
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Shift" && controlsRef.current) {
+          controlsRef.current.mouseButtons.LEFT = 2; // THREE.MOUSE.PAN
+        }
+      };
+      const handleKeyUp = (e: KeyboardEvent) => {
+        if (e.key === "Shift" && controlsRef.current) {
+          controlsRef.current.mouseButtons.LEFT = 0; // THREE.MOUSE.ROTATE
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      window.addEventListener("keyup", handleKeyUp);
+
+      // Render loop
       let shouldStop = false;
       let isVisible = true;
       let frameId = 0;
@@ -160,11 +194,13 @@ export default function ConcreteViz3D({ calcType, dimensions, result: _result }:
       );
       if (mountRef.current) observer.observe(mountRef.current);
 
-      // Store cleanup in ref so the useEffect return can always reach it
       cleanupRef.current = () => {
         shouldStop = true;
         cancelAnimationFrame(frameId);
         observer.disconnect();
+        window.removeEventListener("keydown", handleKeyDown);
+        window.removeEventListener("keyup", handleKeyUp);
+        controlsRef.current = null;
         renderer.dispose();
         if (renderer.domElement.parentNode) {
           renderer.domElement.remove();
@@ -189,12 +225,35 @@ export default function ConcreteViz3D({ calcType, dimensions, result: _result }:
         ref={mountRef}
         style={{ width: "100%", minHeight: "280px", borderRadius: "12px", overflow: "hidden", background: "#f8f9fa" }}
       />
-      <div className="text-center text-muted mt-1" style={{ fontSize: "0.75rem", letterSpacing: "0.03em" }}>
-        <i className="bi bi-arrow-clockwise me-1" />Drag to rotate
-        <span className="mx-2">·</span>
-        <i className="bi bi-zoom-in me-1" />Scroll to zoom
-        <span className="mx-2">·</span>
-        <i className="bi bi-arrows-move me-1" />Right-drag to pan
+      {/* Hint + control buttons */}
+      <div className="d-flex align-items-center justify-content-between mt-2 flex-wrap gap-2">
+        <div className="text-muted" style={{ fontSize: "0.72rem", letterSpacing: "0.03em" }}>
+          <i className="bi bi-arrow-clockwise me-1" />Drag to rotate
+          <span className="mx-2">·</span>
+          <i className="bi bi-zoom-in me-1" />Scroll to zoom
+          <span className="mx-2">·</span>
+          <i className="bi bi-arrows-move me-1" />⇧+Drag to pan
+        </div>
+        <div className="d-flex gap-2">
+          <button
+            className={`btn btn-sm ${isAutoRotating ? "btn-primary" : "btn-outline-secondary"}`}
+            style={{ fontSize: "0.72rem", padding: "2px 10px", borderRadius: "6px" }}
+            onClick={toggleAutoRotate}
+            title="Toggle auto-rotate"
+          >
+            <i className={`bi bi-${isAutoRotating ? "pause-fill" : "arrow-repeat"} me-1`} />
+            {isAutoRotating ? "Stop" : "Spin"}
+          </button>
+          <button
+            className="btn btn-sm btn-outline-secondary"
+            style={{ fontSize: "0.72rem", padding: "2px 10px", borderRadius: "6px" }}
+            onClick={resetCamera}
+            title="Reset camera to default position"
+          >
+            <i className="bi bi-house me-1" />
+            Center
+          </button>
+        </div>
       </div>
     </div>
   );

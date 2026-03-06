@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
@@ -19,10 +20,14 @@ const ctaStyleToVariant = (style: NavbarCtaButton["style"]): "primary" | "outlin
 };
 
 export default function Navbar() {
+  const pathname = usePathname();
+  const isLandingPage = pathname === "/";
+
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  // Non-landing pages always appear in scrolled state (solid bg, links visible)
+  const [scrolled, setScrolled] = useState(!isLandingPage);
   const [navLinks, setNavLinks] = useState<Array<{ id: string; label: string }>>([]);
-  const [isDarkBackground, setIsDarkBackground] = useState(true);
+  const [isDarkBackground, setIsDarkBackground] = useState(isLandingPage);
   const [ctaConfig, setCtaConfig] = useState<NavbarCtaButton>(defaultNavbarConfig.cta);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [enabledFeatures, setEnabledFeatures] = useState<string[]>([]);
@@ -167,6 +172,7 @@ export default function Navbar() {
     // Listen to #snap-container (the actual scroll container) with fallback to window
     const container = document.getElementById("snap-container");
     const handleScroll = () => {
+      if (!isLandingPage) return; // Non-landing pages stay scrolled always
       const scrollTop = container ? container.scrollTop : (document.body.scrollTop || window.scrollY);
       const isScrolled = scrollTop > 20;
       setScrolled(isScrolled);
