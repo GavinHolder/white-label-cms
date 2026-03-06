@@ -435,7 +435,7 @@ export default function Navbar() {
                 aria-label="Open menu"
               >
                 <svg
-                  style={{ width: "28px", height: "28px", color: isDarkBackground ? "#ffffff" : "#111827" }}
+                  style={{ width: "28px", height: "28px", color: effectiveScrolled ? "#111827" : "#ffffff" }}
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2.5"
