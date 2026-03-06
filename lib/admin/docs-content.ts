@@ -737,6 +737,21 @@ The designer opens as a **full-screen iframe** with a block panel on the left an
 
 Set via: Section editor → Content tab → **Content Mode** dropdown.
 
+> **Landing page badge:** Section cards in the admin show a **single-block** or **multi-block** badge (info colour) for Flexible sections so you can identify content mode at a glance without opening the editor.
+
+---
+
+## Motion Elements &amp; Lower Third (Flexible Sections)
+
+Flexible sections now support the same **Motion Elements** and **Lower Third** tabs as Normal and CTA sections:
+
+| Tab | What it does |
+|-----|-------------|
+| **Motion** | Add floating/parallax image overlays with 3-tier depth control (Behind / Above Shape / Above Content) |
+| **Lower Third** | Add a decorative SVG shape or image to the bottom of the section |
+
+See **Animations &amp; Motion → Motion &amp; Parallax Elements** and **Animations &amp; Motion → Lower Third Graphic** for full documentation on these features.
+
 ---
 
 ## Positioning Mode
@@ -1886,11 +1901,13 @@ export const LOWER_THIRD_DOCS = `
 <div class="alert alert-info">
   <table class="table table-sm table-borderless mb-0">
     <tbody>
-      <tr><td><code>z-index 5</code></td><td>Section content (text, cards)</td></tr>
+      <tr><td><code>z-index 2</code></td><td>Animated background (AnimBg)</td></tr>
+      <tr><td><code>z-index 5</code></td><td>Motion elements — <strong>Behind</strong> layer</td></tr>
       <tr><td><code>z-index 10</code></td><td class="fw-bold text-primary">↑ Lower Third Graphic ← HERE</td></tr>
-      <tr><td><code>z-index 20</code></td><td>Motion/parallax elements</td></tr>
-      <tr><td><code>z-index 30</code></td><td>Intro text overlay animations</td></tr>
-      <tr><td><code>z-index 40</code></td><td>Section Into / Triangle shape</td></tr>
+      <tr><td><code>z-index 15</code></td><td>Motion elements — <strong>Above Shape</strong> layer</td></tr>
+      <tr><td><code>z-index 20</code></td><td>Section content (text, cards, blocks)</td></tr>
+      <tr><td><code>z-index 25</code></td><td>Motion elements — <strong>Above Content</strong> layer</td></tr>
+      <tr><td><code>z-index 50</code></td><td>Triangle / Section Intro shape (always on top)</td></tr>
     </tbody>
   </table>
 </div>
@@ -2053,7 +2070,16 @@ export const MOTION_ELEMENTS_DOCS = `
 <p class="lead">Layer animated images over any section — transparent PNGs, SVGs, or decorative graphics that <strong>float, slide, rotate, and parallax-scroll</strong> independently of the page content.</p>
 
 <div class="alert alert-info mb-4">
-  <strong>Z-index 20</strong> — Motion elements sit above section content (z-5) and lower-third shapes (z-10), below intro text animations (z-30). They never block text or CTAs.
+  <strong>3-Tier Depth System</strong> — Each motion element has a <strong>Layer</strong> setting that controls where it sits in the z-stack:
+  <table class="table table-sm table-borderless mb-0 mt-2">
+    <thead><tr><th>Layer</th><th>Z-Index</th><th>Sits between</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Behind All</strong> (default)</td><td><code>5</code></td><td>AnimBg ↔ Lower Third — behind everything</td></tr>
+      <tr><td><strong>Above Shape</strong></td><td><code>15</code></td><td>Lower Third ↔ Section Content — above the shape, below text/cards</td></tr>
+      <tr><td><strong>Above Content</strong></td><td><code>25</code></td><td>Above text and cards — use for foreground decorations</td></tr>
+    </tbody>
+  </table>
+  Triangle shapes always render at <code>z-50</code> regardless of motion element layer.
 </div>
 
 <h5 class="mt-2 mb-3">The 4 Animation Modes</h5>
@@ -2201,7 +2227,15 @@ export const MOTION_ELEMENTS_DOCS = `
     <tr><td>Bottom</td><td><code>80px</code></td><td>Distance from section bottom edge</td></tr>
     <tr><td>Left</td><td><code>3%</code></td><td>Distance from section left edge</td></tr>
     <tr><td>Width</td><td><code>200px</code> or <code>25%</code></td><td>Element width (height is auto)</td></tr>
-    <tr><td>Z-Index</td><td><code>20</code></td><td>Default 20. Increase to layer multiple motion elements.</td></tr>
+  </tbody>
+</table>
+
+<h5 class="mt-4">Depth &amp; Opacity</h5>
+<table class="table table-sm">
+  <thead class="table-light"><tr><th>Setting</th><th>Options</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Layer</strong></td><td>Behind All / Above Shape / Above Content</td><td>Controls the element's z-depth. Default: <strong>Behind All</strong>. See layer chart above.</td></tr>
+    <tr><td><strong>Opacity</strong></td><td>0–100%</td><td>Slider control. 100 = fully opaque, 0 = invisible. Entrance animation respects this target opacity.</td></tr>
   </tbody>
 </table>
 
@@ -2241,7 +2275,14 @@ export const FEATURE_FLAGS_DOCS = `
       <td><code>concrete-calculator</code></td>
       <td>Concrete Calculator</td>
       <td><span class="badge bg-secondary">OFF</span></td>
-      <td>Public /calculator page with 3D Three.js visualization (Phase 4)</td>
+      <td>
+        Public <code>/calculator</code> page — supports Slab, Column, Footing, Beam &amp; Staircase. Includes:
+        <ul class="mb-0 mt-1">
+          <li>3D Three.js interactive preview (drag/zoom/pan)</li>
+          <li>Professional estimate report with reference number</li>
+          <li><strong>Request Formal Quote</strong> button — sends a formatted email to the admin address configured in Settings → Email</li>
+        </ul>
+      </td>
     </tr>
   </tbody>
 </table>
