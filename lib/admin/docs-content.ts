@@ -1875,6 +1875,349 @@ The audit checks:
 `;
 
 // ─────────────────────────────────────────────
+// ANIMATIONS & MOTION CONTENT
+// ─────────────────────────────────────────────
+
+export const LOWER_THIRD_DOCS = `
+<h4>Lower Third Graphic</h4>
+<p class="lead">Add a decorative SVG shape or custom image to the <strong>bottom of any section</strong> — perfect for creating smooth transitions between sections or adding visual flair.</p>
+
+<h5 class="mt-4">Z-Index Layer Order</h5>
+<div class="alert alert-info">
+  <table class="table table-sm table-borderless mb-0">
+    <tbody>
+      <tr><td><code>z-index 5</code></td><td>Section content (text, cards)</td></tr>
+      <tr><td><code>z-index 10</code></td><td class="fw-bold text-primary">↑ Lower Third Graphic ← HERE</td></tr>
+      <tr><td><code>z-index 20</code></td><td>Motion/parallax elements</td></tr>
+      <tr><td><code>z-index 30</code></td><td>Intro text overlay animations</td></tr>
+      <tr><td><code>z-index 40</code></td><td>Section Into / Triangle shape</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h5 class="mt-4">8 Preset Shapes</h5>
+<p>Click any preset in the <strong>Lower Third</strong> tab of the Normal or CTA section editor to apply it.</p>
+
+<div class="row g-3 mb-4">
+  <div class="col-6">
+    <div class="border rounded p-2">
+      <div class="fw-semibold small mb-2">Wave</div>
+      <svg viewBox="0 0 240 60" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:60px;display:block;">
+        <rect width="240" height="60" fill="#e2e8f0"/>
+        <path d="M0,60 C60,0 180,60 240,0 L240,60 Z" fill="#6366f1" opacity="0.85"/>
+      </svg>
+      <p class="text-muted small mt-1 mb-0">Smooth sine curve — most popular for section transitions</p>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="border rounded p-2">
+      <div class="fw-semibold small mb-2">Diagonal</div>
+      <svg viewBox="0 0 240 60" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:60px;display:block;">
+        <rect width="240" height="60" fill="#e2e8f0"/>
+        <path d="M0,60 L240,0 L240,60 Z" fill="#6366f1" opacity="0.85"/>
+      </svg>
+      <p class="text-muted small mt-1 mb-0">Clean angled cut — modern, minimal look</p>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="border rounded p-2">
+      <div class="fw-semibold small mb-2">Arch</div>
+      <svg viewBox="0 0 240 60" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:60px;display:block;">
+        <rect width="240" height="60" fill="#e2e8f0"/>
+        <path d="M0,60 Q120,0 240,60 Z" fill="#6366f1" opacity="0.85"/>
+      </svg>
+      <p class="text-muted small mt-1 mb-0">Single arch — great for hero sections</p>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="border rounded p-2">
+      <div class="fw-semibold small mb-2">Stepped</div>
+      <svg viewBox="0 0 240 60" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:60px;display:block;">
+        <rect width="240" height="60" fill="#e2e8f0"/>
+        <path d="M0,60 L0,30 L120,30 L120,0 L240,0 L240,60 Z" fill="#6366f1" opacity="0.85"/>
+      </svg>
+      <p class="text-muted small mt-1 mb-0">Two-step staircase — bold geometric statement</p>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="border rounded p-2">
+      <div class="fw-semibold small mb-2">Mountain</div>
+      <svg viewBox="0 0 240 60" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:60px;display:block;">
+        <rect width="240" height="60" fill="#e2e8f0"/>
+        <path d="M0,60 L72,12 L120,36 L168,6 L240,60 Z" fill="#6366f1" opacity="0.85"/>
+      </svg>
+      <p class="text-muted small mt-1 mb-0">Double peak — dramatic, ideal for outdoor/nature brands</p>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="border rounded p-2">
+      <div class="fw-semibold small mb-2">Blob</div>
+      <svg viewBox="0 0 240 60" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:60px;display:block;">
+        <rect width="240" height="60" fill="#e2e8f0"/>
+        <path d="M0,60 C24,24 72,6 120,18 C168,30 216,0 240,12 L240,60 Z" fill="#6366f1" opacity="0.85"/>
+      </svg>
+      <p class="text-muted small mt-1 mb-0">Organic asymmetric — playful, creative brands</p>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="border rounded p-2">
+      <div class="fw-semibold small mb-2">Chevron</div>
+      <svg viewBox="0 0 240 60" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:60px;display:block;">
+        <rect width="240" height="60" fill="#e2e8f0"/>
+        <path d="M0,60 L120,0 L240,60 Z" fill="#6366f1" opacity="0.85"/>
+      </svg>
+      <p class="text-muted small mt-1 mb-0">V-shape — sharp, energetic, arrow-like</p>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="border rounded p-2">
+      <div class="fw-semibold small mb-2">Ripple</div>
+      <svg viewBox="0 0 240 60" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:60px;display:block;">
+        <rect width="240" height="60" fill="#e2e8f0"/>
+        <path d="M0,60 C60,30 60,0 120,12 C180,24 180,0 240,6 L240,60 Z" fill="#6366f1" opacity="0.85"/>
+      </svg>
+      <p class="text-muted small mt-1 mb-0">Double wave — water/fluid theme, layered depth</p>
+    </div>
+  </div>
+</div>
+
+<h5 class="mt-4">Settings Reference</h5>
+<table class="table table-sm">
+  <thead class="table-light"><tr><th>Setting</th><th>Options</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Enable</td><td>Toggle</td><td>On/Off without losing settings</td></tr>
+    <tr><td>Mode</td><td>Preset Shape / Upload Image</td><td>Upload transparent PNG or SVG for custom shapes</td></tr>
+    <tr><td>Preset</td><td>8 shapes (see above)</td><td>Click tile to select</td></tr>
+    <tr><td>Fill Color</td><td>Color picker</td><td>Usually match the next section's background color</td></tr>
+    <tr><td>Opacity</td><td>0–100%</td><td>Lower opacity = see-through layered effect</td></tr>
+    <tr><td>Height</td><td>40–400px</td><td>Taller = more dramatic transition</td></tr>
+    <tr><td>Flip Horizontal</td><td>Toggle</td><td>Mirrors the shape left–right</td></tr>
+    <tr><td>Flip Vertical</td><td>Toggle</td><td>Mirrors the shape top–bottom (cuts from section top instead)</td></tr>
+  </tbody>
+</table>
+
+<div class="alert alert-success mt-3">
+  <strong>Pro Tip:</strong> Set the lower third color to match the <em>next</em> section's background. A blue section with a white wave lower third leading into a white section creates a seamless flow.
+</div>
+`;
+
+export const MOTION_ELEMENTS_DOCS = `
+<h4>Motion &amp; Parallax Elements</h4>
+<p class="lead">Layer animated images over any section — transparent PNGs, SVGs, or decorative graphics that <strong>float, slide, rotate, and parallax-scroll</strong> independently of the page content.</p>
+
+<div class="alert alert-info">
+  <strong>Z-index 20</strong> — Motion elements sit above section content and lower-third shapes, below intro text animations. They never block text or CTAs.
+</div>
+
+<h5 class="mt-4">The 4 Animation Modes</h5>
+<p>Each motion element can combine any or all of these independently:</p>
+
+<div class="row g-3 mb-4">
+
+  <div class="col-12">
+    <div class="border rounded p-3">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge bg-primary">Mode 1</span>
+        <strong>Scroll Parallax</strong>
+      </div>
+      <p class="small mb-2">The element moves at a different speed to the page scroll — creating a 3D depth illusion.</p>
+      <svg viewBox="0 0 400 80" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:400px;height:80px;display:block;border:1px solid #dee2e6;border-radius:4px;background:#f8f9fa;">
+        <text x="10" y="20" font-size="11" fill="#6c757d">Page scrolls ↓</text>
+        <line x1="50" y1="30" x2="50" y2="70" stroke="#6c757d" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <polygon points="45,68 55,68 50,75" fill="#6c757d"/>
+        <rect x="100" y="25" width="80" height="40" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+        <text x="140" y="42" font-size="10" fill="#1d4ed8" text-anchor="middle">speed +0.3</text>
+        <text x="140" y="56" font-size="9" fill="#3b82f6" text-anchor="middle">moves slower</text>
+        <line x1="140" y1="65" x2="140" y2="72" stroke="#3b82f6" stroke-width="1.5"/>
+        <polygon points="136,70 144,70 140,75" fill="#3b82f6"/>
+        <rect x="230" y="25" width="80" height="40" rx="4" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
+        <text x="270" y="42" font-size="10" fill="#be185d" text-anchor="middle">speed -0.2</text>
+        <text x="270" y="56" font-size="9" fill="#ec4899" text-anchor="middle">moves opposite</text>
+        <line x1="270" y1="22" x2="270" y2="15" stroke="#ec4899" stroke-width="1.5"/>
+        <polygon points="266,17 274,17 270,12" fill="#ec4899"/>
+        <text x="340" y="20" font-size="9" fill="#6c757d">Speed range:</text>
+        <text x="340" y="32" font-size="9" fill="#6c757d">-1.0 to +1.0</text>
+        <text x="340" y="44" font-size="9" fill="#6c757d">0 = no effect</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="border rounded p-3">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge bg-success">Mode 2</span>
+        <strong>Scroll Entrance</strong>
+      </div>
+      <p class="small mb-2">When the section scrolls into view, the element animates in from a direction.</p>
+      <svg viewBox="0 0 400 90" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:400px;height:90px;display:block;border:1px solid #dee2e6;border-radius:4px;background:#f8f9fa;">
+        <rect x="170" y="25" width="60" height="40" rx="4" fill="#d1fae5" stroke="#10b981" stroke-width="2"/>
+        <text x="200" y="47" font-size="10" fill="#065f46" text-anchor="middle">LANDS HERE</text>
+        <line x1="200" y1="5" x2="200" y2="22" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,3"/>
+        <polygon points="196,20 204,20 200,25" fill="#3b82f6"/>
+        <text x="200" y="4" font-size="9" fill="#3b82f6" text-anchor="middle">from top</text>
+        <line x1="200" y1="68" x2="200" y2="82" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4,3"/>
+        <polygon points="196,67 204,67 200,62" fill="#f59e0b"/>
+        <text x="200" y="90" font-size="9" fill="#f59e0b" text-anchor="middle">from bottom</text>
+        <line x1="5" y1="45" x2="168" y2="45" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3"/>
+        <polygon points="166,41 166,49 172,45" fill="#ef4444"/>
+        <text x="5" y="38" font-size="9" fill="#ef4444">from</text>
+        <text x="5" y="48" font-size="9" fill="#ef4444">left</text>
+        <line x1="232" y1="45" x2="390" y2="45" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="4,3"/>
+        <polygon points="234,41 234,49 228,45" fill="#8b5cf6"/>
+        <text x="360" y="38" font-size="9" fill="#8b5cf6">from</text>
+        <text x="360" y="48" font-size="9" fill="#8b5cf6">right</text>
+      </svg>
+      <div class="row g-2 mt-2">
+        <div class="col-6"><small><strong>Direction:</strong> top / bottom / left / right</small></div>
+        <div class="col-6"><small><strong>Distance:</strong> px to travel (e.g. 200px)</small></div>
+        <div class="col-6"><small><strong>Duration:</strong> ms (e.g. 800ms)</small></div>
+        <div class="col-6"><small><strong>Delay:</strong> ms before start (stagger multiple elements)</small></div>
+        <div class="col-12"><small><strong>Easing:</strong> easeOutCubic / easeOutBack / easeInOutSine / linear</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="border rounded p-3">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge bg-warning text-dark">Mode 3</span>
+        <strong>Scroll Exit</strong>
+      </div>
+      <p class="small mb-2">When the section scrolls out of view, the element animates away. Combine with entrance for full enter/leave animation.</p>
+      <div class="row g-2">
+        <div class="col-6"><small><strong>Direction:</strong> which way it leaves</small></div>
+        <div class="col-6"><small><strong>Distance:</strong> how far it travels</small></div>
+        <div class="col-12"><small><strong>Duration:</strong> exit speed in ms</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="border rounded p-3">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge bg-danger">Mode 4</span>
+        <strong>Idle Loop</strong>
+      </div>
+      <p class="small mb-2">While the section is visible, the element loops a continuous animation. Stops automatically when section leaves viewport.</p>
+      <div class="row g-3">
+        <div class="col-4 text-center">
+          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" style="width:60px;height:60px;">
+            <circle cx="30" cy="20" r="10" fill="#6366f1" opacity="0.8"/>
+            <circle cx="30" cy="40" r="10" fill="#6366f1" opacity="0.4"/>
+            <line x1="30" y1="30" x2="30" y2="50" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="3,2"/>
+          </svg>
+          <div class="small fw-semibold">Float</div>
+          <div class="text-muted" style="font-size:0.7rem">Up-down oscillation</div>
+        </div>
+        <div class="col-4 text-center">
+          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" style="width:60px;height:60px;">
+            <rect x="20" y="25" width="20" height="20" rx="3" fill="#10b981" opacity="0.8"/>
+            <rect x="20" y="10" width="20" height="20" rx="3" fill="#10b981" opacity="0.4"/>
+            <line x1="30" y1="25" x2="30" y2="10" stroke="#10b981" stroke-width="1.5" stroke-dasharray="3,2"/>
+          </svg>
+          <div class="small fw-semibold">Bob</div>
+          <div class="text-muted" style="font-size:0.7rem">Gentle lift and return</div>
+        </div>
+        <div class="col-4 text-center">
+          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" style="width:60px;height:60px;">
+            <rect x="18" y="18" width="24" height="24" rx="3" fill="#f59e0b" opacity="0.8" transform="rotate(20 30 30)"/>
+            <rect x="18" y="18" width="24" height="24" rx="3" fill="#f59e0b" opacity="0.3" transform="rotate(-20 30 30)"/>
+          </svg>
+          <div class="small fw-semibold">Rotate</div>
+          <div class="text-muted" style="font-size:0.7rem">Continuous spin</div>
+        </div>
+        <div class="col-4 text-center">
+          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" style="width:60px;height:60px;">
+            <circle cx="30" cy="30" r="16" fill="#ef4444" opacity="0.7"/>
+            <circle cx="30" cy="30" r="10" fill="#ef4444" opacity="0.9"/>
+          </svg>
+          <div class="small fw-semibold">Pulse</div>
+          <div class="text-muted" style="font-size:0.7rem">Scale in and out</div>
+        </div>
+        <div class="col-4 text-center">
+          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" style="width:60px;height:60px;">
+            <rect x="18" y="18" width="24" height="24" rx="3" fill="#8b5cf6" opacity="0.8" transform="rotate(12 30 30)"/>
+            <rect x="18" y="18" width="24" height="24" rx="3" fill="#8b5cf6" opacity="0.4" transform="rotate(-12 30 30)"/>
+          </svg>
+          <div class="small fw-semibold">Sway</div>
+          <div class="text-muted" style="font-size:0.7rem">Left-right tilt</div>
+        </div>
+        <div class="col-4 text-center">
+          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" style="width:60px;height:60px;">
+            <text x="30" y="35" font-size="24" text-anchor="middle" fill="#6c757d">∞</text>
+          </svg>
+          <div class="small fw-semibold">All loop</div>
+          <div class="text-muted" style="font-size:0.7rem">While visible</div>
+        </div>
+      </div>
+      <table class="table table-sm mt-3">
+        <thead class="table-light"><tr><th>Setting</th><th>Range</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td>Speed</td><td>0.5×–3×</td><td>Multiplier — higher = faster</td></tr>
+          <tr><td>Amplitude</td><td>px or deg</td><td>Float/bob: px travel | Rotate/sway: degrees | Pulse: % scale</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<h5 class="mt-4">Position Settings</h5>
+<table class="table table-sm">
+  <thead class="table-light"><tr><th>Field</th><th>Example</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Top</td><td><code>20%</code></td><td>Distance from section top edge</td></tr>
+    <tr><td>Right</td><td><code>5%</code></td><td>Distance from section right edge</td></tr>
+    <tr><td>Bottom</td><td><code>80px</code></td><td>Distance from section bottom edge</td></tr>
+    <tr><td>Left</td><td><code>3%</code></td><td>Distance from section left edge</td></tr>
+    <tr><td>Width</td><td><code>200px</code> or <code>25%</code></td><td>Element width (height auto)</td></tr>
+    <tr><td>Z-Index</td><td><code>20</code></td><td>Default 20. Increase to overlay other motion elements.</td></tr>
+  </tbody>
+</table>
+
+<div class="alert alert-success">
+  <strong>Best Results:</strong> Use transparent PNGs or SVGs. Images with solid white backgrounds will look out of place. Use <code>20%</code>-based positioning to stay responsive across screen sizes.
+</div>
+
+<div class="alert alert-warning">
+  <strong>Performance Tip:</strong> Keep motion elements under 200KB each. Use up to 3–4 per section maximum. All animations pause when the section is off-screen.
+</div>
+
+<h5 class="mt-4">Live Demo</h5>
+<p>10 demo sections are seeded on the landing page showcasing every combination. View at <a href="/" target="_blank">the homepage</a> — scroll past the main sections to see the DEMO sections.</p>
+`;
+
+export const FEATURE_FLAGS_DOCS = `
+<h4>Client Feature Flags</h4>
+<p class="lead">Toggle client-specific features on or off without code changes. Only <strong>SUPER_ADMIN</strong> users can access this panel.</p>
+
+<div class="alert alert-warning">
+  <i class="bi bi-shield-lock me-1"></i>
+  <strong>SUPER_ADMIN only.</strong> This tab is hidden from Publisher and Editor roles.
+</div>
+
+<h5 class="mt-4">How to Access</h5>
+<ol>
+  <li>Log in as SUPER_ADMIN</li>
+  <li>Go to <strong>Settings</strong> (top navigation)</li>
+  <li>Click the <strong>Features</strong> tab (only visible to SUPER_ADMIN)</li>
+</ol>
+
+<h5 class="mt-4">Current Features</h5>
+<table class="table table-sm">
+  <thead class="table-light"><tr><th>Slug</th><th>Name</th><th>Default</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>concrete-calculator</code></td>
+      <td>Concrete Calculator</td>
+      <td><span class="badge bg-secondary">OFF</span></td>
+      <td>Public /calculator page with 3D Three.js visualization (Phase 4)</td>
+    </tr>
+  </tbody>
+</table>
+<p>New features are added here as they are developed. Toggle <strong>Enabled</strong> to activate for the client's deployment.</p>
+`;
+
+// ─────────────────────────────────────────────
 // TOPIC TREE
 // ─────────────────────────────────────────────
 
@@ -1925,6 +2268,31 @@ export const DOC_TOPICS: DocTopic[] = [
       { id: "anim-parallax", label: "Parallax Drift", icon: "bi-layers", content: ANIM_PARALLAX },
       { id: "anim-tilt", label: "3D Tilt", icon: "bi-box", content: ANIM_TILT },
       { id: "anim-custom", label: "Custom Code", icon: "bi-code-slash", content: ANIM_CUSTOM },
+    ],
+  },
+  {
+    id: "animations",
+    label: "Animations & Motion",
+    icon: "bi-stars",
+    children: [
+      {
+        id: "lower-third",
+        label: "Lower Third Graphic",
+        icon: "bi-layout-bottom",
+        content: LOWER_THIRD_DOCS,
+      },
+      {
+        id: "motion-elements",
+        label: "Motion & Parallax Elements",
+        icon: "bi-wind",
+        content: MOTION_ELEMENTS_DOCS,
+      },
+      {
+        id: "feature-flags",
+        label: "Feature Flags",
+        icon: "bi-toggles",
+        content: FEATURE_FLAGS_DOCS,
+      },
     ],
   },
   {
