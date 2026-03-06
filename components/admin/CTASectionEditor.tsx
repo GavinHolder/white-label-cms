@@ -10,6 +10,7 @@ import SpacingControls from "@/components/admin/SpacingControls";
 import SectionIntoShapePicker from "@/components/admin/SectionIntoShapePicker";
 import ImageFieldWithUpload from "@/components/admin/ImageFieldWithUpload";
 import GoogleFontPicker from "@/components/admin/GoogleFontPicker";
+import { LinkPicker } from "@/components/admin/LinkPicker";
 
 interface CTASectionEditorProps {
   section: CTASection;
@@ -632,12 +633,13 @@ export default function CTASectionEditor({
 
                         <div className="mb-3">
                           <label className="form-label">Link URL</label>
-                          <input
-                            type="text"
-                            className="form-control"
+                          <LinkPicker
                             value={button.href}
-                            onChange={(e) => handleButtonChange(index, "href", e.target.value)}
-                            placeholder="e.g., /services or #contact"
+                            onChange={(val) => handleButtonChange(index, "href", val)}
+                            sectionOptions={allSections.map((s) => ({
+                              value: `#${s.id}`,
+                              label: `Section: ${s.displayName || s.type}`,
+                            }))}
                           />
                         </div>
 

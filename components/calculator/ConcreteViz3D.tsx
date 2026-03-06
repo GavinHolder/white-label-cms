@@ -9,10 +9,17 @@ interface ConcreteViz3DProps {
   result: CalcResult | null;
 }
 
+// Ease-out-back for scale-in animation
+function easeOutBack(t: number): number {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+}
+
 export default function ConcreteViz3D({ calcType, dimensions, result: _result }: ConcreteViz3DProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const stateRef = useRef<any>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -22,7 +29,6 @@ export default function ConcreteViz3D({ calcType, dimensions, result: _result }:
       const THREE = await import("three");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { OrbitControls } = await import("three/examples/jsm/controls/OrbitControls.js" as any);
-      const { animate: animeAnimate } = await import("animejs");
 
       if (destroyed || !mountRef.current) return;
 
@@ -51,12 +57,10 @@ export default function ConcreteViz3D({ calcType, dimensions, result: _result }:
       sun.position.set(5, 8, 5);
       sun.castShadow = true;
       scene.add(sun);
-      const hemi = new THREE.HemisphereLight(0x87ceeb, 0x8b7355, 0.4);
-      scene.add(hemi);
+      scene.add(new THREE.HemisphereLight(0x87ceeb, 0x8b7355, 0.4));
 
       // Ground grid
-      const grid = new THREE.GridHelper(10, 20, 0xcccccc, 0xdddddd);
-      scene.add(grid);
+      scene.add(new THREE.GridHelper(10, 20, 0xcccccc, 0xdddddd));
 
       // Concrete material
       const material = new THREE.MeshStandardMaterial({
@@ -65,7 +69,7 @@ export default function ConcreteViz3D({ calcType, dimensions, result: _result }:
         metalness: 0.0,
       });
 
-      // Geometry based on type
+      // Geometry based on calc type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let geometry: any;
       const L = Math.max(0.1, Math.min((dimensions.length ?? 1000) / 1000, 5));
@@ -84,7 +88,6 @@ export default function ConcreteViz3D({ calcType, dimensions, result: _result }:
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.position.y = D / 2;
-      mesh.scale.set(0.01, 0.01, 0.01);
       scene.add(mesh);
 
       // Controls
@@ -93,57 +96,59 @@ export default function ConcreteViz3D({ calcType, dimensions, result: _result }:
       controls.autoRotate = true;
       controls.autoRotateSpeed = 0.5;
 
-      // Animate scale in
-      animeAnimate(mesh.scale, {
-        x: 1, y: 1, z: 1,
-        duration: 1000,
-        ease: "outBack",
-      });
+      // Render loop — use shouldStop flag so we can reliably stop from cleanup
+      // (storing frameId is unreliable: it changes every frame, staleRef would have old ID)
+      let shouldStop = false;
+      let isVisible = true;
+      let frameId = 0;
+      const scaleStart = performance.now();
+      const scaleDuration = 900;
 
-      // Pour particles
-      const particleCount = 300;
-      const positions = new Float32Array(particleCount * 3);
-      for (let i = 0; i < particleCount; i++) {
-        positions[i * 3] = (Math.random() - 0.5) * L;
-        positions[i * 3 + 1] = D + 2 + Math.random() * 2;
-        positions[i * 3 + 2] = (Math.random() - 0.5) * W3;
-      }
-      const particleGeo = new THREE.BufferGeometry();
-      particleGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      const particleMat = new THREE.PointsMaterial({ color: 0x888888, size: 0.04, transparent: true, opacity: 0.8 });
-      const particlesMesh = new THREE.Points(particleGeo, particleMat);
-      scene.add(particlesMesh);
-
-      animeAnimate(particlesMesh.position, {
-        y: 0,
-        duration: 2000,
-        ease: "inCubic",
-        onComplete: () => scene.remove(particlesMesh),
-      });
-
-      // Render loop
-      let frameId: number;
       function renderLoop() {
+        if (shouldStop) return;
         frameId = requestAnimationFrame(renderLoop);
+
+        // Skip rendering when off-screen (saves GPU cost)
+        if (!isVisible) return;
+
+        // Scale-in animation via inline tween (avoids animejs + THREE.Vector3 compatibility risk)
+        const elapsed = performance.now() - scaleStart;
+        if (elapsed < scaleDuration) {
+          const s = Math.max(0.001, easeOutBack(Math.min(elapsed / scaleDuration, 1)));
+          mesh.scale.setScalar(s);
+        }
+
         controls.update();
         renderer.render(scene, camera);
       }
       renderLoop();
 
-      stateRef.current = { renderer, animFrameId: frameId! };
+      // Pause render loop when component scrolls out of view
+      const observer = new IntersectionObserver(
+        (entries) => { isVisible = entries[0]?.isIntersecting ?? true; },
+        { threshold: 0 }
+      );
+      if (mountRef.current) observer.observe(mountRef.current);
+
+      // Store cleanup in ref so the useEffect return can always reach it
+      cleanupRef.current = () => {
+        shouldStop = true;
+        cancelAnimationFrame(frameId);
+        observer.disconnect();
+        renderer.dispose();
+        if (renderer.domElement.parentNode) {
+          renderer.domElement.remove();
+        }
+      };
     }
 
     initScene().catch(console.error);
 
     return () => {
       destroyed = true;
-      if (stateRef.current) {
-        cancelAnimationFrame(stateRef.current.animFrameId);
-        stateRef.current.renderer.dispose();
-        if (stateRef.current.renderer.domElement.parentNode) {
-          stateRef.current.renderer.domElement.remove();
-        }
-        stateRef.current = null;
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
       }
     };
   }, [calcType, dimensions]);

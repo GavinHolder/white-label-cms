@@ -41,9 +41,13 @@ export default function MotionElementRenderer({ elements, sectionId }: MotionEle
     const cleanups: (() => void)[] = [];
 
     async function init() {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let animeUtils: any = null;
       try {
         const animeModule = await import("animejs");
         animeLib = animeModule.animate;
+        // animejs v4: utils.remove() replaces the old anime.remove() static method
+        animeUtils = (animeModule as any).utils ?? null;
       } catch {
         return; // Graceful degradation if anime.js unavailable
       }
@@ -82,17 +86,16 @@ export default function MotionElementRenderer({ elements, sectionId }: MotionEle
           (entries) => {
             entries.forEach((entry) => {
               if (entry.isIntersecting) {
-                // Entrance animation
+                // Entrance animation — animejs v4: animate(target, options)
                 if (el.entrance.enabled && animeLib) {
                   const dir = directionOffset[el.entrance.direction] ?? {};
-                  animeLib({
-                    targets: imgEl,
+                  animeLib(imgEl, {
                     translateX: dir.x ? [dir.x * el.entrance.distance, 0] : [0, 0],
                     translateY: dir.y ? [dir.y * el.entrance.distance, 0] : [0, 0],
                     opacity: [0, 1],
                     duration: el.entrance.duration,
                     delay: el.entrance.delay,
-                    easing: el.entrance.easing || "easeOutCubic",
+                    ease: el.entrance.easing || "outCubic",
                   });
                 }
                 // Idle loop
@@ -104,31 +107,29 @@ export default function MotionElementRenderer({ elements, sectionId }: MotionEle
                     pulse: { scale: [1, 1 + el.idle.amplitude / 100] },
                     sway: { rotateZ: [`-${el.idle.amplitude}deg`, `${el.idle.amplitude}deg`] },
                   };
-                  animeLib({
-                    targets: imgEl,
+                  animeLib(imgEl, {
                     ...(idleParams[el.idle.type] ?? idleParams.float),
                     duration: Math.max(500, 2000 / el.idle.speed),
                     loop: true,
-                    direction: "alternate",
-                    easing: "easeInOutSine",
+                    alternate: true,
+                    ease: "inOutSine",
                   });
                 }
               } else {
                 // Exit animation
                 if (el.exit.enabled && animeLib) {
                   const dir = directionOffset[el.exit.direction] ?? {};
-                  animeLib({
-                    targets: imgEl,
+                  animeLib(imgEl, {
                     translateX: dir.x ? [0, dir.x * el.exit.distance] : [0, 0],
                     translateY: dir.y ? [0, dir.y * el.exit.distance] : [0, 0],
                     opacity: [1, 0],
                     duration: el.exit.duration,
-                    easing: "easeInCubic",
+                    ease: "inCubic",
                   });
                 }
-                // Stop idle
-                if (el.idle.enabled && animeLib) {
-                  animeLib.remove(imgEl);
+                // Stop idle — animejs v4: utils.remove(target)
+                if (el.idle.enabled && animeUtils) {
+                  try { animeUtils.remove(imgEl); } catch { /* graceful */ }
                 }
               }
             });
@@ -145,13 +146,6 @@ export default function MotionElementRenderer({ elements, sectionId }: MotionEle
 
     return () => {
       cleanups.forEach((fn) => fn());
-      // Cancel any running anime instances
-      if (animeLib) {
-        elements.forEach((el) => {
-          const imgEl = document.getElementById(`motion-el-${el.id}`);
-          if (imgEl) animeLib.remove(imgEl);
-        });
-      }
     };
   }, [elements, sectionId]);
 
