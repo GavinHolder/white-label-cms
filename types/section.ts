@@ -162,7 +162,9 @@ export interface MotionElement {
   right?: string;
   bottom?: string;
   width: string;        // e.g. "300px" or "25%"
-  zIndex: number;       // default 20
+  opacity?: number;     // 0–100, default 100
+  zIndex: number;       // legacy — kept for backward compat; use layer when set
+  layer?: "behind" | "above-lower-third" | "above-content"; // NEW
   parallax: MotionElementParallax;
   entrance: MotionElementEntrance;
   exit: MotionElementExit;

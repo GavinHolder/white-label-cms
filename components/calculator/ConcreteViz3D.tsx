@@ -70,8 +70,6 @@ export default function ConcreteViz3D({ calcType, dimensions, result: _result }:
       });
 
       // Geometry based on calc type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let geometry: any;
       const L = Math.max(0.1, Math.min((dimensions.length ?? 1000) / 1000, 5));
       const W3 = Math.max(0.1, Math.min((dimensions.width ?? 1000) / 1000, 5));
       const D = Math.max(0.05, Math.min((dimensions.depth ?? dimensions.height ?? 200) / 1000, 3));
@@ -79,25 +77,57 @@ export default function ConcreteViz3D({ calcType, dimensions, result: _result }:
       if (calcType === "column") {
         const r = Math.max(0.05, Math.min((dimensions.diameter ?? 300) / 2000, 1));
         const h = Math.max(0.1, Math.min((dimensions.height ?? 3000) / 1000, 5));
-        geometry = new THREE.CylinderGeometry(r, r, h, 32);
+        const geo = new THREE.CylinderGeometry(r, r, h, 32);
+        const mesh = new THREE.Mesh(geo, material);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.position.y = h / 2;
+        scene.add(mesh);
+      } else if (calcType === "staircase") {
+        // Build stepped staircase: N independent boxes, each taller by one rise
+        const numSteps = Math.max(2, Math.min(Math.round(dimensions.steps ?? 12), 20));
+        const riseM = Math.max(0.05, Math.min((dimensions.rise ?? 180) / 1000, 0.5));
+        const runM  = Math.max(0.05, Math.min((dimensions.run  ?? 250) / 1000, 0.6));
+        const widM  = Math.max(0.1,  Math.min((dimensions.width ?? 1200) / 1000, 3));
+
+        const group = new THREE.Group();
+        for (let i = 0; i < numSteps; i++) {
+          const stepHeight = riseM * (i + 1);
+          const geo = new THREE.BoxGeometry(runM, stepHeight, widM);
+          const stepMesh = new THREE.Mesh(geo, material);
+          stepMesh.castShadow = true;
+          stepMesh.receiveShadow = true;
+          // Each step sits on the ground, positioned left→right in X
+          stepMesh.position.set(runM * i, stepHeight / 2, 0);
+          group.add(stepMesh);
+        }
+        // Center the group
+        const totalWidth = runM * numSteps;
+        const totalHeight = riseM * numSteps;
+        group.position.set(-totalWidth / 2, 0, 0);
+        // Adjust camera for staircase proportions
+        camera.position.set(totalWidth, totalHeight * 1.2, totalWidth * 1.5);
+        camera.lookAt(0, totalHeight / 2, 0);
+        scene.add(group);
       } else {
-        geometry = new THREE.BoxGeometry(L, D, W3);
+        const geo = new THREE.BoxGeometry(L, D, W3);
+        const mesh = new THREE.Mesh(geo, material);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.position.y = D / 2;
+        scene.add(mesh);
       }
 
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.position.y = D / 2;
-      scene.add(mesh);
+      // Collect all meshes for the scale-in animation
+      const animTargets: import("three").Object3D[] = [];
+      scene.traverse((obj) => { if ((obj as any).isMesh) animTargets.push(obj); });
 
-      // Controls
+      // Controls — user-driven (no auto-rotate)
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
-      controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.5;
+      controls.autoRotate = false;
 
       // Render loop — use shouldStop flag so we can reliably stop from cleanup
-      // (storing frameId is unreliable: it changes every frame, staleRef would have old ID)
       let shouldStop = false;
       let isVisible = true;
       let frameId = 0;
@@ -111,11 +141,11 @@ export default function ConcreteViz3D({ calcType, dimensions, result: _result }:
         // Skip rendering when off-screen (saves GPU cost)
         if (!isVisible) return;
 
-        // Scale-in animation via inline tween (avoids animejs + THREE.Vector3 compatibility risk)
+        // Scale-in animation
         const elapsed = performance.now() - scaleStart;
         if (elapsed < scaleDuration) {
           const s = Math.max(0.001, easeOutBack(Math.min(elapsed / scaleDuration, 1)));
-          mesh.scale.setScalar(s);
+          animTargets.forEach((obj) => obj.scale.setScalar(s));
         }
 
         controls.update();
@@ -154,9 +184,18 @@ export default function ConcreteViz3D({ calcType, dimensions, result: _result }:
   }, [calcType, dimensions]);
 
   return (
-    <div
-      ref={mountRef}
-      style={{ width: "100%", minHeight: "280px", borderRadius: "12px", overflow: "hidden", background: "#f8f9fa" }}
-    />
+    <div>
+      <div
+        ref={mountRef}
+        style={{ width: "100%", minHeight: "280px", borderRadius: "12px", overflow: "hidden", background: "#f8f9fa" }}
+      />
+      <div className="text-center text-muted mt-1" style={{ fontSize: "0.75rem", letterSpacing: "0.03em" }}>
+        <i className="bi bi-arrow-clockwise me-1" />Drag to rotate
+        <span className="mx-2">·</span>
+        <i className="bi bi-zoom-in me-1" />Scroll to zoom
+        <span className="mx-2">·</span>
+        <i className="bi bi-arrows-move me-1" />Right-drag to pan
+      </div>
+    </div>
   );
 }

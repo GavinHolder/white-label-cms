@@ -69,9 +69,10 @@ export default function MotionElementRenderer({ elements, sectionId }: MotionEle
             const offset = progress * rect.height * el.parallax.speed;
             imgEl.style.transform = `translateY(${offset}px)`;
           };
-          window.addEventListener("scroll", onScroll, { passive: true });
-          cleanups.push(() => window.removeEventListener("scroll", onScroll));
-          onScroll(); // Apply initial position
+          const scrollEl = document.getElementById("snap-container") || window as unknown as HTMLElement;
+          (scrollEl as HTMLElement).addEventListener("scroll", onScroll, { passive: true });
+          cleanups.push(() => (scrollEl as HTMLElement).removeEventListener("scroll", onScroll));
+          onScroll();
         }
 
         // ── 2 & 3. Entrance / Exit via IntersectionObserver ─────────────────
@@ -89,10 +90,11 @@ export default function MotionElementRenderer({ elements, sectionId }: MotionEle
                 // Entrance animation — animejs v4: animate(target, options)
                 if (el.entrance.enabled && animeLib) {
                   const dir = directionOffset[el.entrance.direction] ?? {};
+                  const targetOpacity = (el.opacity ?? 100) / 100;
                   animeLib(imgEl, {
                     translateX: dir.x ? [dir.x * el.entrance.distance, 0] : [0, 0],
                     translateY: dir.y ? [dir.y * el.entrance.distance, 0] : [0, 0],
-                    opacity: [0, 1],
+                    opacity: [0, targetOpacity],
                     duration: el.entrance.duration,
                     delay: el.entrance.delay,
                     ease: el.entrance.easing || "outCubic",
@@ -172,9 +174,16 @@ export default function MotionElementRenderer({ elements, sectionId }: MotionEle
             bottom: el.bottom,
             width: el.width,
             height: "auto",
-            zIndex: el.zIndex ?? 20,
-            // Start hidden if entrance animation is enabled
-            opacity: el.entrance.enabled ? 0 : 1,
+            zIndex: (() => {
+              const layerZIndex: Record<string, number> = {
+                "behind": 5,
+                "above-lower-third": 15,
+                "above-content": 25,
+              };
+              return el.layer ? (layerZIndex[el.layer] ?? 5) : (el.zIndex ?? 5);
+            })(),
+            // Start hidden if entrance animation is enabled; otherwise use user opacity
+            opacity: el.entrance.enabled ? 0 : (el.opacity ?? 100) / 100,
           }}
         />
       ))}

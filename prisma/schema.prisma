@@ -195,6 +195,7 @@ enum SectionType {
   NORMAL
   CTA
   FOOTER
+  FLEXIBLE
 }
 
 // ============================================

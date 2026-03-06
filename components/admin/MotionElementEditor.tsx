@@ -18,7 +18,8 @@ export function createDefaultMotionElement(): MotionElement {
     right: "5%",
     bottom: undefined,
     width: "200px",
-    zIndex: 20,
+    zIndex: 5,
+    layer: "behind",
     parallax: { enabled: false, speed: 0.3 },
     entrance: {
       enabled: true,
@@ -109,6 +110,20 @@ interface PositionCanvasProps {
 function PositionCanvas({ top, right, left, bottom, onChange }: PositionCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
 
+  // Parse existing left/top values for slider display (strip %, default to 50)
+  const xVal = left ? Math.round(parseFloat(left)) : 50;
+  const yVal = top ? Math.round(parseFloat(top)) : 50;
+
+  const handleXChange = (val: number) => {
+    const clamped = Math.min(100, Math.max(0, val));
+    onChange({ left: `${clamped}%`, top, right: undefined, bottom });
+  };
+
+  const handleYChange = (val: number) => {
+    const clamped = Math.min(100, Math.max(0, val));
+    onChange({ left, top: `${clamped}%`, right: undefined, bottom: undefined });
+  };
+
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const xPct = Math.round(((e.clientX - rect.left) / rect.width) * 100);
@@ -139,6 +154,47 @@ function PositionCanvas({ top, right, left, bottom, onChange }: PositionCanvasPr
 
   return (
     <div>
+      {/* X/Y precision sliders */}
+      <div className="mb-2">
+        <div className="d-flex align-items-center gap-2 mb-1">
+          <span className="small fw-semibold" style={{ minWidth: 70 }}>X Position</span>
+          <input
+            type="range"
+            className="form-range flex-grow-1"
+            min={0} max={100} step={1}
+            value={xVal}
+            onChange={(e) => handleXChange(parseInt(e.target.value))}
+          />
+          <input
+            type="number"
+            className="form-control form-control-sm"
+            style={{ width: 60 }}
+            min={0} max={100}
+            value={xVal}
+            onChange={(e) => handleXChange(parseInt(e.target.value) || 0)}
+          />
+          <span className="small text-muted">%</span>
+        </div>
+        <div className="d-flex align-items-center gap-2">
+          <span className="small fw-semibold" style={{ minWidth: 70 }}>Y Position</span>
+          <input
+            type="range"
+            className="form-range flex-grow-1"
+            min={0} max={100} step={1}
+            value={yVal}
+            onChange={(e) => handleYChange(parseInt(e.target.value))}
+          />
+          <input
+            type="number"
+            className="form-control form-control-sm"
+            style={{ width: 60 }}
+            min={0} max={100}
+            value={yVal}
+            onChange={(e) => handleYChange(parseInt(e.target.value) || 0)}
+          />
+          <span className="small text-muted">%</span>
+        </div>
+      </div>
       <label className="form-label small mb-1">Click to Position</label>
       <div
         ref={canvasRef}
@@ -368,7 +424,7 @@ export default function MotionElementEditor({ element, onChange, onDelete }: Mot
                 onChange={(patch) => set(patch)}
               />
               <div className="row g-2 mt-2">
-                <div className="col-6">
+                <div className="col-12">
                   <label className="form-label small mb-1">Width</label>
                   <input
                     type="text"
@@ -378,14 +434,63 @@ export default function MotionElementEditor({ element, onChange, onDelete }: Mot
                     placeholder="200px or 25%"
                   />
                 </div>
-                <div className="col-6">
-                  <label className="form-label small mb-1">Z-Index</label>
-                  <input
-                    type="number"
-                    className="form-control form-control-sm"
-                    value={element.zIndex}
-                    onChange={(e) => set({ zIndex: parseInt(e.target.value) || 20 })}
-                  />
+              </div>
+
+              {/* Opacity */}
+              <div className="mb-3">
+                <label className="form-label fw-semibold small d-flex justify-content-between">
+                  <span>Opacity</span>
+                  <span className="text-muted">{element.opacity ?? 100}%</span>
+                </label>
+                <input
+                  type="range"
+                  className="form-range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={element.opacity ?? 100}
+                  onChange={(e) => onChange({ ...element, opacity: Number(e.target.value) })}
+                />
+                <div className="d-flex justify-content-between text-muted" style={{ fontSize: "0.7rem" }}>
+                  <span>Invisible</span>
+                  <span>Fully Opaque</span>
+                </div>
+              </div>
+
+              {/* Layer */}
+              <div className="mb-3 mt-3">
+                <label className="form-label fw-semibold small">Layer (Z-depth)</label>
+                <div className="btn-group w-100" role="group">
+                  {(["behind", "above-lower-third", "above-content"] as const).map((opt) => {
+                    const labels: Record<string, string> = {
+                      "behind": "Behind All",
+                      "above-lower-third": "Above Shape",
+                      "above-content": "Above Content",
+                    };
+                    const icons: Record<string, string> = {
+                      "behind": "bi-layers",
+                      "above-lower-third": "bi-layout-bottom",
+                      "above-content": "bi-front",
+                    };
+                    const active = (element.layer ?? "behind") === opt;
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        className={`btn btn-sm ${active ? "btn-primary" : "btn-outline-secondary"}`}
+                        onClick={() => onChange({ ...element, layer: opt })}
+                        title={labels[opt]}
+                      >
+                        <i className={`bi ${icons[opt]} me-1`} />
+                        {labels[opt]}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="form-text">
+                  {(element.layer ?? "behind") === "behind" && "Behind lower-third shape and section content"}
+                  {element.layer === "above-lower-third" && "Above the lower-third shape, behind section content"}
+                  {element.layer === "above-content" && "In front of all section content and shapes"}
                 </div>
               </div>
             </div>

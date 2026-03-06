@@ -138,7 +138,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           top: 0;
           left: 0;
           overflow-y: auto;
-          z-index: 1100;
+          z-index: 1045;
           transition: transform 0.25s ease;
         }
         @media (max-width: 767px) {

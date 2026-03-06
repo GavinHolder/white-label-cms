@@ -19,6 +19,7 @@ type SettingsCategory =
   | "data"
   | "about"
   | "email"
+  | "calculator"
   | "features";
 
 const BASE_CATEGORIES: Array<{
@@ -32,6 +33,7 @@ const BASE_CATEGORIES: Array<{
   { id: "scroll", label: "Scroll Behavior", icon: "bi-arrows-vertical" },
   { id: "data", label: "Data Management", icon: "bi-database" },
   { id: "email", label: "Email & SMTP", icon: "bi-envelope-gear" },
+  { id: "calculator", label: "Calculator", icon: "bi-calculator" },
   { id: "about", label: "About", icon: "bi-info-circle" },
 ];
 
@@ -57,6 +59,12 @@ export default function SettingsPage() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailTesting, setEmailTesting] = useState(false);
 
+  // Calculator settings
+  const [calcSettings, setCalcSettings] = useState({ quote_ref_prefix: "CE", quote_ref_counter: "1001" });
+  const [calcSaving, setCalcSaving] = useState(false);
+  const [calcSuccess, setCalcSuccess] = useState<string | null>(null);
+  const [calcError, setCalcError] = useState<string | null>(null);
+
   useEffect(() => {
     setSettings(getCMSSettings());
   }, []);
@@ -81,6 +89,17 @@ export default function SettingsPage() {
         }
       })
       .catch(() => {}); // Silently ignore if not configured
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/settings/calculator")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.settings) {
+          setCalcSettings((prev) => ({ ...prev, ...data.settings }));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -141,6 +160,26 @@ export default function SettingsPage() {
       setEmailError("Failed to save email settings. Please try again.");
     } finally {
       setEmailSaving(false);
+    }
+  };
+
+  /** Save calculator settings (quote reference prefix + counter) */
+  const handleSaveCalcSettings = async () => {
+    setCalcSaving(true);
+    setCalcError(null);
+    try {
+      const res = await fetch("/api/settings/calculator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(calcSettings),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      setCalcSuccess("Calculator settings saved!");
+      setTimeout(() => setCalcSuccess(null), 3000);
+    } catch {
+      setCalcError("Failed to save. Please try again.");
+    } finally {
+      setCalcSaving(false);
     }
   };
 
@@ -813,6 +852,72 @@ export default function SettingsPage() {
                         Version 1.0.0 | Content Management System
                       </p>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Calculator Settings */}
+          {activeCategory === "calculator" && (
+            <div className="row g-4">
+              <div className="col-12">
+                <div className="card border-0 shadow-sm">
+                  <div className="card-body p-4">
+                    <h5 className="fw-bold mb-1">
+                      <i className="bi bi-calculator me-2 text-primary" />Calculator Quote References
+                    </h5>
+                    <p className="text-muted small mb-4">
+                      Configure the prefix and starting number for estimate reference codes (e.g. <code>CE-1001</code>).
+                      Each new estimate increments the counter automatically.
+                    </p>
+
+                    <div className="row g-3 mb-4">
+                      <div className="col-sm-4">
+                        <label className="form-label fw-semibold">Reference Prefix</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="CE"
+                          maxLength={8}
+                          value={calcSettings.quote_ref_prefix}
+                          onChange={(e) => setCalcSettings({ ...calcSettings, quote_ref_prefix: e.target.value.toUpperCase() })}
+                        />
+                        <div className="form-text">Letters only, max 8 characters.</div>
+                      </div>
+                      <div className="col-sm-4">
+                        <label className="form-label fw-semibold">Next Reference Number</label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          min={1}
+                          step={1}
+                          value={calcSettings.quote_ref_counter}
+                          onChange={(e) => setCalcSettings({ ...calcSettings, quote_ref_counter: e.target.value })}
+                        />
+                        <div className="form-text">Auto-increments on each estimate.</div>
+                      </div>
+                      <div className="col-sm-4">
+                        <label className="form-label fw-semibold">Preview</label>
+                        <div className="form-control bg-light text-muted" style={{ fontFamily: "monospace" }}>
+                          {calcSettings.quote_ref_prefix || "CE"}-{String(calcSettings.quote_ref_counter || "1001").padStart(4, "0")}
+                        </div>
+                        <div className="form-text">How references will look.</div>
+                      </div>
+                    </div>
+
+                    {calcError && <div className="alert alert-danger py-2 small">{calcError}</div>}
+                    {calcSuccess && <div className="alert alert-success py-2 small">{calcSuccess}</div>}
+
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSaveCalcSettings}
+                      disabled={calcSaving}
+                    >
+                      {calcSaving
+                        ? <><span className="spinner-border spinner-border-sm me-2" />Saving…</>
+                        : <><i className="bi bi-check2-circle me-2" />Save Calculator Settings</>}
+                    </button>
                   </div>
                 </div>
               </div>

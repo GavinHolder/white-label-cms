@@ -899,7 +899,7 @@ function NormalRenderer({ section }: { section: NormalSection }) {
         />
       )}
 
-      <div className="section-content-wrapper" style={{ position: "relative", zIndex: 11 }}>
+      <div className="section-content-wrapper" style={{ position: "relative", zIndex: 20 }}>
         <div className="container">
           {content.heading && (
             <h2 className={`fw-bold mb-2 ${textClass}`}>{content.heading}</h2>

@@ -456,6 +456,11 @@ export default function LandingPageManager() {
                             Fixed
                           </span>
                         )}
+                        {(section.type === "FLEXIBLE" || (section.type as string) === "flexible") && (
+                          <span className="badge rounded-pill text-info border border-info-subtle">
+                            {((section as any).contentMode || (section as any).content?.contentMode || "single") === "multi" ? "multi-block" : "single-block"}
+                          </span>
+                        )}
                       </div>
                       <small className="text-muted">Order: {section.order}</small>
                     </div>
