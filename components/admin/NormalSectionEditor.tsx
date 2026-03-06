@@ -5,6 +5,9 @@ import { useAutoSave } from "@/lib/hooks/useAutoSave";
 import type { NormalSection, GradientOverlay, AnimationType, LayoutPreset } from "@/types/section";
 import type { AnimBgConfig } from "@/lib/anim-bg/types";
 import { DEFAULT_ANIM_BG_CONFIG } from "@/lib/anim-bg/defaults";
+import { DEFAULT_LOWER_THIRD } from "@/lib/lower-third-presets";
+import type { LowerThirdConfig } from "@/types/section";
+import LowerThirdTab from "./LowerThirdTab";
 import SpacingControls from "@/components/admin/SpacingControls";
 import SectionIntoShapePicker from "@/components/admin/SectionIntoShapePicker";
 import ImageFieldWithUpload from "@/components/admin/ImageFieldWithUpload";
@@ -1037,9 +1040,12 @@ export default function NormalSectionEditor({
   const [bgImageOpacity, setBgImageOpacity] = useState(section.bgImageOpacity || 100);
   const [bgParallax, setBgParallax] = useState(section.bgParallax || false);
 
-  const [activeTab, setActiveTab] = useState<"content" | "background" | "animation" | "overlay" | "spacing" | "triangle" | "preview">("content");
+  const [activeTab, setActiveTab] = useState<"content" | "background" | "animation" | "overlay" | "spacing" | "triangle" | "lower-third" | "preview">("content");
   const [animBg, setAnimBg] = useState<AnimBgConfig>(
     (section as any).content?.animBg || DEFAULT_ANIM_BG_CONFIG
+  );
+  const [lowerThird, setLowerThird] = useState<LowerThirdConfig>(
+    (section as any).lowerThird ?? DEFAULT_LOWER_THIRD
   );
 
   const showImageFields = layout === "text-image" || layout === "image-text";
@@ -1121,6 +1127,7 @@ export default function NormalSectionEditor({
       bgImageRepeat,
       bgImageOpacity,
       bgParallax,
+      lowerThird,
       content: {
         heading: heading || undefined,
         subheading: subheading || undefined,
@@ -1225,6 +1232,15 @@ export default function NormalSectionEditor({
                 >
                   <i className="bi bi-triangle me-2"></i>
                   Section Into
+                </button>
+              </li>
+              <li className="nav-item">
+                <button
+                  className={`nav-link ${activeTab === "lower-third" ? "active" : ""}`}
+                  onClick={() => setActiveTab("lower-third")}
+                >
+                  <i className="bi bi-layout-bottom me-1" />
+                  Lower Third
                 </button>
               </li>
               <li className="nav-item">
@@ -2979,6 +2995,11 @@ export default function NormalSectionEditor({
                   onPaddingBottomChange={setPaddingBottom}
                 />
               </div>
+            )}
+
+            {/* Lower Third Tab */}
+            {activeTab === "lower-third" && (
+              <LowerThirdTab config={lowerThird} onChange={setLowerThird} />
             )}
 
             {/* Live Preview Tab */}
