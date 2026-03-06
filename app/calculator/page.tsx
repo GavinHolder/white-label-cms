@@ -225,7 +225,7 @@ function QuoteModal({ show, onClose, calcType, strength, inputs, result, currenc
     <>
       <div className="modal-backdrop fade show" style={{ zIndex: 1040 }} onClick={onClose} />
       <div className="modal fade show d-block" style={{ zIndex: 1050 }} tabIndex={-1}>
-        <div className="modal-dialog modal-dialog-centered">
+        <div className="modal-dialog modal-dialog-scrollable modal-fullscreen-sm-down" style={{ marginTop: 90, marginBottom: 24 }}>
           <div className="modal-content border-0 shadow-lg">
             <div className="modal-header border-0 pb-0" style={{ background: "#1e3a5f", borderRadius: "12px 12px 0 0" }}>
               <div className="p-1">
@@ -456,13 +456,17 @@ function EstimateModal({ show, onClose, ...reportProps }: EstimateModalProps) {
     <>
       <div className="modal-backdrop fade show" style={{ zIndex: 1040 }} onClick={onClose} />
       <div className="modal fade show d-block" style={{ zIndex: 1050 }} tabIndex={-1}>
-        <div className="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        {/* fullscreen on mobile, large dialog on desktop with top margin to clear navbar */}
+        <div
+          className="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down"
+          style={{ marginTop: 90, marginBottom: 24 }}
+        >
           <div className="modal-content border-0 shadow-lg" style={{ borderRadius: 12 }}>
             <div className="modal-header border-0 pb-0 px-4 pt-3">
               <div />
               <button type="button" className="btn-close" onClick={onClose} />
             </div>
-            <div className="modal-body p-0 px-4 pb-4">
+            <div className="modal-body px-3 px-md-4 pb-4 pt-0">
               <EstimateReport {...reportProps} />
             </div>
           </div>
@@ -508,31 +512,47 @@ function CalculatorInner({ config }: CalculatorInnerProps) {
 
   return (
     <>
-      {/* Calc type tabs */}
+      {/* Calc type selector — scrollable row on mobile */}
       <div className="d-flex gap-2 mb-4 flex-wrap" role="group">
         {CALC_TYPES.map((t) => (
           <button
             key={t.id}
             type="button"
             className={`btn ${calcType === t.id ? "btn-primary" : "btn-outline-secondary"} d-flex align-items-center gap-2`}
-            style={{ fontSize: 14 }}
+            style={{ fontSize: 13 }}
             onClick={() => handleCalcTypeChange(t.id)}
           >
             <i className={t.icon} />
-            {t.label}
+            <span className="d-none d-sm-inline">{t.label}</span>
+            <span className="d-inline d-sm-none">{t.label.split(" ")[0]}</span>
           </button>
         ))}
       </div>
 
-      <div className="row g-4 align-items-start">
-        {/* ── Inputs ── */}
-        <div className="col-md-5">
-          <div className="card border-0 shadow-sm h-100" style={{ borderRadius: 12 }}>
-            <div className="card-body p-4">
+      <div className="row g-3 g-md-4 align-items-start">
+        {/* ── 3D viz — appears first on mobile (order-1 → order-md-2) ── */}
+        <div className="col-12 col-md-7 order-1 order-md-2">
+          <ConcreteViz3D calcType={calcType} dimensions={inputs} result={result} />
+          {result && (
+            <div className="mt-3 text-center">
+              <button
+                className="btn btn-success px-4 shadow-sm"
+                onClick={() => setShowReport(true)}
+              >
+                <i className="bi bi-file-earmark-text me-2" />View Estimate Report
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ── Inputs — appears second on mobile, left column on desktop ── */}
+        <div className="col-12 col-md-5 order-2 order-md-1">
+          <div className="card border-0 shadow-sm" style={{ borderRadius: 12 }}>
+            <div className="card-body p-3 p-md-4">
               <h6 className="fw-bold mb-1" style={{ color: "#1e3a5f" }}>
                 <i className="bi bi-sliders me-2" />{currentType.label}
               </h6>
-              <div className="text-muted small mb-4">Adjust sliders or drag the number to set dimensions.</div>
+              <div className="text-muted small mb-4">Adjust sliders or drag a number up/down.</div>
 
               {currentType.inputs.map((inp) => (
                 <DimInput
@@ -574,21 +594,6 @@ function CalculatorInner({ config }: CalculatorInnerProps) {
               )}
             </div>
           </div>
-        </div>
-
-        {/* ── 3D viz ── */}
-        <div className="col-md-7">
-          <ConcreteViz3D calcType={calcType} dimensions={inputs} result={result} />
-          {result && (
-            <div className="mt-3 text-center">
-              <button
-                className="btn btn-success px-4 shadow-sm"
-                onClick={() => setShowReport(true)}
-              >
-                <i className="bi bi-file-earmark-text me-2" />View Estimate Report
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -648,12 +653,13 @@ export default function CalculatorPage() {
   }
 
   return (
-    <div className="container py-5" style={{ maxWidth: "1000px" }}>
+    /* pt clears fixed navbar (~70px) + breathing room; px-3 keeps content off screen edges on mobile */
+    <div className="container px-3 px-md-4 pb-5" style={{ maxWidth: 1000, paddingTop: 100 }}>
       <div className="mb-4">
-        <h1 className="fw-bold mb-1" style={{ color: "#1e3a5f" }}>
+        <h1 className="fw-bold mb-1 fs-3 fs-md-1" style={{ color: "#1e3a5f" }}>
           <i className="bi bi-calculator me-2" />Concrete Calculator
         </h1>
-        <p className="text-muted">
+        <p className="text-muted mb-0">
           Calculate concrete volumes, cement quantities, and indicative project costs.
         </p>
       </div>
