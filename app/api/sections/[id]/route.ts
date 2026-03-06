@@ -115,6 +115,9 @@ export async function PUT(
         ...(body.bgImageRepeat !== undefined && { bgImageRepeat: body.bgImageRepeat }),
         ...(body.bgImageOpacity !== undefined && { bgImageOpacity: body.bgImageOpacity }),
         ...(body.bgParallax !== undefined && { bgParallax: body.bgParallax }),
+        // Lower third and motion elements
+        ...(body.lowerThird !== undefined && { lowerThird: body.lowerThird }),
+        ...(body.motionElements !== undefined && { motionElements: body.motionElements }),
       },
     });
 

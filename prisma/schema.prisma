@@ -169,6 +169,11 @@ model Section {
   bgImageOpacity       Int?      @default(100)
   bgParallax           Boolean   @default(false)
 
+  // Lower third decorative graphic (z-index 10, SVG preset or image)
+  lowerThird    Json?
+  // Motion/parallax overlay elements (z-index 20, anime.js animated images)
+  motionElements Json?
+
   // Custom elements (for freeform sections only)
   elements      CustomElement[]
 
