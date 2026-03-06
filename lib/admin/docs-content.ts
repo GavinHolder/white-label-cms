@@ -2278,7 +2278,12 @@ export const FEATURE_FLAGS_DOCS = `
       <td>
         Public <code>/calculator</code> page — supports Slab, Column, Footing, Beam &amp; Staircase. Includes:
         <ul class="mb-0 mt-1">
-          <li>3D Three.js interactive preview (drag/zoom/pan)</li>
+          <li>3D Three.js interactive preview — drag to rotate, scroll to zoom, ⇧+drag to pan</li>
+          <li>Camera position is preserved when adjusting dimension sliders — no snap-out</li>
+          <li><strong>Dims</strong> button — toggleable blue dimension lines with arrowheads per shape</li>
+          <li><strong>Spin</strong> / <strong>Stop</strong> button — auto-rotate toggle</li>
+          <li><strong>Center</strong> button — reset camera to default framing for current shape</li>
+          <li>Dimension inputs have sliders + scrubber inputs for precise adjustment</li>
           <li>Professional estimate report with reference number</li>
           <li><strong>Request Formal Quote</strong> button — sends a formatted email to the admin address configured in Settings → Email</li>
         </ul>
