@@ -9,9 +9,22 @@ import {
   type MixRatio,
 } from "@/lib/concrete-calculator";
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Outer shell — renders AdminLayout (which provides ToastProvider) ─────────
 
 export default function ConcreteSettingsPage() {
+  return (
+    <AdminLayout
+      title="Concrete Calculator Settings"
+      subtitle="Configure pricing, mix ratios and display options"
+    >
+      <ConcreteSettingsInner />
+    </AdminLayout>
+  );
+}
+
+// ─── Inner component — safe to call useToast() here ───────────────────────────
+
+function ConcreteSettingsInner() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -103,34 +116,16 @@ export default function ConcreteSettingsPage() {
   // ── Render ──────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <AdminLayout title="Concrete Calculator Settings" subtitle="Configure pricing and mix ratios">
-        <div className="d-flex justify-content-center py-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading…</span>
-          </div>
+      <div className="d-flex justify-content-center py-5">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading…</span>
         </div>
-      </AdminLayout>
+      </div>
     );
   }
 
   return (
-    <AdminLayout
-      title="Concrete Calculator Settings"
-      subtitle="Configure pricing, mix ratios and display options"
-      actions={
-        <button
-          className="btn btn-primary btn-sm"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? (
-            <><span className="spinner-border spinner-border-sm me-1" />Saving…</>
-          ) : (
-            <><i className="bi bi-floppy me-1" />Save Settings</>
-          )}
-        </button>
-      }
-    >
+    <>
       <div className="row g-4">
         {/* ── General Settings ─────────────────────────────────────────────── */}
         <div className="col-lg-6">
@@ -353,6 +348,6 @@ export default function ConcreteSettingsPage() {
           )}
         </button>
       </div>
-    </AdminLayout>
+    </>
   );
 }
