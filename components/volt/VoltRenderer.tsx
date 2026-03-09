@@ -6,6 +6,9 @@ import { personalityToAnimeConfig } from '@/lib/volt/personality-to-anime'
 import VoltSvgLayer from './VoltSvgLayer'
 import VoltSlotRenderer from './VoltSlotRenderer'
 
+// Anime.js v4 animate() returns an Animation instance with a .cancel() method.
+type AnimeAnimation = { cancel: () => void }
+
 interface Props {
   voltElement: VoltElementData
   slots?: VoltSlots
@@ -15,6 +18,8 @@ interface Props {
 
 export default function VoltRenderer({ voltElement, slots = {}, className, style }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
+  // Track in-flight animations so cleanup can cancel them (anime v4 pattern).
+  const activeAnimationsRef = useRef<AnimeAnimation[]>([])
   const { layers, states, canvasWidth, canvasHeight } = voltElement
   const sortedLayers = sortLayersByZ(layers)
 
@@ -53,12 +58,13 @@ export default function VoltRenderer({ voltElement, slots = {}, className, style
 
         if (Object.keys(targets).length === 0) continue
 
-        animate(layerEl, {
+        const anim = animate(layerEl, {
           ...targets,
           duration,
           ease,
           delay: (delay ?? 0) + staggerIndex * 40,
-        })
+        }) as AnimeAnimation
+        activeAnimationsRef.current.push(anim)
         staggerIndex++
       }
     }
@@ -78,6 +84,9 @@ export default function VoltRenderer({ voltElement, slots = {}, className, style
       el.removeEventListener('mouseleave', onLeave)
       el.removeEventListener('focusin',    onFocus)
       el.removeEventListener('focusout',   onBlur)
+      // Cancel any in-flight animations (anime v4: Animation.cancel()).
+      activeAnimationsRef.current.forEach(anim => anim.cancel())
+      activeAnimationsRef.current = []
     }
   }, [voltElement, layers, states])
 
