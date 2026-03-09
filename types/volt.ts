@@ -51,7 +51,7 @@ export interface VoltStroke {
   opacity: number
   width: number
   align: 'inside' | 'center' | 'outside'
-  cap: 'none' | 'round' | 'square'
+  cap: 'butt' | 'round' | 'square'
   join: 'miter' | 'round' | 'bevel'
   dash?: number[]
 }

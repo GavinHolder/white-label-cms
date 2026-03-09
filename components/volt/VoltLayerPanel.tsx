@@ -38,6 +38,7 @@ export default function VoltLayerPanel({
 }: Props) {
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<string | null>(null)
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
 
   const displayLayers = [...sortLayersByZ(layers)].reverse()
 
@@ -92,6 +93,8 @@ export default function VoltLayerPanel({
             onDragOver={e => onDragOver(e, layer.id)}
             onDrop={e => onDrop(e, layer.id)}
             onDragEnd={() => { setDragId(null); setDragOver(null) }}
+            onMouseEnter={() => setHoveredId(layer.id)}
+            onMouseLeave={() => setHoveredId(null)}
             onClick={() => onSelectLayer(layer.id)}
             style={{
               display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px',
@@ -151,10 +154,9 @@ export default function VoltLayerPanel({
               title="Delete layer"
               style={{
                 background: 'none', border: 'none', color: '#64748b',
-                cursor: 'pointer', padding: 0, fontSize: 13, opacity: 0,
+                cursor: 'pointer', padding: 0, fontSize: 13,
+                opacity: hoveredId === layer.id ? 1 : 0,
               }}
-              onMouseEnter={e => { (e.target as HTMLElement).style.opacity = '1' }}
-              onMouseLeave={e => { (e.target as HTMLElement).style.opacity = '0' }}
             >
               <i className="bi bi-x" />
             </button>

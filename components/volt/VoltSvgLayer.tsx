@@ -30,7 +30,7 @@ export default function VoltSvgLayer({ layer, canvasWidth, canvasHeight }: Props
     stroke: stroke.color,
     strokeOpacity: stroke.opacity,
     strokeWidth: stroke.width,
-    strokeLinecap: stroke.cap === 'none' ? 'butt' as const : stroke.cap,
+    strokeLinecap: stroke.cap,
     strokeLinejoin: stroke.join,
     strokeDasharray: stroke.dash?.join(' ') ?? undefined,
   } : {}

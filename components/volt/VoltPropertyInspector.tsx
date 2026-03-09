@@ -47,7 +47,7 @@ export default function VoltPropertyInspector({ selectedLayer, onUpdateLayer }: 
 
   function addStroke() {
     updateVectorData({
-      stroke: { color: '#000000', opacity: 1, width: 1, align: 'center', cap: 'none', join: 'miter' },
+      stroke: { color: '#000000', opacity: 1, width: 1, align: 'center', cap: 'butt', join: 'miter' },
     })
   }
 
@@ -186,6 +186,21 @@ export default function VoltPropertyInspector({ selectedLayer, onUpdateLayer }: 
                         }}
                       >
                         {a.slice(0, 2)}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                    {([['butt', 'Bt'], ['round', 'Rd'], ['square', 'Sq']] as const).map(([cap, label]) => (
+                      <button
+                        key={cap}
+                        onClick={() => updateStroke({ cap })}
+                        title={`Stroke cap: ${cap}`}
+                        style={{
+                          ...pillStyle,
+                          background: stroke.cap === cap ? '#6366f1' : '#1e1e3a',
+                        }}
+                      >
+                        {label}
                       </button>
                     ))}
                   </div>
