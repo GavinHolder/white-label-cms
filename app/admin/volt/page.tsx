@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import AdminLayout from "@/components/admin/AdminLayout";
 import type { VoltElementData } from "@/types/volt";
@@ -48,6 +49,7 @@ export default function VoltAdminPage() {
 // ─── Inner component ──────────────────────────────────────────────────────────
 
 function VoltAdminInner() {
+  const router = useRouter();
   const [volts, setVolts] = useState<VoltListItem[]>([]);
   const [userId, setUserId] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -59,12 +61,19 @@ function VoltAdminInner() {
       try {
         const [meRes, voltsRes] = await Promise.all([
           fetch("/api/auth/me"),
-          fetch("/api/volt?public=true"),
+          fetch("/api/volt"),
         ]);
-        if (meRes.ok) {
-          const meJson = await meRes.json();
-          setUserId(meJson?.data?.user?.id ?? "");
+        if (!meRes.ok) {
+          router.replace("/admin/login");
+          return;
         }
+        const meJson = await meRes.json();
+        const uid = meJson?.data?.user?.id ?? "";
+        if (!uid) {
+          router.replace("/admin/login");
+          return;
+        }
+        setUserId(uid);
         if (voltsRes.ok) {
           const { data } = await voltsRes.json();
           setVolts(data?.volts ?? []);
@@ -74,7 +83,7 @@ function VoltAdminInner() {
       }
     }
     load();
-  }, []);
+  }, [router]);
 
   async function handleNew() {
     const el = createNewVoltElement(userId, "New Design");
@@ -115,7 +124,17 @@ function VoltAdminInner() {
       }),
     });
     setVolts((v) =>
-      v.map((x) => (x.id === element.id ? { ...x, name: element.name } : x))
+      v.map((x) =>
+        x.id === element.id
+          ? {
+              ...x,
+              name: element.name,
+              isPublic: element.isPublic,
+              mood: element.mood ?? null,
+              elementType: element.elementType,
+            }
+          : x
+      )
     );
   }
 
