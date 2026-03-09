@@ -145,7 +145,21 @@ export default function VoltCanvas({
         >
           {sortedLayers.map(layer =>
             layer.type === 'vector'
-              ? <VoltSvgLayer key={layer.id} layer={layer} canvasWidth={canvasWidth} canvasHeight={canvasHeight} />
+              ? (
+                <g key={layer.id}>
+                  <VoltSvgLayer layer={layer} canvasWidth={canvasWidth} canvasHeight={canvasHeight} />
+                  <rect
+                    x={(layer.x / 100) * canvasWidth}
+                    y={(layer.y / 100) * canvasHeight}
+                    width={(layer.width / 100) * canvasWidth}
+                    height={(layer.height / 100) * canvasHeight}
+                    fill="transparent"
+                    stroke="none"
+                    style={{ cursor: 'pointer' }}
+                    onClick={(e) => { e.stopPropagation(); onSelectLayer(layer.id) }}
+                  />
+                </g>
+              )
               : layer.type === 'slot'
               ? <SlotHitTarget key={layer.id} layer={layer} canvasWidth={canvasWidth} canvasHeight={canvasHeight}
                   selected={layer.id === selectedLayerId}

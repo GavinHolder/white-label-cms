@@ -184,7 +184,6 @@ export interface VoltElementData {
   isPublic: boolean
   authorId: string
   layers: VoltLayer[]
-  slots: VoltSlotData[]
   states: VoltState[]
   canvasWidth: number
   canvasHeight: number

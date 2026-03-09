@@ -104,12 +104,14 @@ export function voltReducer(state: VoltStudioState, action: VoltStudioAction): V
     case 'SET_PAN':
       return { ...state, panX: action.x, panY: action.y }
 
-    case 'SET_ELEMENT_NAME':
+    case 'SET_ELEMENT_NAME': {
+      const next = pushHistory(state)
       return {
-        ...state,
-        element: { ...state.element, name: action.name },
+        ...next,
+        element: { ...next.element, name: action.name },
         isDirty: true,
       }
+    }
 
     case 'LOAD_ELEMENT':
       return {

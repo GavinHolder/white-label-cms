@@ -107,7 +107,6 @@ export function createNewVoltElement(authorId: string, name = 'New Design'): Vol
     isPublic: false,
     authorId,
     layers: [],
-    slots: [],
     states: [createDefaultRestState(), createDefaultHoverState()],
     canvasWidth: 800,
     canvasHeight: 500,

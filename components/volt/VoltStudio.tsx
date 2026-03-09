@@ -3,6 +3,7 @@ import { useReducer, useEffect, useCallback } from 'react'
 import type { VoltElementData, VoltLayer, VoltTool } from '@/types/volt'
 import { voltReducer, createInitialState } from '@/lib/volt/volt-reducer'
 import { createNewVoltElement } from '@/lib/volt/volt-defaults'
+import { useToast } from '@/components/admin/ToastProvider'
 import VoltToolbar from './VoltToolbar'
 import VoltCanvas from './VoltCanvas'
 import VoltLayerPanel from './VoltLayerPanel'
@@ -14,11 +15,13 @@ interface Props {
   onSave?: (element: VoltElementData) => Promise<void>
 }
 
-const STATE_TABS = ['rest', 'hover', 'focus', 'active'] as const
-
 export default function VoltStudio({ initialElement, authorId, onSave }: Props) {
-  const element = initialElement ?? createNewVoltElement(authorId)
-  const [state, dispatch] = useReducer(voltReducer, createInitialState(element))
+  const toast = useToast()
+  const [state, dispatch] = useReducer(
+    voltReducer,
+    undefined,
+    () => createInitialState(initialElement ?? createNewVoltElement(authorId))
+  )
 
   useEffect(() => {
     const TOOL_SHORTCUTS: Record<string, VoltTool> = {
@@ -43,9 +46,13 @@ export default function VoltStudio({ initialElement, authorId, onSave }: Props) 
 
   const handleSave = useCallback(async () => {
     if (!onSave) return
-    await onSave(state.element)
-    dispatch({ type: 'MARK_SAVED' })
-  }, [state.element, onSave])
+    try {
+      await onSave(state.element)
+      dispatch({ type: 'MARK_SAVED' })
+    } catch {
+      toast.error('Failed to save Volt. Please try again.')
+    }
+  }, [state.element, onSave, toast])
 
   const selectedLayer = state.element.layers.find(l => l.id === state.selectedLayerId) ?? null
 
@@ -75,19 +82,19 @@ export default function VoltStudio({ initialElement, authorId, onSave }: Props) 
 
         {/* State tabs */}
         <div style={{ display: 'flex', gap: 4, background: '#1e1e3a', borderRadius: 6, padding: 3 }}>
-          {STATE_TABS.map(s => (
+          {state.element.states.map(voltState => (
             <button
-              key={s}
-              onClick={() => dispatch({ type: 'SET_ACTIVE_STATE', state: s })}
+              key={voltState.name}
+              onClick={() => dispatch({ type: 'SET_ACTIVE_STATE', state: voltState.name })}
               style={{
-                background: state.activeState === s ? '#6366f1' : 'transparent',
+                background: state.activeState === voltState.name ? '#6366f1' : 'transparent',
                 border: 'none', borderRadius: 4,
-                color: state.activeState === s ? '#fff' : '#94a3b8',
+                color: state.activeState === voltState.name ? '#fff' : '#94a3b8',
                 padding: '3px 10px', fontSize: 12, fontWeight: 500, cursor: 'pointer',
                 textTransform: 'capitalize',
               }}
             >
-              {s}
+              {voltState.name}
             </button>
           ))}
         </div>

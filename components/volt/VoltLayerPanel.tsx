@@ -91,6 +91,7 @@ export default function VoltLayerPanel({
             draggable
             onDragStart={e => onDragStart(e, layer.id)}
             onDragOver={e => onDragOver(e, layer.id)}
+            onDragLeave={() => setDragOver(null)}
             onDrop={e => onDrop(e, layer.id)}
             onDragEnd={() => { setDragId(null); setDragOver(null) }}
             onMouseEnter={() => setHoveredId(layer.id)}

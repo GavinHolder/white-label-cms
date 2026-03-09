@@ -121,7 +121,10 @@ export default function VoltPropertyInspector({ selectedLayer, onUpdateLayer }: 
                   />
                   <input
                     value={fill.color ?? '#6366f1'}
-                    onChange={e => updateFill(fill.id, { color: e.target.value })}
+                    onChange={e => {
+                      const v = e.target.value
+                      if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) updateFill(fill.id, { color: v })
+                    }}
                     style={{ ...inputStyle, flex: 1, fontSize: 11 }}
                   />
                   <input
@@ -163,14 +166,17 @@ export default function VoltPropertyInspector({ selectedLayer, onUpdateLayer }: 
                     />
                     <input
                       value={stroke.color}
-                      onChange={e => updateStroke({ color: e.target.value })}
+                      onChange={e => {
+                        const v = e.target.value
+                        if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) updateStroke({ color: v })
+                      }}
                       style={{ ...inputStyle, flex: 1, fontSize: 11 }}
                     />
                     <span style={{ color: '#64748b', fontSize: 11 }}>W</span>
                     <input
                       type="number" min={0.5} max={50} step={0.5}
                       value={stroke.width}
-                      onChange={e => updateStroke({ width: parseFloat(e.target.value) })}
+                      onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) updateStroke({ width: v }) }}
                       style={{ ...inputStyle, width: 44, textAlign: 'center' }}
                     />
                   </div>
