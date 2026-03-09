@@ -35,12 +35,17 @@ export default function VoltSvgLayer({ layer, canvasWidth, canvasHeight }: Props
     strokeDasharray: stroke.dash?.join(' ') ?? undefined,
   } : {}
 
+  // pathData coords are in % space (0-100); scale to canvas pixel space
+  const scaleTransform = `scale(${canvasWidth / 100}, ${canvasHeight / 100})`
+  const rotateTransform = rotation ? `rotate(${rotation} ${cx} ${cy})` : undefined
+  const transform = [rotateTransform, scaleTransform].filter(Boolean).join(' ')
+
   return (
     <g
       id={`volt-layer-${layer.id}`}
       opacity={opacity}
       style={{ mixBlendMode: blendMode as React.CSSProperties['mixBlendMode'] }}
-      transform={rotation ? `rotate(${rotation} ${cx} ${cy})` : undefined}
+      transform={transform || undefined}
     >
       <path
         d={vectorData.pathData}

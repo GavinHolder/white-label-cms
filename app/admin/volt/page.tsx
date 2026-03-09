@@ -117,7 +117,7 @@ function VoltLibrary() {
   if (editingElement) {
     return (
       <div style={{ position: "fixed", inset: 0, zIndex: 9999 }}>
-        <VoltStudio initialElement={editingElement} authorId={userId} onSave={handleSave} />
+        <VoltStudio key={editingElement.id} initialElement={editingElement} authorId={userId} onSave={handleSave} />
         <button
           onClick={() => setEditingElement(null)}
           className="btn btn-sm btn-outline-secondary"
