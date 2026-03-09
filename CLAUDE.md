@@ -185,7 +185,7 @@ Security Expert (Opus) | React Reviewer | Skeptic | Architect | Consistency | Re
 3. **Debug tasks for bugs** — fix in place, resume parent task
 4. **Amendment tasks for revisions** — don't redo completed steps
 5. **Verify before claiming done** — run TypeScript check, test output
-6. **Visual debugging for UI** — use `visual-debugging` skill when code-level isn't enough
+6. **Visual inspection ALWAYS required for UI** — after every UI feature implementation, use Playwright (`mcp__plugin_playwright_playwright__browser_*`) to navigate to the page, take a screenshot, and confirm it renders correctly. Do NOT mark UI work done without visual confirmation. Code review alone is not sufficient.
 
 ---
 

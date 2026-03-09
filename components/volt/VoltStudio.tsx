@@ -127,7 +127,7 @@ export default function VoltStudio({ initialElement, authorId, onSave }: Props) 
           onReorderLayers={layers => dispatch({ type: 'REORDER_LAYERS', layers })}
         />
 
-        <div style={{ flex: 1, position: 'relative' }}>
+        <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
           <VoltToolbar
             activeTool={state.activeTool}
             onSelectTool={tool => dispatch({ type: 'SET_TOOL', tool })}

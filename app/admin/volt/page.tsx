@@ -11,23 +11,11 @@ import { createNewVoltElement } from "@/lib/volt/volt-defaults";
 const VoltStudio = dynamic(() => import("@/components/volt/VoltStudio"), {
   ssr: false,
   loading: () => (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "#0a0a1a",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-    >
-      <div style={{ color: "#94a3b8", fontSize: 14 }}>Loading Volt Studio…</div>
+    <div style={{ position: "fixed", inset: 0, background: "#0a0a1a", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9998 }}>
+      <div className="text-muted small">⚡ Loading Volt Studio…</div>
     </div>
   ),
 });
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface VoltListItem {
   id: string;
@@ -39,44 +27,35 @@ interface VoltListItem {
   updatedAt: string;
 }
 
-// ─── Page shell — AdminLayout provides ToastProvider ──────────────────────────
-
+// Shell: AdminLayout provides ToastProvider + sidebar
 export default function VoltAdminPage() {
   return (
-    <AdminLayout title="Volt Studio" subtitle="Design vector elements for your website">
-      <VoltAdminInner />
+    <AdminLayout
+      title="Volt Studio"
+      subtitle="Design vector elements for your website"
+    >
+      <VoltLibrary />
     </AdminLayout>
   );
 }
 
-// ─── Inner component — runs inside ToastProvider ──────────────────────────────
-
-function VoltAdminInner() {
+// Inner: renders inside ToastProvider context
+function VoltLibrary() {
   const router = useRouter();
   const toast = useToast();
   const [volts, setVolts] = useState<VoltListItem[]>([]);
-  const [userId, setUserId] = useState<string>("");
+  const [userId, setUserId] = useState("");
   const [loading, setLoading] = useState(true);
   const [editingElement, setEditingElement] = useState<VoltElementData | null>(null);
 
-  // Load current user + volt list on mount
   useEffect(() => {
     async function load() {
       try {
-        const [meRes, voltsRes] = await Promise.all([
-          fetch("/api/auth/me"),
-          fetch("/api/volt"),
-        ]);
-        if (!meRes.ok) {
-          router.replace("/admin/login");
-          return;
-        }
+        const [meRes, voltsRes] = await Promise.all([fetch("/api/auth/me"), fetch("/api/volt")]);
+        if (!meRes.ok) { router.replace("/admin/login"); return; }
         const meJson = await meRes.json();
         const uid = meJson?.data?.user?.id ?? "";
-        if (!uid) {
-          router.replace("/admin/login");
-          return;
-        }
+        if (!uid) { router.replace("/admin/login"); return; }
         setUserId(uid);
         if (voltsRes.ok) {
           const { data } = await voltsRes.json();
@@ -95,20 +74,12 @@ function VoltAdminInner() {
       const res = await fetch("/api/volt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: el.name,
-          layers: [],
-          states: el.states,
-          canvasWidth: el.canvasWidth,
-          canvasHeight: el.canvasHeight,
-        }),
+        body: JSON.stringify({ name: el.name, layers: [], states: el.states, canvasWidth: el.canvasWidth, canvasHeight: el.canvasHeight }),
       });
       if (!res.ok) { toast.error("Failed to create Volt"); return; }
       const { data } = await res.json();
       setEditingElement({ ...el, id: data.volt.id });
-    } catch {
-      toast.error("Failed to create Volt");
-    }
+    } catch { toast.error("Failed to create Volt"); }
   }
 
   async function handleEdit(id: string) {
@@ -117,9 +88,7 @@ function VoltAdminInner() {
       if (!res.ok) { toast.error("Failed to load Volt"); return; }
       const { data } = await res.json();
       setEditingElement(data.volt as VoltElementData);
-    } catch {
-      toast.error("Failed to load Volt");
-    }
+    } catch { toast.error("Failed to load Volt"); }
   }
 
   async function handleSave(element: VoltElementData) {
@@ -127,32 +96,11 @@ function VoltAdminInner() {
       const res = await fetch(`/api/volt/${element.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: element.name,
-          layers: element.layers,
-          states: element.states,
-          isPublic: element.isPublic,
-          mood: element.mood,
-          elementType: element.elementType,
-        }),
+        body: JSON.stringify({ name: element.name, layers: element.layers, states: element.states, isPublic: element.isPublic, mood: element.mood, elementType: element.elementType }),
       });
       if (!res.ok) { toast.error("Failed to save Volt"); return; }
-      setVolts((v) =>
-        v.map((x) =>
-          x.id === element.id
-            ? {
-                ...x,
-                name: element.name,
-                isPublic: element.isPublic,
-                mood: element.mood ?? null,
-                elementType: element.elementType,
-              }
-            : x
-        )
-      );
-    } catch {
-      toast.error("Failed to save Volt");
-    }
+      setVolts(v => v.map(x => x.id === element.id ? { ...x, name: element.name, isPublic: element.isPublic, mood: element.mood ?? null, elementType: element.elementType } : x));
+    } catch { toast.error("Failed to save Volt"); }
   }
 
   async function handleDelete(id: string) {
@@ -160,129 +108,77 @@ function VoltAdminInner() {
     try {
       const res = await fetch(`/api/volt/${id}`, { method: "DELETE" });
       if (!res.ok) { toast.error("Failed to delete Volt"); return; }
-      setVolts((v) => v.filter((x) => x.id !== id));
+      setVolts(v => v.filter(x => x.id !== id));
       if (editingElement?.id === id) setEditingElement(null);
-    } catch {
-      toast.error("Failed to delete Volt");
-    }
+    } catch { toast.error("Failed to delete Volt"); }
   }
 
-  // ─── Full-screen studio overlay ────────────────────────────────────────────
-
+  // ── Studio overlay — covers everything including the sidebar ─────────────────
   if (editingElement) {
     return (
-      <div style={{ position: "fixed", inset: 0, zIndex: 1000 }}>
-        <VoltStudio
-          initialElement={editingElement}
-          authorId={userId}
-          onSave={handleSave}
-        />
+      <div style={{ position: "fixed", inset: 0, zIndex: 9999 }}>
+        <VoltStudio initialElement={editingElement} authorId={userId} onSave={handleSave} />
         <button
           onClick={() => setEditingElement(null)}
-          style={{
-            position: "fixed",
-            top: 12,
-            right: 72,
-            zIndex: 1001,
-            background: "#1e1e3a",
-            border: "1px solid #2d2d44",
-            borderRadius: 6,
-            color: "#94a3b8",
-            padding: "6px 14px",
-            cursor: "pointer",
-            fontSize: 13,
-          }}
+          className="btn btn-sm btn-outline-secondary"
+          style={{ position: "fixed", top: 11, right: 68, zIndex: 10000, fontSize: 12 }}
         >
-          ← Back to Library
+          ← Library
         </button>
       </div>
     );
   }
 
-  // ─── Library view ───────────────────────────────────────────────────────────
-
+  // ── Library view ─────────────────────────────────────────────────────────────
   return (
     <div>
       <div className="d-flex justify-content-end mb-4">
         <button onClick={handleNew} className="btn btn-primary btn-sm">
-          <i className="bi bi-plus-lg me-2" />
-          New Design
+          <i className="bi bi-plus-lg me-1" />New Design
         </button>
       </div>
+
       {loading ? (
-        <div className="text-center py-5 text-muted">
-          <div className="spinner-border spinner-border-sm me-2" role="status" />
-          Loading designs…
+        <div className="text-center py-5">
+          <div className="spinner-border text-primary spinner-border-sm" role="status" />
+          <div className="text-muted mt-2 small">Loading designs…</div>
         </div>
       ) : volts.length === 0 ? (
-        <div className="text-center py-5">
-          <div style={{ fontSize: 48, marginBottom: 16 }}>⚡</div>
-          <h5 className="text-muted">No Volt designs yet</h5>
-          <p className="text-muted mb-4">Create your first vector design to get started</p>
-          <button onClick={handleNew} className="btn btn-primary">
-            Create First Design
-          </button>
+        <div className="card shadow-sm">
+          <div className="card-body text-center py-5">
+            <i className="bi bi-lightning-charge display-4 text-muted" style={{ opacity: 0.3 }} />
+            <h6 className="mt-3">No Volt designs yet</h6>
+            <p className="text-muted small">Create your first vector design to get started</p>
+            <button onClick={handleNew} className="btn btn-primary btn-sm">
+              <i className="bi bi-plus-lg me-1" />Create First Design
+            </button>
+          </div>
         </div>
       ) : (
         <div className="row g-3">
-          {volts.map((volt) => (
+          {volts.map(volt => (
             <div key={volt.id} className="col-md-4 col-lg-3">
-              <div
-                className="card h-100"
-                style={{ background: "#12122a", border: "1px solid #1e1e3a" }}
-              >
-                {/* Preview placeholder */}
-                <div
-                  style={{
-                    height: 140,
-                    background: "#0a0a1a",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderRadius: "8px 8px 0 0",
-                  }}
-                >
-                  <span style={{ fontSize: 32 }}>⚡</span>
+              <div className="card h-100 shadow-sm">
+                <div className="card-img-top d-flex align-items-center justify-content-center" style={{ height: 130, background: "#f8f9fa" }}>
+                  <i className="bi bi-lightning-charge" style={{ fontSize: 32, opacity: 0.2 }} />
                 </div>
-
-                <div className="card-body">
-                  <h6 className="card-title text-white mb-1">{volt.name}</h6>
+                <div className="card-body p-3">
+                  <h6 className="card-title text-truncate mb-1">{volt.name}</h6>
                   <div className="d-flex gap-1 mb-3 flex-wrap">
                     {volt.mood && (
-                      <span
-                        className="badge"
-                        style={{
-                          background: "#1e1e3a",
-                          color: "#94a3b8",
-                          fontSize: 10,
-                        }}
-                      >
+                      <span className="badge rounded-pill text-secondary border border-secondary-subtle" style={{ fontSize: "0.6875rem" }}>
                         {volt.mood}
                       </span>
                     )}
-                    <span
-                      className="badge"
-                      style={{
-                        background: volt.isPublic ? "#22c55e22" : "#1e1e3a",
-                        color: volt.isPublic ? "#22c55e" : "#64748b",
-                        fontSize: 10,
-                      }}
-                    >
+                    <span className={`badge rounded-pill ${volt.isPublic ? "text-success border border-success-subtle" : "text-secondary border border-secondary-subtle"}`} style={{ fontSize: "0.6875rem" }}>
                       {volt.isPublic ? "Public" : "Private"}
                     </span>
                   </div>
                   <div className="d-flex gap-2">
-                    <button
-                      onClick={() => handleEdit(volt.id)}
-                      className="btn btn-sm btn-outline-primary flex-fill"
-                    >
-                      Edit
+                    <button onClick={() => handleEdit(volt.id)} className="btn btn-sm btn-outline-primary flex-fill">
+                      <i className="bi bi-pencil me-1" />Edit
                     </button>
-                    <button
-                      onClick={() => handleDelete(volt.id)}
-                      className="btn btn-sm btn-outline-danger"
-                      aria-label="Delete"
-                    >
+                    <button onClick={() => handleDelete(volt.id)} className="btn btn-sm btn-outline-danger" aria-label="Delete">
                       <i className="bi bi-trash" />
                     </button>
                   </div>
