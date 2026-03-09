@@ -1,155 +1,60 @@
 'use client'
-import { useReducer, useEffect, useCallback } from 'react'
-import type { VoltElementData, VoltLayer, VoltTool } from '@/types/volt'
-import { voltReducer, createInitialState } from '@/lib/volt/volt-reducer'
-import { createNewVoltElement } from '@/lib/volt/volt-defaults'
+import { useRef, useEffect, useCallback } from 'react'
+import type { VoltElementData } from '@/types/volt'
 import { useToast } from '@/components/admin/ToastProvider'
-import VoltToolbar from './VoltToolbar'
-import VoltCanvas from './VoltCanvas'
-import VoltLayerPanel from './VoltLayerPanel'
-import VoltPropertyInspector from './VoltPropertyInspector'
 
 interface Props {
-  initialElement?: VoltElementData
+  initialElement: VoltElementData
   authorId: string
   onSave?: (element: VoltElementData) => Promise<void>
+  onDone?: () => void
 }
 
-export default function VoltStudio({ initialElement, authorId, onSave }: Props) {
+export default function VoltStudio({ initialElement, onSave, onDone }: Props) {
   const toast = useToast()
-  const [state, dispatch] = useReducer(
-    voltReducer,
-    undefined,
-    () => createInitialState(initialElement ?? createNewVoltElement(authorId))
-  )
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  // Send element data to iframe when it signals ready
+  const sendLoad = useCallback(() => {
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'VOLT_DESIGNER_LOAD', payload: initialElement },
+      '*'
+    )
+  }, [initialElement])
 
   useEffect(() => {
-    const TOOL_SHORTCUTS: Record<string, VoltTool> = {
-      v: 'select', r: 'rectangle', e: 'ellipse', l: 'line', p: 'pen', s: 'slot', h: 'hand',
-    }
-    function onKeyDown(ev: KeyboardEvent) {
-      const tag = (ev.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+    async function handleMessage(e: MessageEvent) {
+      if (e.data?.type === 'VOLT_DESIGNER_READY') {
+        sendLoad()
+        return
+      }
 
-      const tool = TOOL_SHORTCUTS[ev.key.toLowerCase()]
-      if (tool) { dispatch({ type: 'SET_TOOL', tool }); return }
-
-      if ((ev.metaKey || ev.ctrlKey) && ev.key === 'z') {
-        ev.preventDefault()
-        if (ev.shiftKey) dispatch({ type: 'REDO' })
-        else dispatch({ type: 'UNDO' })
+      if (e.data?.type === 'VOLT_DESIGNER_SAVE' || e.data?.type === 'VOLT_DESIGNER_DONE') {
+        const payload = e.data.payload as Partial<VoltElementData>
+        const updated: VoltElementData = { ...initialElement, ...payload }
+        try {
+          await onSave?.(updated)
+        } catch {
+          toast.error('Failed to save. Please try again.')
+        }
+        if (e.data.type === 'VOLT_DESIGNER_DONE') {
+          onDone?.()
+        }
       }
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
 
-  const handleSave = useCallback(async () => {
-    if (!onSave) return
-    try {
-      await onSave(state.element)
-      dispatch({ type: 'MARK_SAVED' })
-    } catch {
-      toast.error('Failed to save Volt. Please try again.')
-    }
-  }, [state.element, onSave, toast])
-
-  const selectedLayer = state.element.layers.find(l => l.id === state.selectedLayerId) ?? null
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [initialElement, onSave, onDone, sendLoad, toast])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0a0a1a', color: '#e2e8f0' }}>
-      {/* Top Bar */}
-      <div style={{
-        height: 48, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px',
-        background: '#12122a', borderBottom: '1px solid #1e1e3a', flexShrink: 0,
-      }}>
-        <span style={{ color: '#6366f1', fontWeight: 700, fontSize: 16 }}>&#9889;</span>
-
-        <input
-          value={state.element.name}
-          onChange={e => dispatch({ type: 'SET_ELEMENT_NAME', name: e.target.value })}
-          style={{
-            background: 'transparent', border: '1px solid transparent', borderRadius: 4,
-            color: '#e2e8f0', fontSize: 14, fontWeight: 600, padding: '2px 6px', minWidth: 120,
-          }}
-          onFocus={e => { e.target.style.borderColor = '#6366f1' }}
-          onBlur={e => { e.target.style.borderColor = 'transparent' }}
-        />
-
-        {state.isDirty && <span style={{ color: '#f59e0b', fontSize: 12 }}>&#9679; unsaved</span>}
-
-        <div style={{ flex: 1 }} />
-
-        {/* State tabs */}
-        <div style={{ display: 'flex', gap: 4, background: '#1e1e3a', borderRadius: 6, padding: 3 }}>
-          {state.element.states.map(voltState => (
-            <button
-              key={voltState.name}
-              onClick={() => dispatch({ type: 'SET_ACTIVE_STATE', state: voltState.name })}
-              style={{
-                background: state.activeState === voltState.name ? '#6366f1' : 'transparent',
-                border: 'none', borderRadius: 4,
-                color: state.activeState === voltState.name ? '#fff' : '#94a3b8',
-                padding: '3px 10px', fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                textTransform: 'capitalize',
-              }}
-            >
-              {voltState.name}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ flex: 1 }} />
-
-        <button
-          onClick={handleSave}
-          disabled={!state.isDirty}
-          style={{
-            background: state.isDirty ? '#6366f1' : '#2d2d44',
-            border: 'none', borderRadius: 6, color: '#fff',
-            padding: '6px 16px', fontSize: 13, fontWeight: 600,
-            cursor: state.isDirty ? 'pointer' : 'default',
-          }}
-        >
-          Save
-        </button>
-      </div>
-
-      {/* Main area */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
-        <VoltLayerPanel
-          layers={state.element.layers}
-          selectedLayerId={state.selectedLayerId}
-          onSelectLayer={id => dispatch({ type: 'SELECT_LAYER', id })}
-          onToggleVisibility={id => dispatch({ type: 'TOGGLE_LAYER_VISIBILITY', id })}
-          onToggleLock={id => dispatch({ type: 'TOGGLE_LAYER_LOCK', id })}
-          onDeleteLayer={id => dispatch({ type: 'DELETE_LAYER', id })}
-          onReorderLayers={layers => dispatch({ type: 'REORDER_LAYERS', layers })}
-        />
-
-        <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-          <VoltToolbar
-            activeTool={state.activeTool}
-            onSelectTool={tool => dispatch({ type: 'SET_TOOL', tool })}
-          />
-          <VoltCanvas
-            element={state.element}
-            activeTool={state.activeTool}
-            selectedLayerId={state.selectedLayerId}
-            zoom={state.zoom}
-            panX={state.panX}
-            panY={state.panY}
-            onAddLayer={layer => dispatch({ type: 'ADD_LAYER', layer })}
-            onSelectLayer={id => dispatch({ type: 'SELECT_LAYER', id })}
-            onUpdateLayer={(id, updates) => dispatch({ type: 'UPDATE_LAYER', id, updates })}
-          />
-        </div>
-
-        <VoltPropertyInspector
-          selectedLayer={selectedLayer}
-          onUpdateLayer={(id, updates) => dispatch({ type: 'UPDATE_LAYER', id, updates })}
-        />
-      </div>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', flexDirection: 'column' }}>
+      <iframe
+        ref={iframeRef}
+        src="/volt-designer.html"
+        style={{ flex: 1, border: 'none', width: '100%', height: '100%' }}
+        title="Volt Designer"
+      />
     </div>
   )
 }

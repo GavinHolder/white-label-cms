@@ -116,16 +116,13 @@ function VoltLibrary() {
   // ── Studio overlay — covers everything including the sidebar ─────────────────
   if (editingElement) {
     return (
-      <div style={{ position: "fixed", inset: 0, zIndex: 9999 }}>
-        <VoltStudio key={editingElement.id} initialElement={editingElement} authorId={userId} onSave={handleSave} />
-        <button
-          onClick={() => setEditingElement(null)}
-          className="btn btn-sm btn-outline-secondary"
-          style={{ position: "fixed", top: 11, right: 68, zIndex: 10000, fontSize: 12 }}
-        >
-          ← Library
-        </button>
-      </div>
+      <VoltStudio
+        key={editingElement.id}
+        initialElement={editingElement}
+        authorId={userId}
+        onSave={handleSave}
+        onDone={() => setEditingElement(null)}
+      />
     );
   }
 
