@@ -394,9 +394,17 @@
             dpx2=0;dpy2=0;
           }
         }
-        var ddx2=pct(dpx2,CW),ddy2=pct(dpy2,CH);
         var idx2=state.element.layers.findIndex(function(l){return l.id===dragSt.layerId;});
-        if(idx2>=0){state.element.layers[idx2].x=dragSt.startX+ddx2;state.element.layers[idx2].y=dragSt.startY+ddy2;if(dragSt.origPath&&state.element.layers[idx2].vectorData)state.element.layers[idx2].vectorData.pathData=translatePath(dragSt.origPath,ddx2,ddy2);if(Math.abs(dpx2)>2||Math.abs(dpy2)>2)dragSt.moved=true;renderCanvas();}
+        if(idx2>=0){
+          // Compute raw target position in canvas-px, then optionally snap
+          var rawTx=topx(dragSt.startX,CW)+dpx2,rawTy=topx(dragSt.startY,CH)+dpy2;
+          var snapped=snapPt({x:rawTx,y:rawTy},e.ctrlKey);
+          var nx2=pct(snapped.x,CW),ny2=pct(snapped.y,CH);
+          var ddx2=nx2-dragSt.startX,ddy2=ny2-dragSt.startY;
+          state.element.layers[idx2].x=nx2;state.element.layers[idx2].y=ny2;
+          if(dragSt.origPath&&state.element.layers[idx2].vectorData)state.element.layers[idx2].vectorData.pathData=translatePath(dragSt.origPath,ddx2,ddy2);
+          if(Math.abs(dpx2)>2||Math.abs(dpy2)>2)dragSt.moved=true;renderCanvas();
+        }
         return;
       }
       // Polygon ghost
@@ -648,7 +656,7 @@
     document.getElementById('el-mood').addEventListener('change',function(e){state.element.mood=e.target.value||null;markDirty();});
     document.getElementById('el-public').addEventListener('change',function(e){state.element.isPublic=e.target.checked;markDirty();});
     // ── Zoom ──────────────────────────────────────────────────────────────────
-    function applyZoom(z){state.zoom=Math.min(Math.max(z,0.05),8);artboard.style.transform='scale('+state.zoom+')';document.getElementById('zoom-label').textContent=Math.round(state.zoom*100)+'%';}
+    function applyZoom(z){state.zoom=Math.min(Math.max(z,0.05),8);artboard.style.transform='scale('+state.zoom+')';document.getElementById('zoom-label').textContent=Math.round(state.zoom*100)+'%';renderCanvas();}
     document.getElementById('btn-zoom-in').addEventListener('click',function(){applyZoom(state.zoom*1.2);});
     document.getElementById('btn-zoom-out').addEventListener('click',function(){applyZoom(state.zoom/1.2);});
     document.getElementById('btn-zoom-fit').addEventListener('click',function(){var wrap=document.getElementById('canvas-wrap');var z=Math.min((wrap.clientWidth-40)/state.element.canvasWidth,(wrap.clientHeight-40)/state.element.canvasHeight);applyZoom(z);});
