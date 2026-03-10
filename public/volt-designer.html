@@ -248,9 +248,10 @@
     // ── Resize handles ────────────────────────────────────────────────────────
     var HNAMES=['nw','n','ne','e','se','s','sw','w'];
     var HCUR={nw:'nw-resize',n:'n-resize',ne:'ne-resize',e:'e-resize',se:'se-resize',s:'s-resize',sw:'sw-resize',w:'w-resize'};
-    var HSIZ=7;
+    var HSIZ_SCREEN=7; // target handle size in screen px — scales inversely with zoom
+    function getHsiz(){return Math.max(2,HSIZ_SCREEN/state.zoom);}
     function handlePos(sel,h){var CW=state.element.canvasWidth,CH=state.element.canvasHeight;var x=topx(sel.x,CW),y=topx(sel.y,CH),w=topx(sel.width,CW),ht=topx(sel.height,CH);if(h==='nw')return{x:x,y:y};if(h==='n')return{x:x+w/2,y:y};if(h==='ne')return{x:x+w,y:y};if(h==='e')return{x:x+w,y:y+ht/2};if(h==='se')return{x:x+w,y:y+ht};if(h==='s')return{x:x+w/2,y:y+ht};if(h==='sw')return{x:x,y:y+ht};return{x:x,y:y+ht/2};}
-    function hitHandle(pt,sel){if(!sel)return null;for(var i=0;i<HNAMES.length;i++){var hp=handlePos(sel,HNAMES[i]);if(dist2(pt,hp)<=HSIZ+2)return HNAMES[i];}return null;}
+    function hitHandle(pt,sel){if(!sel)return null;var hs=getHsiz()+2/state.zoom;for(var i=0;i<HNAMES.length;i++){var hp=handlePos(sel,HNAMES[i]);if(dist2(pt,hp)<=hs)return HNAMES[i];}return null;}
     // ── Render canvas ─────────────────────────────────────────────────────────
     function renderCanvas(){
       while(svgEl.firstChild)svgEl.removeChild(svgEl.firstChild);
@@ -285,13 +286,15 @@
         var sel=state.element.layers.find(function(l){return l.id===state.selectedLayerId;});
         if(sel){
           var rx=topx(sel.x,CW),ry=topx(sel.y,CH),rw=topx(sel.width,CW),rh=topx(sel.height,CH);
+          var sw1=(1.5/state.zoom).toFixed(3);var dd=(5/state.zoom).toFixed(1)+' '+(3/state.zoom).toFixed(1);
           var box=svgNs('rect');box.setAttribute('x',rx);box.setAttribute('y',ry);box.setAttribute('width',rw);box.setAttribute('height',rh);
-          box.setAttribute('fill','none');box.setAttribute('stroke','#0d6efd');box.setAttribute('stroke-width','1.5');box.setAttribute('stroke-dasharray','5 3');box.setAttribute('pointer-events','none');
+          box.setAttribute('fill','none');box.setAttribute('stroke','#0d6efd');box.setAttribute('stroke-width',sw1);box.setAttribute('stroke-dasharray',dd);box.setAttribute('pointer-events','none');
           svgEl.appendChild(box);
+          var hs=getHsiz();
           HNAMES.forEach(function(h){
             var hp=handlePos(sel,h);
-            var hc=svgNs('rect');hc.setAttribute('x',hp.x-HSIZ/2);hc.setAttribute('y',hp.y-HSIZ/2);hc.setAttribute('width',HSIZ);hc.setAttribute('height',HSIZ);
-            hc.setAttribute('class','resize-handle');hc.setAttribute('rx','1');hc.setAttribute('data-handle',h);hc.style.cursor=HCUR[h];hc.setAttribute('pointer-events','none');
+            var hc=svgNs('rect');hc.setAttribute('x',hp.x-hs/2);hc.setAttribute('y',hp.y-hs/2);hc.setAttribute('width',hs);hc.setAttribute('height',hs);
+            hc.setAttribute('class','resize-handle');hc.setAttribute('stroke-width',(1.5/state.zoom).toFixed(3));hc.setAttribute('rx',(1/state.zoom).toFixed(3));hc.setAttribute('data-handle',h);hc.style.cursor=HCUR[h];hc.setAttribute('pointer-events','none');
             svgEl.appendChild(hc);
           });
         }
@@ -307,10 +310,11 @@
       var CW=state.element.canvasWidth,CH=state.element.canvasHeight;
       function toSvg(v){return{x:topx(v.x,CW),y:topx(v.y,CH)};}
       var pvx=polyState.verts.map(toSvg);
-      if(pvx.length>1){var poly=svgNs('polyline');poly.setAttribute('points',pvx.map(function(p){return p.x+','+p.y;}).join(' '));poly.setAttribute('fill','none');poly.setAttribute('stroke','#6366f1');poly.setAttribute('stroke-width','1.5');poly.setAttribute('stroke-dasharray','4 3');g.appendChild(poly);}
-      if(polyState.cursorPt){var last=pvx[pvx.length-1];var gl=svgNs('line');gl.setAttribute('x1',last.x);gl.setAttribute('y1',last.y);gl.setAttribute('x2',polyState.cursorPt.x);gl.setAttribute('y2',polyState.cursorPt.y);gl.setAttribute('stroke','#6366f188');gl.setAttribute('stroke-width','1');gl.setAttribute('stroke-dasharray','3 3');g.appendChild(gl);}
-      if(pvx.length>=3&&polyState.cursorPt){var fp=pvx[0],nearFirst=dist2(polyState.cursorPt,fp)<12;var cl=svgNs('line');cl.setAttribute('x1',pvx[pvx.length-1].x);cl.setAttribute('y1',pvx[pvx.length-1].y);cl.setAttribute('x2',fp.x);cl.setAttribute('y2',fp.y);cl.setAttribute('stroke',nearFirst?'#22c55e':'#6366f144');cl.setAttribute('stroke-width',nearFirst?'2':'1');cl.setAttribute('stroke-dasharray','3 3');g.appendChild(cl);}
-      pvx.forEach(function(p,i){var near=polyState.cursorPt&&i===0&&polyState.verts.length>=3&&dist2(polyState.cursorPt,p)<12;var c=svgNs('circle');c.setAttribute('cx',p.x);c.setAttribute('cy',p.y);c.setAttribute('r',near?6:4);c.setAttribute('fill',near?'#22c55e':(i===0?'#0d6efd':'#6366f1'));c.setAttribute('stroke','white');c.setAttribute('stroke-width','1.5');g.appendChild(c);});
+      var z=state.zoom,sw=+(1.5/z).toFixed(3),sw1=+(1/z).toFixed(3),r1=+(4/z).toFixed(3),r2=+(6/z).toFixed(3),sw3=+(1.5/z).toFixed(3),near12=12/z;
+      if(pvx.length>1){var poly=svgNs('polyline');poly.setAttribute('points',pvx.map(function(p){return p.x+','+p.y;}).join(' '));poly.setAttribute('fill','none');poly.setAttribute('stroke','#6366f1');poly.setAttribute('stroke-width',sw);poly.setAttribute('stroke-dasharray',(4/z).toFixed(2)+' '+(3/z).toFixed(2));g.appendChild(poly);}
+      if(polyState.cursorPt){var last=pvx[pvx.length-1];var gl=svgNs('line');gl.setAttribute('x1',last.x);gl.setAttribute('y1',last.y);gl.setAttribute('x2',polyState.cursorPt.x);gl.setAttribute('y2',polyState.cursorPt.y);gl.setAttribute('stroke','#6366f188');gl.setAttribute('stroke-width',sw1);gl.setAttribute('stroke-dasharray',(3/z).toFixed(2)+' '+(3/z).toFixed(2));g.appendChild(gl);}
+      if(pvx.length>=3&&polyState.cursorPt){var fp=pvx[0],nearFirst=dist2(polyState.cursorPt,fp)<near12;var cl=svgNs('line');cl.setAttribute('x1',pvx[pvx.length-1].x);cl.setAttribute('y1',pvx[pvx.length-1].y);cl.setAttribute('x2',fp.x);cl.setAttribute('y2',fp.y);cl.setAttribute('stroke',nearFirst?'#22c55e':'#6366f144');cl.setAttribute('stroke-width',nearFirst?(2/z).toFixed(3):sw1);cl.setAttribute('stroke-dasharray',(3/z).toFixed(2)+' '+(3/z).toFixed(2));g.appendChild(cl);}
+      pvx.forEach(function(p,i){var near=polyState.cursorPt&&i===0&&polyState.verts.length>=3&&dist2(polyState.cursorPt,p)<near12;var c=svgNs('circle');c.setAttribute('cx',p.x);c.setAttribute('cy',p.y);c.setAttribute('r',near?r2:r1);c.setAttribute('fill',near?'#22c55e':(i===0?'#0d6efd':'#6366f1'));c.setAttribute('stroke','white');c.setAttribute('stroke-width',sw3);g.appendChild(c);});
       svgEl.appendChild(g);
     }
     function commitPolygon(){if(polyState.verts.length<3){cancelPolygon();return;}pushHistory();var layer=mkPolygon(polyState.verts);var maxZ=state.element.layers.reduce(function(m,l){return Math.max(m,l.zIndex);},-1);layer.zIndex=maxZ+1;state.element.layers.push(layer);state.selectedLayerId=layer.id;polyState.verts=[];polyState.cursorPt=null;markDirty();renderAll();activateTool('select');}
@@ -342,7 +346,7 @@
       svgEl.setPointerCapture(e.pointerId);
       var spt0=snapPt(pt,e.ctrlKey);
       drawSt={startX:spt0.x,startY:spt0.y,curX:spt0.x,curY:spt0.y};
-      if(!ghostEl){ghostEl=svgNs('rect');ghostEl.setAttribute('fill',tool==='slot'?'rgba(34,197,94,0.1)':'rgba(99,102,241,0.2)');ghostEl.setAttribute('stroke',tool==='slot'?'#22c55e':'#6366f1');ghostEl.setAttribute('stroke-width','1.5');ghostEl.setAttribute('stroke-dasharray','5 3');ghostEl.setAttribute('pointer-events','none');svgEl.appendChild(ghostEl);}
+      if(!ghostEl){ghostEl=svgNs('rect');ghostEl.setAttribute('fill',tool==='slot'?'rgba(34,197,94,0.1)':'rgba(99,102,241,0.2)');ghostEl.setAttribute('stroke',tool==='slot'?'#22c55e':'#6366f1');ghostEl.setAttribute('stroke-width',(1.5/state.zoom).toFixed(3));ghostEl.setAttribute('stroke-dasharray',(5/state.zoom).toFixed(2)+' '+(3/state.zoom).toFixed(2));ghostEl.setAttribute('pointer-events','none');svgEl.appendChild(ghostEl);}
     });
     svgEl.addEventListener('pointermove',function(e){
       var pt=getSvgPt(e);var CW=state.element.canvasWidth,CH=state.element.canvasHeight;
@@ -612,18 +616,23 @@
     document.getElementById('btn-bool-subtract').addEventListener('click',function(){booleanOp('subtract');});
     document.getElementById('btn-bool-intersect').addEventListener('click',function(){booleanOp('intersect');});
     // ── Canvas size ───────────────────────────────────────────────────────────
-    function applyCanvasSize(w,h){
+    function applyCanvasSize(w,h,keepPreset){
       w=Math.max(32,Math.min(4096,w));h=Math.max(32,Math.min(4096,h));
       state.element.canvasWidth=w;state.element.canvasHeight=h;
       artboard.style.width=w+'px';artboard.style.height=h+'px';
       svgEl.setAttribute('viewBox','0 0 '+w+' '+h);svgEl.setAttribute('width',w);svgEl.setAttribute('height',h);
       document.getElementById('canvas-size-label').textContent=w+'\u00d7'+h+'px';
       document.getElementById('canvas-w').value=w;document.getElementById('canvas-h').value=h;
-      document.getElementById('canvas-preset').value='';
+      if(!keepPreset){
+        // Try to match a preset option
+        var sel=document.getElementById('canvas-preset'),found='';
+        Array.from(sel.options).forEach(function(o){if(o.value===w+','+h)found=o.value;});
+        sel.value=found;
+      }
       markDirty();renderAll();updateDotGrid();
       setTimeout(function(){document.getElementById('btn-zoom-fit').click();},50);
     }
-    document.getElementById('canvas-preset').addEventListener('change',function(e){if(!e.target.value)return;var p=e.target.value.split(',');applyCanvasSize(parseInt(p[0]),parseInt(p[1]));});
+    document.getElementById('canvas-preset').addEventListener('change',function(e){if(!e.target.value)return;var p=e.target.value.split(',');applyCanvasSize(parseInt(p[0]),parseInt(p[1]),true);});
     document.getElementById('btn-apply-size').addEventListener('click',function(){applyCanvasSize(parseInt(document.getElementById('canvas-w').value)||800,parseInt(document.getElementById('canvas-h').value)||500);});
     // Grid size
     function applyGridSize(v){v=Math.max(1,Math.min(200,v||10));state.gridSize=v;document.getElementById('grid-size').value=v;document.getElementById('grid-size-range').value=Math.min(v,100);updateDotGrid();}
