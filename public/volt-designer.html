@@ -53,6 +53,17 @@
     #artboard-svg{position:absolute;inset:0;display:block;}
     .cdotgrid{position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle,#c8cdd4 1px,transparent 1px);background-size:20px 20px;}
     .resize-handle{fill:white;stroke:#0d6efd;stroke-width:1.5;}
+    /* Horizontal tool strip in canvas toolbar */
+    .tools-strip{display:flex;align-items:center;gap:2px;}
+    .tool-btn-h{display:flex;align-items:center;justify-content:center;width:30px;height:28px;border:1.5px solid #dee2e6;border-radius:5px;background:white;cursor:pointer;font-size:14px;color:#495057;transition:all 0.12s;padding:0;flex-shrink:0;}
+    .tool-btn-h:hover{border-color:#0d6efd;background:#f0f4ff;color:#0d6efd;}
+    .tool-btn-h.active{border-color:#0d6efd;background:#0d6efd;color:white;}
+    .tools-sep{width:1px;height:20px;background:#dee2e6;margin:0 5px;flex-shrink:0;}
+    /* Empty canvas invitation */
+    .canvas-empty-hint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:6px;z-index:1;}
+    .canvas-empty-hint i{font-size:32px;color:#c8cdd4;}
+    .canvas-empty-hint p{font-size:13px;color:#adb5bd;margin:0;font-weight:600;}
+    .canvas-empty-hint small{font-size:10px;color:#c8cdd4;letter-spacing:0.3px;}
   </style>
 </head>
 <body>
@@ -72,8 +83,8 @@
     <div class="sidebar-left" id="sidebar-left">
       <div class="sidebar-scroll">
         <div class="panel">
-          <div class="panel-header" data-panel="elprops"><i class="bi bi-sliders"></i> Element Properties <i class="bi bi-chevron-down chevron"></i></div>
-          <div class="panel-body" id="pb-elprops">
+          <div class="panel-header collapsed" data-panel="elprops"><i class="bi bi-sliders"></i> Element Properties <i class="bi bi-chevron-down chevron"></i></div>
+          <div class="panel-body hidden" id="pb-elprops">
             <div class="mb-2"><label class="prop-label">Name</label><input id="el-name" type="text" class="form-control form-control-sm" value="New Design"></div>
             <div class="mb-2"><label class="prop-label">Type</label>
               <select id="el-type" class="form-select form-select-sm">
@@ -125,25 +136,6 @@
           </div>
         </div>
         <div class="panel">
-          <div class="panel-header" data-panel="tools"><i class="bi bi-pen"></i> Drawing Tools <i class="bi bi-chevron-down chevron"></i></div>
-          <div class="panel-body" id="pb-tools">
-            <div class="tool-grid">
-              <button class="tool-btn active" data-tool="select" title="Select &amp; Move (V)"><i class="bi bi-cursor"></i>Select</button>
-              <button class="tool-btn" data-tool="rectangle" title="Rectangle (R)"><i class="bi bi-square"></i>Rect</button>
-              <button class="tool-btn" data-tool="ellipse" title="Ellipse (E)"><i class="bi bi-circle"></i>Ellipse</button>
-              <button class="tool-btn" data-tool="line" title="Line (L)"><i class="bi bi-slash-lg"></i>Line</button>
-              <button class="tool-btn" data-tool="polygon" title="Polygon (P)"><i class="bi bi-pentagon"></i>Polygon</button>
-              <button class="tool-btn" data-tool="slot" title="Slot (S)"><i class="bi bi-layout-text-window"></i>Slot</button>
-              <button class="tool-btn" data-tool="hand" title="Pan (H)"><i class="bi bi-hand-index"></i>Hand</button>
-            </div>
-            <div class="mt-2" style="font-size:10px;color:#6c757d;line-height:1.7;">
-              <strong>V</strong> Select &nbsp;<strong>R</strong> Rect &nbsp;<strong>E</strong> Ellipse &nbsp;<strong>L</strong> Line &nbsp;<strong>P</strong> Polygon &nbsp;<strong>S</strong> Slot<br>
-              Polygon: click = vertex &middot; Enter/near-start = close &middot; Esc = cancel<br>
-              <strong>Alt</strong>+drag = duplicate &nbsp;<strong>Ctrl</strong>+draw/click = snap to grid
-            </div>
-          </div>
-        </div>
-        <div class="panel">
           <div class="panel-header" data-panel="layers"><i class="bi bi-stack"></i> Layers <span id="layer-count" class="badge bg-secondary ms-1 rounded-pill" style="font-size:9px;">0</span><i class="bi bi-chevron-down chevron"></i></div>
           <div class="panel-body" id="pb-layers">
             <div id="layer-list">
@@ -169,8 +161,17 @@
     <button class="sidebar-toggle" id="toggle-left"><i class="bi bi-chevron-left" id="toggle-left-icon"></i></button>
     <div class="canvas-area">
       <div class="canvas-toolbar">
-        <i class="bi bi-vector-pen text-muted"></i>
-        <span id="canvas-size-label" class="text-muted" style="font-size:11px;">800&#215;500px</span>
+        <div class="tools-strip">
+          <button class="tool-btn-h active" data-tool="select" title="Select &amp; Move (V)"><i class="bi bi-cursor"></i></button>
+          <button class="tool-btn-h" data-tool="rectangle" title="Rectangle (R)"><i class="bi bi-square"></i></button>
+          <button class="tool-btn-h" data-tool="ellipse" title="Ellipse (E)"><i class="bi bi-circle"></i></button>
+          <button class="tool-btn-h" data-tool="line" title="Line (L)"><i class="bi bi-slash-lg"></i></button>
+          <button class="tool-btn-h" data-tool="polygon" title="Polygon (P)"><i class="bi bi-pentagon"></i></button>
+          <button class="tool-btn-h" data-tool="slot" title="Slot (S)"><i class="bi bi-layout-text-window"></i></button>
+          <div class="tools-sep"></div>
+          <button class="tool-btn-h" data-tool="hand" title="Pan (H)"><i class="bi bi-hand-index"></i></button>
+        </div>
+        <span id="canvas-size-label" class="text-muted ms-3" style="font-size:11px;">800&#215;500px</span>
         <div class="ms-auto d-flex gap-1 align-items-center">
           <button id="btn-zoom-out" class="btn btn-sm btn-outline-secondary px-2"><i class="bi bi-zoom-out"></i></button>
           <span id="zoom-label" style="font-size:11px;min-width:40px;text-align:center;">100%</span>
@@ -179,6 +180,11 @@
         </div>
       </div>
       <div class="canvas-wrap" id="canvas-wrap">
+        <div id="canvas-empty-hint" class="canvas-empty-hint">
+          <i class="bi bi-vector-pen"></i>
+          <p>Pick a tool and start drawing</p>
+          <small>R Rect &nbsp;&middot;&nbsp; E Ellipse &nbsp;&middot;&nbsp; L Line &nbsp;&middot;&nbsp; P Polygon &nbsp;&middot;&nbsp; S Slot</small>
+        </div>
         <div id="artboard" style="width:800px;height:500px;">
           <div class="cdotgrid"></div>
           <svg id="artboard-svg" viewBox="0 0 800 500" width="800" height="500" style="cursor:default;user-select:none;"></svg>
@@ -254,6 +260,7 @@
     function hitHandle(pt,sel){if(!sel)return null;var hs=getHsiz()+2/state.zoom;for(var i=0;i<HNAMES.length;i++){var hp=handlePos(sel,HNAMES[i]);if(dist2(pt,hp)<=hs)return HNAMES[i];}return null;}
     // ── Render canvas ─────────────────────────────────────────────────────────
     function renderCanvas(){
+      var hint=document.getElementById('canvas-empty-hint');if(hint)hint.style.display=state.element.layers.length===0?'flex':'none';
       while(svgEl.firstChild)svgEl.removeChild(svgEl.firstChild);
       artboard.querySelectorAll('.slot-overlay').forEach(function(e){e.remove();});
       var CW=state.element.canvasWidth,CH=state.element.canvasHeight;
@@ -319,7 +326,7 @@
     }
     function commitPolygon(){if(polyState.verts.length<3){cancelPolygon();return;}pushHistory();var layer=mkPolygon(polyState.verts);var maxZ=state.element.layers.reduce(function(m,l){return Math.max(m,l.zIndex);},-1);layer.zIndex=maxZ+1;state.element.layers.push(layer);state.selectedLayerId=layer.id;polyState.verts=[];polyState.cursorPt=null;markDirty();renderAll();activateTool('select');}
     function cancelPolygon(){polyState.verts=[];polyState.cursorPt=null;renderPolyGhost();}
-    function activateTool(name){var btn=document.querySelector('.tool-btn[data-tool="'+name+'"]');if(btn)btn.click();}
+    function activateTool(name){var btn=document.querySelector('.tool-btn-h[data-tool="'+name+'"]');if(btn)btn.click();}
     function snapPt(pt,doSnap){if(!doSnap||!state.gridSize)return pt;var g=state.gridSize;return{x:Math.round(pt.x/g)*g,y:Math.round(pt.y/g)*g};}
     function updateDotGrid(){var cg=artboard.querySelector('.cdotgrid');if(cg)cg.style.backgroundSize=state.gridSize+'px '+state.gridSize+'px';}
     // ── Interaction state ─────────────────────────────────────────────────────
@@ -513,13 +520,14 @@
       var osl=document.createElement('input');osl.type='range';osl.className='form-range';osl.id='prop-opacity';osl.min='0';osl.max='1';osl.step='0.01';osl.value=layer.opacity;osl.style.flex='1';
       var ovl=document.createElement('span');ovl.id='prop-opacity-val';ovl.style.cssText='font-size:11px;width:36px;text-align:right;';ovl.textContent=Math.round(layer.opacity*100)+'%';
       orow.appendChild(osl);orow.appendChild(ovl);s3.appendChild(orow);body.appendChild(s3);
-      // Position + Size
-      var s4=mkSec();s4.appendChild(mkLbl('Position & Size (%)'));
+      // Position + Size (show in px)
+      var s4=mkSec();s4.appendChild(mkLbl('Position & Size (px)'));
       var gr=document.createElement('div');gr.className='row g-1';
-      [['X (left)',layer.x.toFixed(1),'prop-pos-x'],['Y (top)',layer.y.toFixed(1),'prop-pos-y'],['Width',layer.width.toFixed(1),'prop-sz-w'],['Height',layer.height.toFixed(1),'prop-sz-h']].forEach(function(f){
+      var CW4=state.element.canvasWidth,CH4=state.element.canvasHeight;
+      [['X',(layer.x*CW4/100).toFixed(0),'prop-pos-x'],['Y',(layer.y*CH4/100).toFixed(0),'prop-pos-y'],['W',(layer.width*CW4/100).toFixed(0),'prop-sz-w'],['H',(layer.height*CH4/100).toFixed(0),'prop-sz-h']].forEach(function(f){
         var col=document.createElement('div');col.className='col-6';
         var lbl=document.createElement('label');lbl.className='prop-label';lbl.textContent=f[0];
-        var inp=document.createElement('input');inp.type='number';inp.className='form-control form-control-sm';inp.id=f[2];inp.value=f[1];inp.step='0.1';
+        var inp=document.createElement('input');inp.type='number';inp.className='form-control form-control-sm';inp.id=f[2];inp.value=f[1];inp.step='1';
         col.appendChild(lbl);col.appendChild(inp);gr.appendChild(col);
       });
       s4.appendChild(gr);body.appendChild(s4);
@@ -577,16 +585,17 @@
       var pr=document.getElementById('prop-role');if(pr)pr.addEventListener('change',function(e){var i=idx();if(i<0)return;pushHistory();state.element.layers[i].role=e.target.value;markDirty();renderLayers();});
       var os=document.getElementById('prop-opacity'),ov=document.getElementById('prop-opacity-val');
       if(os){os.addEventListener('input',function(e){var i=idx();if(i<0)return;state.element.layers[i].opacity=parseFloat(e.target.value);if(ov)ov.textContent=Math.round(e.target.value*100)+'%';renderCanvas();});os.addEventListener('change',function(){pushHistory();markDirty();});}
-      // Position/size inputs
+      // Position/size inputs (values in px, stored as %)
       ['prop-pos-x','prop-pos-y','prop-sz-w','prop-sz-h'].forEach(function(pid){
         var el=document.getElementById(pid);if(!el)return;
         el.addEventListener('change',function(e){
-          var i=idx();if(i<0)return;var v=parseFloat(e.target.value);if(isNaN(v))return;
+          var i=idx();if(i<0)return;var vpx=parseFloat(e.target.value);if(isNaN(vpx))return;
+          var CW=state.element.canvasWidth,CH=state.element.canvasHeight;
           pushHistory();
-          if(pid==='prop-pos-x'){if(state.element.layers[i].vectorData)state.element.layers[i].vectorData.pathData=translatePath(state.element.layers[i].vectorData.pathData,v-state.element.layers[i].x,0);state.element.layers[i].x=v;}
-          else if(pid==='prop-pos-y'){if(state.element.layers[i].vectorData)state.element.layers[i].vectorData.pathData=translatePath(state.element.layers[i].vectorData.pathData,0,v-state.element.layers[i].y);state.element.layers[i].y=v;}
-          else if(pid==='prop-sz-w')state.element.layers[i].width=Math.max(0.1,v);
-          else if(pid==='prop-sz-h')state.element.layers[i].height=Math.max(0.1,v);
+          if(pid==='prop-pos-x'){var pv=vpx/CW*100;if(state.element.layers[i].vectorData)state.element.layers[i].vectorData.pathData=translatePath(state.element.layers[i].vectorData.pathData,pv-state.element.layers[i].x,0);state.element.layers[i].x=pv;}
+          else if(pid==='prop-pos-y'){var pv=vpx/CH*100;if(state.element.layers[i].vectorData)state.element.layers[i].vectorData.pathData=translatePath(state.element.layers[i].vectorData.pathData,0,pv-state.element.layers[i].y);state.element.layers[i].y=pv;}
+          else if(pid==='prop-sz-w'){state.element.layers[i].width=Math.max(0.1,vpx/CW*100);}
+          else if(pid==='prop-sz-h'){state.element.layers[i].height=Math.max(0.1,vpx/CH*100);}
           markDirty();renderAll();
         });
       });
@@ -649,7 +658,7 @@
     // ── Collapsible panels ────────────────────────────────────────────────────
     document.querySelectorAll('.panel-header[data-panel]').forEach(function(hdr){hdr.addEventListener('click',function(){var id=hdr.dataset.panel;var body=document.getElementById('pb-'+id);if(!body)return;body.classList.toggle('hidden');hdr.classList.toggle('collapsed');});});
     // ── Tool buttons ──────────────────────────────────────────────────────────
-    document.querySelectorAll('.tool-btn').forEach(function(btn){btn.addEventListener('click',function(){if(state.activeTool==='polygon'&&btn.dataset.tool!=='polygon')cancelPolygon();state.activeTool=btn.dataset.tool;document.querySelectorAll('.tool-btn').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');var cur={select:'default',hand:'grab',rectangle:'crosshair',ellipse:'crosshair',line:'crosshair',slot:'crosshair',polygon:'crosshair'};svgEl.style.cursor=cur[state.activeTool]||'crosshair';});});
+    document.querySelectorAll('.tool-btn-h').forEach(function(btn){btn.addEventListener('click',function(){if(state.activeTool==='polygon'&&btn.dataset.tool!=='polygon')cancelPolygon();state.activeTool=btn.dataset.tool;document.querySelectorAll('.tool-btn-h').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');var cur={select:'default',hand:'grab',rectangle:'crosshair',ellipse:'crosshair',line:'crosshair',slot:'crosshair',polygon:'crosshair'};svgEl.style.cursor=cur[state.activeTool]||'crosshair';});});
     // ── Element properties ────────────────────────────────────────────────────
     document.getElementById('el-name').addEventListener('input',function(e){state.element.name=e.target.value;document.getElementById('element-name-badge').textContent=e.target.value||'Untitled';markDirty();});
     document.getElementById('el-type').addEventListener('change',function(e){state.element.elementType=e.target.value;markDirty();});
