@@ -502,7 +502,7 @@
         if(hit&&!hit.locked){
           // Shift+click on a different layer → assign as boolean base (keep cutter selected)
           if(e.shiftKey&&state.selectedLayerId&&hit.id!==state.selectedLayerId){
-            state.boolBaseId=hit.id;renderCanvas();renderProps();return;
+            state.boolBaseId=hit.id;renderAll();return;
           }
           dragSt={layerId:hit.id,startPt:pt,startX:hit.x,startY:hit.y,origPath:hit.vectorData?hit.vectorData.pathData:null,moved:false,altDuped:false};if(state.selectedLayerId!==hit.id)selectLayer(hit.id);
         }
@@ -675,7 +675,7 @@
           var btn=ev.target.closest('[data-a]');
           if(!btn){
             // Shift+click in layer panel → assign as boolean base
-            if(ev.shiftKey&&state.selectedLayerId&&layer.id!==state.selectedLayerId){state.boolBaseId=layer.id;renderCanvas();renderProps();}
+            if(ev.shiftKey&&state.selectedLayerId&&layer.id!==state.selectedLayerId){state.boolBaseId=layer.id;renderAll();}
             else{selectLayer(layer.id);}
             return;
           }
@@ -1138,7 +1138,7 @@
     document.addEventListener('keydown',function(e){
       if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
       var t={v:'select',r:'rectangle',e:'ellipse',l:'line',p:'polygon',s:'slot',h:'hand'};
-      if(t[e.key.toLowerCase()]){e.preventDefault();document.querySelector('.tool-btn[data-tool="'+t[e.key.toLowerCase()]+'"]').click();return;}
+      if(t[e.key.toLowerCase()]){e.preventDefault();var tb=document.querySelector('.tool-btn-h[data-tool="'+t[e.key.toLowerCase()]+'"]');if(tb)tb.click();return;}
       if(e.key==='Enter'&&state.activeTool==='polygon'){e.preventDefault();if(polyState.verts.length>=3)commitPolygon();return;}
       if(e.key==='Escape'){e.preventDefault();if(state.vertexEditLayerId){state.vertexEditLayerId=null;renderCanvas();return;}if(state.activeTool==='polygon')cancelPolygon();return;}
       if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key==='z'){e.preventDefault();undo();return;}
