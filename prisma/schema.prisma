@@ -1,4 +1,4 @@
-// Prisma Schema for Sonic Website Visual Page Builder CMS
+// Prisma Schema for White Label CMS
 // PostgreSQL database with flexible JSONB storage
 
 generator client {
@@ -454,7 +454,7 @@ model Volt3DAsset {
   id              String          @id @default(cuid())
   name            String
   authorId        String
-  author          User            @relation(fields: [authorId], references: [id])
+  author          User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
   versions        Volt3DVersion[]
   activeVersionId String?
   triggerConfig   Json?
