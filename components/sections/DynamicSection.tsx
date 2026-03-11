@@ -1,11 +1,14 @@
-import React from "react";
+'use client'
+
+import React, { useRef } from "react";
 import dynamic from "next/dynamic";
 import DOMPurify from "isomorphic-dompurify";
 import HeroCarousel from "./HeroCarousel";
 
 const AnimBgRenderer = dynamic(() => import("./AnimBgRenderer"), { ssr: false });
 const MotionElementRenderer = dynamic(() => import("./MotionElementRenderer"), { ssr: false });
-const VoltRenderer = dynamic(() => import('@/components/volt/VoltRenderer'), { ssr: false })
+const VoltRenderer = dynamic(() => import('@/components/volt/VoltRenderer'), { ssr: false });
+const Volt3DRenderer = dynamic(() => import('./Volt3DRenderer'), { ssr: false })
 import TextImageSection from "./TextImageSection";
 import StatsGrid from "./StatsGrid";
 import CardGrid from "./CardGrid";
@@ -83,6 +86,8 @@ function wrapSection(section: SectionConfig, el: React.ReactElement): React.Reac
 }
 
 export default function DynamicSection({ section, isFirstAfterHero = false }: DynamicSectionProps) {
+  const sectionRef = useRef<HTMLElement | null>(null)
+
   // Don't render disabled sections
   if (!section.enabled) {
     return null;
@@ -101,8 +106,10 @@ export default function DynamicSection({ section, isFirstAfterHero = false }: Dy
     }
 
     const wrapped = wrapSection(section, (
-      <div
+      <section
+        ref={sectionRef}
         id={section.id}
+        data-section-id={section.id}
         className="cms-section"
         style={{
           '--section-bg': 'transparent',
@@ -113,7 +120,20 @@ export default function DynamicSection({ section, isFirstAfterHero = false }: Dy
         <div className="section-content-wrapper">
           <VoltRenderer voltElement={voltEl} slots={slots} style={{ width: '100%', height: '100%' }} />
         </div>
-      </div>
+        {voltEl.layers
+          .filter(l => l.type === '3d-object' && l.visible !== false && l.object3DData?.assetUrl)
+          .map(l => (
+            <Volt3DRenderer
+              key={l.id}
+              data={l.object3DData!}
+              x={l.x}
+              y={l.y}
+              width={l.width}
+              height={l.height}
+              sectionRef={sectionRef}
+            />
+          ))}
+      </section>
     ))
 
     if (shouldShowTriangle(section, isFirstAfterHero)) {
