@@ -165,10 +165,11 @@
               <span style="font-size:9px;font-weight:800;background:#f59e0b;color:white;padding:2px 5px;border-radius:3px;flex-shrink:0;">① CUTTER</span>
               <span id="bool-cutter-name" style="font-size:11px;color:#78350f;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Select a shape first</span>
             </div>
-            <div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;">
               <span style="font-size:9px;font-weight:800;background:#06b6d4;color:white;padding:2px 5px;border-radius:3px;flex-shrink:0;">② BASE</span>
               <select id="bool-base-picker" class="form-select form-select-sm" style="font-size:11px;flex:1;"></select>
             </div>
+            <div style="font-size:9px;color:#6b7280;padding:0 2px 6px;"><kbd style="font-size:8px;padding:1px 3px;border:1px solid #d1d5db;border-radius:2px;background:#f9fafb;">Shift</kbd>+click a layer to set base</div>
             <div class="d-flex gap-1">
               <button id="btn-bool-union" class="btn btn-sm btn-outline-secondary flex-fill"><i class="bi bi-union"></i> Union</button>
               <button id="btn-bool-subtract" class="btn btn-sm btn-outline-secondary flex-fill"><i class="bi bi-subtract"></i> Sub</button>
@@ -498,7 +499,13 @@
         if(sel){var h=hitHandle(pt,sel);if(h){resizeSt={layerId:sel.id,handle:h,startPt:pt,origBounds:{x:sel.x,y:sel.y,w:sel.width,h:sel.height},origPath:sel.vectorData?sel.vectorData.pathData:null};return;}}
         // Hit test
         var hit=hitTest(pt);
-        if(hit&&!hit.locked){dragSt={layerId:hit.id,startPt:pt,startX:hit.x,startY:hit.y,origPath:hit.vectorData?hit.vectorData.pathData:null,moved:false,altDuped:false};if(state.selectedLayerId!==hit.id)selectLayer(hit.id);}
+        if(hit&&!hit.locked){
+          // Shift+click on a different layer → assign as boolean base (keep cutter selected)
+          if(e.shiftKey&&state.selectedLayerId&&hit.id!==state.selectedLayerId){
+            state.boolBaseId=hit.id;renderCanvas();renderProps();return;
+          }
+          dragSt={layerId:hit.id,startPt:pt,startX:hit.x,startY:hit.y,origPath:hit.vectorData?hit.vectorData.pathData:null,moved:false,altDuped:false};if(state.selectedLayerId!==hit.id)selectLayer(hit.id);
+        }
         else{state.selectedLayerId=null;document.getElementById('btn-delete-layer').disabled=true;renderCanvas();renderProps();}
         return;
       }
@@ -666,7 +673,12 @@
         row.appendChild(eyeBtn);row.appendChild(lockBtn);row.appendChild(badge);row.appendChild(nm);row.appendChild(del);
         row.addEventListener('click',function(ev){
           var btn=ev.target.closest('[data-a]');
-          if(!btn){selectLayer(layer.id);return;}
+          if(!btn){
+            // Shift+click in layer panel → assign as boolean base
+            if(ev.shiftKey&&state.selectedLayerId&&layer.id!==state.selectedLayerId){state.boolBaseId=layer.id;renderCanvas();renderProps();}
+            else{selectLayer(layer.id);}
+            return;
+          }
           var id=btn.dataset.id,idx=state.element.layers.findIndex(function(l){return l.id===id;});if(idx<0)return;
           if(btn.dataset.a==='eye'){pushHistory();state.element.layers[idx].visible=!state.element.layers[idx].visible;markDirty();renderCanvas();renderLayers();}
           else if(btn.dataset.a==='lock'){state.element.layers[idx].locked=!state.element.layers[idx].locked;renderLayers();}
