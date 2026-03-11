@@ -64,6 +64,19 @@
     .canvas-empty-hint i{font-size:32px;color:#93a8c4;}
     .canvas-empty-hint p{font-size:13px;color:#6b8cae;margin:0;font-weight:600;}
     .canvas-empty-hint small{font-size:10px;color:#93a8c4;letter-spacing:0.3px;}
+    .v3d-modal{position:fixed;inset:0;z-index:9000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.82);}
+    .v3d-modal.open{display:flex;}
+    .v3d-modal-inner{width:min(860px,98vw);max-height:92vh;background:#1a1a2e;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
+    .v3d-header{padding:14px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #2d2d4e;}
+    .v3d-body{flex:1;display:flex;min-height:400px;}
+    .v3d-preview{flex:1;position:relative;}
+    .v3d-preview iframe{position:absolute;inset:0;width:100%;height:100%;border:none;}
+    .v3d-sidebar{width:220px;flex-shrink:0;border-left:1px solid #2d2d4e;padding:12px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
+    .v3d-asset-row{padding:6px 8px;border-radius:6px;cursor:pointer;border:1.5px solid #2d2d4e;color:#c7d2fe;transition:all 0.12s;}
+    .v3d-asset-row:hover,.v3d-asset-row.active{border-color:#6366f1;background:#312e81;}
+    .v3d-clip-row{padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;color:#a5b4fc;border:1px solid transparent;}
+    .v3d-clip-row:hover{background:#2d2d4e;}
+    .v3d-clip-row.active{background:#312e81;border-color:#6366f1;color:white;}
   </style>
 </head>
 <body>
@@ -164,6 +177,16 @@
             <div style="font-size:9px;color:#6c757d;margin-top:7px;line-height:1.6;"><b>Cutter (①)</b> punches through <b>Base (②)</b>. Result = Base modified, Cutter removed. Sub = B minus A. Union = merged. Isect = overlap only.</div>
           </div>
         </div>
+        <div class="panel">
+          <div class="panel-header collapsed" data-panel="3dobjs">
+            <i class="bi bi-box"></i> 3D Objects <i class="bi bi-chevron-down chevron"></i>
+          </div>
+          <div class="panel-body hidden" id="pb-3dobjs">
+            <button id="btn-open-3d" class="btn btn-sm btn-outline-primary w-100">
+              <i class="bi bi-box me-1"></i>Browse / Place 3D Object
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     <button class="sidebar-toggle" id="toggle-left"><i class="bi bi-chevron-left" id="toggle-left-icon"></i></button>
@@ -211,6 +234,32 @@
       </div>
     </div>
   </div>
+  <div class="v3d-modal" id="v3d-modal">
+    <div class="v3d-modal-inner">
+      <div class="v3d-header">
+        <i class="bi bi-box" style="color:#818cf8;font-size:18px;"></i>
+        <span id="v3d-modal-title" style="font-size:14px;font-weight:700;color:white;">3D Objects</span>
+        <div class="ms-auto d-flex gap-2">
+          <button id="v3d-approve-btn" class="btn btn-sm btn-success" style="display:none;">
+            <i class="bi bi-check-lg me-1"></i>Approve &amp; Place
+          </button>
+          <button id="v3d-close-btn" class="btn btn-sm btn-outline-secondary" style="color:#a5b4fc;border-color:#4f46e5;">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      </div>
+      <div class="v3d-body">
+        <div class="v3d-preview">
+          <iframe id="v3d-iframe" src="" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+        <div class="v3d-sidebar">
+          <div id="v3d-section-assets"></div>
+          <div id="v3d-section-clips"></div>
+          <div id="v3d-section-versions"></div>
+        </div>
+      </div>
+    </div>
+  </div>
   <script>
   (function(){
     'use strict';
@@ -219,6 +268,10 @@
       element:{id:'',name:'New Design',mood:null,elementType:'custom',isPublic:false,authorId:'',layers:[],states:[],tags:[],canvasWidth:800,canvasHeight:500},
       activeTool:'select',selectedLayerId:null,boolBaseId:null,vertexEditLayerId:null,isDirty:false,history:[],historyIndex:-1,zoom:1,gridSize:10
     };
+    // ── 3D Object state ───────────────────────────────────────────────────────
+    var _v3dViewerReady = false, _v3dPendingLoad = null;
+    var _v3dCurrentAsset = null, _v3dCurrentVersion = null;
+    var _v3dClips = [], _v3dActiveClip = null;
     // ── Utilities ─────────────────────────────────────────────────────────────
     function nanoid(){return Math.random().toString(36).slice(2,11)+Math.random().toString(36).slice(2,11);}
     function dist2(a,b){return Math.sqrt((a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y));}
@@ -294,6 +347,36 @@
           div.style.cssText='position:absolute;left:'+layer.x+'%;top:'+layer.y+'%;width:'+layer.width+'%;height:'+layer.height+'%;border:2px dashed #22c55e88;border-radius:4px;pointer-events:none;display:flex;align-items:center;justify-content:center;box-sizing:border-box;';
           var lbl=document.createElement('span');lbl.style.cssText='background:#22c55e;color:white;font-size:9px;font-weight:700;padding:2px 5px;border-radius:3px;text-transform:uppercase;';
           lbl.textContent=(layer.slotData&&layer.slotData.slotLabel)||'Slot';div.appendChild(lbl);artboard.appendChild(div);
+        }
+        if(layer.type==='3d-object'){
+          var rx=topx(layer.x,CW),ry=topx(layer.y,CH),rw=topx(layer.width,CW),rh=topx(layer.height,CH);
+          var g3d=svgNs('g');
+          var r3d=svgNs('rect');
+          r3d.setAttribute('x',rx);r3d.setAttribute('y',ry);
+          r3d.setAttribute('width',rw);r3d.setAttribute('height',rh);
+          r3d.setAttribute('fill','rgba(99,102,241,0.12)');
+          r3d.setAttribute('stroke','#6366f1');
+          r3d.setAttribute('stroke-width',String(1/state.zoom));
+          r3d.setAttribute('stroke-dasharray',String(4/state.zoom));
+          r3d.setAttribute('rx','4');
+          g3d.appendChild(r3d);
+          var icon3d=svgNs('text');
+          icon3d.setAttribute('x',String(rx+rw/2));
+          icon3d.setAttribute('y',String(ry+rh/2-8/state.zoom));
+          icon3d.setAttribute('text-anchor','middle');
+          icon3d.setAttribute('fill','#6366f1');
+          icon3d.setAttribute('font-size',String(14/state.zoom));
+          icon3d.textContent='\u2B21';
+          g3d.appendChild(icon3d);
+          var lbl3d=svgNs('text');
+          lbl3d.setAttribute('x',String(rx+rw/2));
+          lbl3d.setAttribute('y',String(ry+rh/2+10/state.zoom));
+          lbl3d.setAttribute('text-anchor','middle');
+          lbl3d.setAttribute('fill','#a5b4fc');
+          lbl3d.setAttribute('font-size',String(10/state.zoom));
+          lbl3d.textContent=layer.name||'3D Object';
+          g3d.appendChild(lbl3d);
+          svgEl.appendChild(g3d);
         }
       });
       // Boolean base outline (teal, drawn first so cutter outline is on top)
@@ -603,6 +686,141 @@
         if(!state.boolBaseId||!vectors.find(function(l){return l.id===state.boolBaseId;})){state.boolBaseId=vectors[0].id;basePicker.value=vectors[0].id;}
       }
     }
+    // ── 3D Object modal ───────────────────────────────────────────────────────
+    function openV3DModal() {
+      document.getElementById('v3d-modal').classList.add('open');
+      loadV3DAssets();
+      var iframe = document.getElementById('v3d-iframe');
+      if (!iframe.src || iframe.src === 'about:blank' || iframe.src === window.location.href) {
+        _v3dViewerReady = false;
+        iframe.src = '/volt-3d-viewer.html';
+      }
+    }
+    function closeV3DModal() {
+      document.getElementById('v3d-modal').classList.remove('open');
+    }
+    function loadV3DAssets() {
+      var container = document.getElementById('v3d-section-assets');
+      container.textContent = '';
+      var loading = document.createElement('div');
+      loading.style.cssText = 'color:#a5b4fc;font-size:11px;padding:8px;';
+      loading.textContent = 'Loading\u2026';
+      container.appendChild(loading);
+      fetch('/api/volt-3d')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          container.textContent = '';
+          var assets = (data.data && data.data.assets) ? data.data.assets : [];
+          if (assets.length === 0) {
+            var empty = document.createElement('div');
+            empty.style.cssText = 'color:#64748b;font-size:11px;padding:8px;text-align:center;';
+            empty.textContent = 'No 3D assets yet. Sync from Blender.';
+            container.appendChild(empty);
+            return;
+          }
+          var label = document.createElement('div');
+          label.style.cssText = 'font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;';
+          label.textContent = 'ASSETS';
+          container.appendChild(label);
+          assets.forEach(function(asset) {
+            var row = document.createElement('div');
+            row.className = 'v3d-asset-row' + (_v3dCurrentAsset && _v3dCurrentAsset.id === asset.id ? ' active' : '');
+            row.textContent = asset.name;
+            row.addEventListener('click', function() { selectV3DAsset(asset); });
+            container.appendChild(row);
+          });
+        })
+        .catch(function() {
+          container.textContent = '';
+          var err = document.createElement('div');
+          err.style.cssText = 'color:#ef4444;font-size:11px;padding:8px;';
+          err.textContent = 'Failed to load assets';
+          container.appendChild(err);
+        });
+    }
+    function selectV3DAsset(asset) {
+      _v3dCurrentAsset = asset;
+      loadV3DAssets();
+      var verContainer = document.getElementById('v3d-section-versions');
+      verContainer.textContent = '';
+      var verLabel = document.createElement('div');
+      verLabel.style.cssText = 'font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;margin-top:8px;';
+      verLabel.textContent = 'VERSIONS';
+      verContainer.appendChild(verLabel);
+      var versions = asset.versions || [];
+      versions.forEach(function(ver) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 0;';
+        var label = document.createElement('span');
+        label.style.cssText = 'font-size:11px;color:#a5b4fc;flex:1;';
+        label.textContent = 'v' + ver.versionNum + (ver.isConfirmed ? ' \u2713' : '');
+        row.appendChild(label);
+        if (!ver.isConfirmed) {
+          var confirmBtn = document.createElement('button');
+          confirmBtn.className = 'btn btn-xs';
+          confirmBtn.style.cssText = 'font-size:10px;padding:2px 6px;background:#1e40af;color:white;border:none;border-radius:3px;cursor:pointer;';
+          confirmBtn.textContent = 'Confirm';
+          (function(a, v) {
+            confirmBtn.addEventListener('click', function(e) {
+              e.stopPropagation();
+              confirmV3DVersion(a.id, v.id);
+            });
+          })(asset, ver);
+          row.appendChild(confirmBtn);
+        }
+        row.addEventListener('click', function() { loadV3DVersion(asset, ver); });
+        verContainer.appendChild(row);
+      });
+      var activeVer = versions.find(function(v) { return v.id === asset.activeVersionId; }) || versions[0];
+      if (activeVer) loadV3DVersion(asset, activeVer);
+    }
+    function loadV3DVersion(asset, version) {
+      _v3dCurrentVersion = version;
+      var clipContainer = document.getElementById('v3d-section-clips');
+      clipContainer.textContent = '';
+      var animClips = Array.isArray(version.animClips) ? version.animClips : [];
+      if (animClips.length > 0) {
+        var clipLabel = document.createElement('div');
+        clipLabel.style.cssText = 'font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;margin-top:8px;';
+        clipLabel.textContent = 'CLIPS';
+        clipContainer.appendChild(clipLabel);
+        animClips.forEach(function(clip) {
+          var row = document.createElement('div');
+          row.className = 'v3d-clip-row' + (clip.isDefault ? ' active' : '');
+          row.textContent = clip.name + ' (' + clip.duration.toFixed(1) + 's)';
+          row.addEventListener('click', function() {
+            clipContainer.querySelectorAll('.v3d-clip-row').forEach(function(r) { r.classList.remove('active'); });
+            row.classList.add('active');
+            _v3dActiveClip = clip.name;
+            var iframe = document.getElementById('v3d-iframe');
+            if (iframe.contentWindow) {
+              iframe.contentWindow.postMessage({ type: 'VOLT3D_PLAY', clip: clip.name }, '*');
+            }
+          });
+          clipContainer.appendChild(row);
+        });
+      }
+      var approveBtn = document.getElementById('v3d-approve-btn');
+      approveBtn.style.display = version.isConfirmed ? '' : 'none';
+      var defaultClip = animClips.find(function(c) { return c.isDefault; });
+      _v3dActiveClip = (defaultClip || animClips[0] || {}).name || null;
+      var msg = { type: 'VOLT3D_LOAD', glbUrl: version.glbPath, lowRes: true, activeClip: _v3dActiveClip };
+      var iframe = document.getElementById('v3d-iframe');
+      if (_v3dViewerReady && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(msg, '*');
+      } else {
+        _v3dPendingLoad = msg;
+      }
+    }
+    function confirmV3DVersion(assetId, versionId) {
+      fetch('/api/volt-3d/' + assetId + '/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ versionId: versionId })
+      }).then(function(r) {
+        if (r.ok) { loadV3DAssets(); }
+      });
+    }
     // ── Properties panel ──────────────────────────────────────────────────────
     function clrEl(el){while(el.firstChild)el.removeChild(el.firstChild);}
     function mkLbl(t){var d=document.createElement('div');d.className='prop-label';d.textContent=t;return d;}
@@ -795,6 +1013,43 @@
     // ── Sidebar toggles ───────────────────────────────────────────────────────
     document.getElementById('toggle-left').addEventListener('click',function(){var s=document.getElementById('sidebar-left'),ic=document.getElementById('toggle-left-icon');s.classList.toggle('collapsed');ic.className=s.classList.contains('collapsed')?'bi bi-chevron-right':'bi bi-chevron-left';});
     document.getElementById('toggle-right').addEventListener('click',function(){var s=document.getElementById('sidebar-right'),ic=document.getElementById('toggle-right-icon');s.classList.toggle('collapsed');ic.className=s.classList.contains('collapsed')?'bi bi-chevron-left':'bi bi-chevron-right';});
+    // ── 3D Objects modal wiring ───────────────────────────────────────────────
+    document.getElementById('btn-open-3d').addEventListener('click', openV3DModal);
+    document.getElementById('v3d-close-btn').addEventListener('click', closeV3DModal);
+    document.getElementById('v3d-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeV3DModal();
+    });
+    document.getElementById('v3d-approve-btn').addEventListener('click', function() {
+      if (!_v3dCurrentAsset || !_v3dCurrentVersion) return;
+      pushHistory();
+      var layer = {
+        id: 'l' + Date.now(),
+        type: '3d-object',
+        name: _v3dCurrentAsset.name,
+        visible: true,
+        locked: false,
+        x: 10, y: 10, width: 40, height: 40,
+        object3DData: {
+          assetId: _v3dCurrentAsset.id,
+          assetUrl: _v3dCurrentVersion.glbPath,
+          assetName: _v3dCurrentAsset.name,
+          activeClip: _v3dActiveClip || null,
+          availableTracks: _v3dClips,
+          triggerEvents: [],
+          cameraAzimuth: 45,
+          cameraElevation: 20,
+          cameraDistance: 4,
+          ambientLight: 0.8,
+          keyLight: 1.5
+        }
+      };
+      state.element.layers.push(layer);
+      state.element.has3D = true;
+      selectLayer(layer.id);
+      markDirty();
+      renderAll();
+      closeV3DModal();
+    });
     // ── Save / Done ───────────────────────────────────────────────────────────
     function captureThumbnail(){
       try{
@@ -813,6 +1068,19 @@
     document.getElementById('btn-done').addEventListener('click',function(){if(window.parent&&window.parent!==window)window.parent.postMessage({type:'VOLT_DESIGNER_DONE',payload:buildPayload()},'*');});
     // ── Load from host ────────────────────────────────────────────────────────
     window.addEventListener('message',function(e){
+      if(e.data && e.data.type === 'VOLT3D_VIEWER_READY') {
+        _v3dViewerReady = true;
+        if (_v3dPendingLoad) {
+          var ifrm = document.getElementById('v3d-iframe');
+          if (ifrm && ifrm.contentWindow) {
+            ifrm.contentWindow.postMessage(_v3dPendingLoad, '*');
+          }
+          _v3dPendingLoad = null;
+        }
+      }
+      if(e.data && e.data.type === 'VOLT3D_READY') {
+        _v3dClips = e.data.clips || [];
+      }
       if(!e.data||e.data.type!=='VOLT_DESIGNER_LOAD')return;
       var el=e.data.payload;state.element=Object.assign({},state.element,el);pushHistory();
       document.getElementById('el-name').value=el.name||'New Design';document.getElementById('element-name-badge').textContent=el.name||'New Design';
