@@ -860,6 +860,7 @@
       });
       s4.appendChild(gr);body.appendChild(s4);
       if(layer.type==='vector'){renderFillSec(body,layer);renderStrokeSec(body,layer);}
+      else if(layer.type==='3d-object'){render3DPropsSec(body,layer);return;}
       else{renderSlotSec(body,layer);}
       bindProps(layer);
     }
@@ -906,6 +907,98 @@
       var ts=mkSec();ts.appendChild(mkLbl('Slot Type'));var tsel=document.createElement('select');tsel.id='prop-slot-type';tsel.className='form-select form-select-sm';
       ['title','body','image','action','badge','icon','custom'].forEach(function(t){var o=document.createElement('option');o.value=t;o.textContent=t;if(sd.slotType===t)o.selected=true;tsel.appendChild(o);});ts.appendChild(tsel);body.appendChild(ts);
       var ls=mkSec();ls.appendChild(mkLbl('Slot Label'));var li=document.createElement('input');li.type='text';li.id='prop-slot-label';li.className='form-control form-control-sm';li.value=sd.slotLabel||'Slot';ls.appendChild(li);body.appendChild(ls);
+    }
+    function render3DPropsSec(body,layer){
+      var d3=layer.object3DData||{};
+      // Section 1: Asset info
+      var assetDiv=document.createElement('div');assetDiv.className='prop-group';
+      var assetLabel=document.createElement('div');assetLabel.className='prop-label';assetLabel.textContent='Asset';assetDiv.appendChild(assetLabel);
+      var assetName=document.createElement('div');assetName.style.cssText='font-size:11px;color:#a5b4fc;padding:3px 0;';assetName.textContent=d3.assetName||layer.name||'Unknown';assetDiv.appendChild(assetName);
+      var changeBtn=document.createElement('button');changeBtn.className='btn btn-xs btn-outline-primary w-100 mt-1';changeBtn.style.cssText='font-size:10px;padding:2px 6px;';changeBtn.textContent='Change / Preview';changeBtn.addEventListener('click',openV3DModal);assetDiv.appendChild(changeBtn);
+      body.appendChild(assetDiv);
+      // Section 2: Active clip select
+      var tracks=(d3.availableTracks||[]);
+      if(tracks.length>0){
+        var clipDiv=document.createElement('div');clipDiv.className='prop-group';
+        var clipLabel=document.createElement('label');clipLabel.className='prop-label';clipLabel.textContent='Active Clip';clipDiv.appendChild(clipLabel);
+        var clipSel=document.createElement('select');clipSel.className='form-select form-select-sm';clipSel.id='prop-3d-clip';
+        tracks.forEach(function(track){
+          var opt=document.createElement('option');opt.value=track.name;opt.textContent=track.name+' ('+track.duration.toFixed(1)+'s)';
+          if(track.name===(d3.activeClip||''))opt.selected=true;clipSel.appendChild(opt);
+        });
+        clipDiv.appendChild(clipSel);body.appendChild(clipDiv);
+        clipSel.addEventListener('change',function(){
+          var i=state.element.layers.findIndex(function(l){return l.id===layer.id;});
+          if(i<0)return;state.element.layers[i].object3DData.activeClip=clipSel.value;markDirty();
+        });
+      }
+      // Section 3: Trigger Events
+      var trigDiv=document.createElement('div');trigDiv.className='prop-group';
+      var trigHeader=document.createElement('div');trigHeader.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;';
+      var trigLabel=document.createElement('span');trigLabel.className='prop-label';trigLabel.textContent='Trigger Events';trigHeader.appendChild(trigLabel);
+      var addTrigBtn=document.createElement('button');addTrigBtn.className='btn btn-xs btn-outline-success';addTrigBtn.style.cssText='font-size:9px;padding:1px 6px;';addTrigBtn.textContent='+ Add';trigHeader.appendChild(addTrigBtn);
+      trigDiv.appendChild(trigHeader);
+      var trigList=document.createElement('div');trigList.id='trig-list';trigDiv.appendChild(trigList);
+      body.appendChild(trigDiv);
+      renderTriggerList(layer,trigList);
+      addTrigBtn.addEventListener('click',function(){
+        var i=state.element.layers.findIndex(function(l){return l.id===layer.id;});
+        if(i<0)return;
+        if(!state.element.layers[i].object3DData.triggerEvents)state.element.layers[i].object3DData.triggerEvents=[];
+        pushHistory();
+        state.element.layers[i].object3DData.triggerEvents.push({on:'animEnd',action:'scrollToSection',targetId:''});
+        markDirty();renderProps();
+      });
+    }
+    function renderTriggerList(layer,container){
+      container.textContent='';
+      var events=(layer.object3DData&&layer.object3DData.triggerEvents)?layer.object3DData.triggerEvents:[];
+      events.forEach(function(ev,idx){
+        var row=document.createElement('div');row.style.cssText='background:#1e1b4b;border-radius:6px;padding:8px;margin-bottom:6px;';
+        // Row 1: "On" select
+        var onRow=document.createElement('div');onRow.style.cssText='display:flex;align-items:center;gap:4px;margin-bottom:4px;';
+        var onLabel=document.createElement('span');onLabel.style.cssText='font-size:10px;color:#64748b;width:28px;flex-shrink:0;';onLabel.textContent='On:';onRow.appendChild(onLabel);
+        var onSel=document.createElement('select');onSel.className='form-select form-select-sm flex-fill';onSel.style.cssText='font-size:10px;padding:1px 4px;height:22px;';
+        [['animStart','Animation Start'],['animEnd','Animation End'],['animLoop','Animation Loop']].forEach(function(pair){
+          var opt=document.createElement('option');opt.value=pair[0];opt.textContent=pair[1];if(pair[0]===ev.on)opt.selected=true;onSel.appendChild(opt);
+        });
+        onRow.appendChild(onSel);
+        var loopInput=document.createElement('input');loopInput.type='number';loopInput.min='1';loopInput.style.cssText='width:44px;font-size:10px;padding:1px 4px;height:22px;background:#0f0f1a;color:white;border:1px solid #334155;border-radius:4px;';
+        loopInput.value=String(ev.loopCount||1);loopInput.style.display=ev.on==='animLoop'?'block':'none';onRow.appendChild(loopInput);
+        row.appendChild(onRow);
+        // Row 2: Action select
+        var actRow=document.createElement('div');actRow.style.cssText='display:flex;align-items:center;gap:4px;margin-bottom:4px;';
+        var actLabel=document.createElement('span');actLabel.style.cssText='font-size:10px;color:#64748b;width:28px;flex-shrink:0;';actLabel.textContent='Do:';actRow.appendChild(actLabel);
+        var actSel=document.createElement('select');actSel.className='form-select form-select-sm flex-fill';actSel.style.cssText='font-size:10px;padding:1px 4px;height:22px;';
+        [['scrollToSection','Scroll to Section'],['snapToSection','Snap to Section'],['scrollToElement','Scroll to Element'],['highlightElement','Highlight Element']].forEach(function(pair){
+          var opt=document.createElement('option');opt.value=pair[0];opt.textContent=pair[1];if(pair[0]===ev.action)opt.selected=true;actSel.appendChild(opt);
+        });
+        actRow.appendChild(actSel);row.appendChild(actRow);
+        // Row 3: Target input
+        var tgtRow=document.createElement('div');tgtRow.style.cssText='display:flex;align-items:center;gap:4px;margin-bottom:4px;';
+        var tgtLabel=document.createElement('span');tgtLabel.style.cssText='font-size:10px;color:#64748b;width:28px;flex-shrink:0;';tgtLabel.textContent='ID:';tgtRow.appendChild(tgtLabel);
+        var tgtInput=document.createElement('input');tgtInput.type='text';tgtInput.className='form-control form-control-sm';tgtInput.style.cssText='font-size:10px;padding:1px 6px;height:22px;';tgtInput.placeholder='Section ID or CSS selector';tgtInput.value=ev.targetId||'';tgtRow.appendChild(tgtInput);row.appendChild(tgtRow);
+        // Remove button row
+        var rmRow=document.createElement('div');rmRow.style.cssText='display:flex;justify-content:flex-end;';
+        var rmBtn=document.createElement('button');rmBtn.className='btn btn-xs btn-outline-danger';rmBtn.style.cssText='font-size:9px;padding:1px 6px;';rmBtn.textContent='Remove';rmRow.appendChild(rmBtn);row.appendChild(rmRow);
+        container.appendChild(row);
+        // Bind events (capture idx in closure)
+        (function(evIdx){
+          onSel.addEventListener('change',function(){updateTriggerField(layer,evIdx,'on',onSel.value);loopInput.style.display=onSel.value==='animLoop'?'block':'none';});
+          loopInput.addEventListener('input',function(){updateTriggerField(layer,evIdx,'loopCount',parseInt(loopInput.value)||1);});
+          actSel.addEventListener('change',function(){updateTriggerField(layer,evIdx,'action',actSel.value);});
+          tgtInput.addEventListener('input',function(){updateTriggerField(layer,evIdx,'targetId',tgtInput.value);});
+          rmBtn.addEventListener('click',function(){
+            var i=state.element.layers.findIndex(function(l){return l.id===layer.id;});
+            if(i<0)return;pushHistory();state.element.layers[i].object3DData.triggerEvents.splice(evIdx,1);markDirty();renderProps();
+          });
+        })(idx);
+      });
+    }
+    function updateTriggerField(layer,idx,field,value){
+      var i=state.element.layers.findIndex(function(l){return l.id===layer.id;});
+      if(i<0)return;if(!state.element.layers[i].object3DData.triggerEvents)return;
+      state.element.layers[i].object3DData.triggerEvents[idx][field]=value;markDirty();
     }
     function bindProps(layer){
       function idx(){return state.element.layers.findIndex(function(l){return l.id===layer.id;});}

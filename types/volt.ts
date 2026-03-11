@@ -120,6 +120,7 @@ export interface VoltTextDecorationData {
 export interface VoltObject3DData {
   assetId: string
   assetUrl: string
+  assetName?: string
   cameraAzimuth: number
   cameraElevation: number
   cameraDistance: number
@@ -129,7 +130,14 @@ export interface VoltObject3DData {
   transparent: boolean
   backgroundColor?: string
   animationMap: Record<string, { trackName: string; loop: boolean } | undefined>
-  availableTracks: string[]
+  availableTracks: Array<{ name: string; duration: number }>
+  activeClip?: string
+  triggerEvents?: Array<{
+    on: 'animStart' | 'animEnd' | 'animLoop'
+    loopCount?: number
+    action: 'scrollToSection' | 'snapToSection' | 'scrollToElement' | 'highlightElement'
+    targetId: string
+  }>
 }
 
 export interface VoltLayer {
