@@ -104,12 +104,9 @@ function ApiKeysManager() {
             <div className="flex-grow-1">
               <strong>API key generated.</strong>{" "}
               <span className="text-danger fw-semibold">Save this key — it will not be shown again.</span>
-              <div
-                className="mt-2 p-2 rounded border bg-white text-break"
-                style={{ fontFamily: "monospace", fontSize: "0.875rem", wordBreak: "break-all" }}
-              >
+              <code className="d-block mt-2 p-2 rounded border bg-white text-break user-select-all">
                 {rawKey}
-              </div>
+              </code>
             </div>
           </div>
           <button
