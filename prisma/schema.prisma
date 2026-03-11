@@ -30,6 +30,8 @@ model User {
   sections     Section[]
   mediaAssets  MediaAsset[]
   voltElements VoltElement[]
+  apiKeys      ApiKey[]
+  volt3DAssets Volt3DAsset[]
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -425,4 +427,55 @@ model VoltAsset {
 
   @@index([voltId])
   @@map("volt_assets")
+}
+
+// ============================================
+// API KEYS
+// ============================================
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  keyHash    String    @unique
+  keyPrefix  String
+  label      String
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  @@index([userId])
+  @@map("api_keys")
+}
+
+// ============================================
+// VOLT 3D PIPELINE
+// ============================================
+
+model Volt3DAsset {
+  id              String          @id @default(cuid())
+  name            String
+  authorId        String
+  author          User            @relation(fields: [authorId], references: [id])
+  versions        Volt3DVersion[]
+  activeVersionId String?
+  triggerConfig   Json?
+  thumbnail       String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  @@index([authorId])
+  @@map("volt_3d_assets")
+}
+
+model Volt3DVersion {
+  id          String      @id @default(cuid())
+  assetId     String
+  asset       Volt3DAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  versionNum  Int
+  glbPath     String
+  blendPath   String?
+  animClips   Json
+  isConfirmed Boolean     @default(false)
+  syncedAt    DateTime    @default(now())
+  @@unique([assetId, versionNum])
+  @@index([assetId])
+  @@map("volt_3d_versions")
 }
