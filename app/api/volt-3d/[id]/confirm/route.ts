@@ -9,43 +9,15 @@
  * Auth: JWT session cookie OR Bearer vlt_* API key
  */
 
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import {
-  requireRole,
   successResponse,
   errorResponse,
   handleApiError,
 } from "@/lib/api-middleware"
-import { getApiKeyUser } from "@/lib/api-keys"
 import { deleteUploadedFile } from "@/lib/volt-3d-upload"
-import type { NextResponse } from "next/server"
-import type { JWTPayload } from "@/lib/auth"
-import type { User } from "@prisma/client"
-
-// ============================================
-// Auth helpers
-// ============================================
-
-interface ResolvedUser {
-  userId: string
-  role: User["role"]
-}
-
-async function resolveUser(req: NextRequest): Promise<ResolvedUser | NextResponse | null> {
-  const auth = req.headers.get("authorization")
-
-  if (auth?.startsWith("Bearer vlt_")) {
-    const user = await getApiKeyUser(auth)
-    if (!user) return null
-    return { userId: user.id, role: user.role }
-  }
-
-  const result = requireRole(req, "EDITOR")
-  if (result instanceof Response) return result as NextResponse
-  const jwt = result as JWTPayload
-  return { userId: jwt.userId, role: jwt.role }
-}
+import { resolveVolt3DUser, type ResolvedVolt3DUser } from "@/lib/volt-3d-auth"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -57,11 +29,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params
 
-    const auth = await resolveUser(request)
-    if (!auth) return errorResponse("UNAUTHORIZED", "Authentication required", 401)
-    if ("status" in auth && typeof auth.status === "number") return auth
+    const auth = await resolveVolt3DUser(request)
+    if (auth instanceof NextResponse) return auth
 
-    const { userId } = auth as ResolvedUser
+    const { userId } = auth as ResolvedVolt3DUser
 
     // Verify asset ownership
     const asset = await prisma.volt3DAsset.findUnique({

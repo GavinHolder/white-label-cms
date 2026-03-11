@@ -26,13 +26,15 @@ export async function saveUploadedFile(buffer: Buffer, filename: string): Promis
 
 /**
  * Delete an uploaded file by its public URL path.
- * Silently ignores missing files.
+ * Silently ignores missing files or paths outside the volt-3d upload directory.
  *
  * @param urlPath - Public path (e.g. "/uploads/volt-3d/cma1b2c3_v1.glb")
  */
 export async function deleteUploadedFile(urlPath: string): Promise<void> {
   try {
-    const abs = path.join(process.cwd(), "public", urlPath)
+    const abs = path.resolve(path.join(process.cwd(), "public", urlPath))
+    const safeDir = path.resolve(path.join(process.cwd(), "public", "uploads", "volt-3d"))
+    if (!abs.startsWith(safeDir)) return // path traversal guard
     if (existsSync(abs)) await fs.unlink(abs)
   } catch {
     // Ignore — file may already be deleted or path invalid

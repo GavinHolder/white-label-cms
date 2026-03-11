@@ -5,47 +5,53 @@
  * Auth: JWT session cookie OR Bearer vlt_* API key
  */
 
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import {
-  requireRole,
   successResponse,
   errorResponse,
   handleApiError,
 } from "@/lib/api-middleware"
-import { getApiKeyUser } from "@/lib/api-keys"
 import { saveUploadedFile } from "@/lib/volt-3d-upload"
-import type { NextResponse } from "next/server"
-import type { JWTPayload } from "@/lib/auth"
-import type { User } from "@prisma/client"
+import { resolveVolt3DUser, type ResolvedVolt3DUser } from "@/lib/volt-3d-auth"
 
 // ============================================
-// Auth helpers
+// animClips validation
 // ============================================
-
-interface ResolvedUser {
-  userId: string
-  role: User["role"]
-}
 
 /**
- * Resolve user from API key (Bearer vlt_*) or JWT session cookie.
- * Returns null if neither auth method succeeds.
+ * Parse and validate the animClips JSON field from multipart form data.
+ *
+ * ASSUMPTIONS:
+ * 1. Input is a JSON string (or null/empty — returns [])
+ * 2. Each clip must have name (string), duration (number), isDefault (boolean)
+ * 3. Invalid items are silently dropped (not a hard error)
+ *
+ * FAILURE MODES:
+ * - Malformed JSON → returns []
+ * - Array items with wrong types → filtered out
+ * - name strings longer than 200 chars → truncated
  */
-async function resolveUser(req: NextRequest): Promise<ResolvedUser | NextResponse | null> {
-  const auth = req.headers.get("authorization")
-
-  if (auth?.startsWith("Bearer vlt_")) {
-    const user = await getApiKeyUser(auth)
-    if (!user) return null
-    return { userId: user.id, role: user.role }
+function parseAnimClips(raw: string): Array<{ name: string; duration: number; isDefault: boolean }> {
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter(
+        (c) =>
+          c &&
+          typeof c.name === "string" &&
+          typeof c.duration === "number" &&
+          typeof c.isDefault === "boolean"
+      )
+      .map((c) => ({
+        name: String(c.name).slice(0, 200),
+        duration: Number(c.duration),
+        isDefault: Boolean(c.isDefault),
+      }))
+  } catch {
+    return []
   }
-
-  // Fall back to JWT session auth
-  const result = requireRole(req, "EDITOR")
-  if (result instanceof Response) return result as NextResponse
-  const jwt = result as JWTPayload
-  return { userId: jwt.userId, role: jwt.role }
 }
 
 // ============================================
@@ -54,11 +60,10 @@ async function resolveUser(req: NextRequest): Promise<ResolvedUser | NextRespons
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await resolveUser(request)
-    if (!auth) return errorResponse("UNAUTHORIZED", "Authentication required", 401)
-    if ("status" in auth && typeof auth.status === "number") return auth
+    const auth = await resolveVolt3DUser(request)
+    if (auth instanceof NextResponse) return auth
 
-    const { userId } = auth as ResolvedUser
+    const { userId } = auth as ResolvedVolt3DUser
 
     const assets = await prisma.volt3DAsset.findMany({
       where: { authorId: userId },
@@ -98,11 +103,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await resolveUser(request)
-    if (!auth) return errorResponse("UNAUTHORIZED", "Authentication required", 401)
-    if ("status" in auth && typeof auth.status === "number") return auth
+    const auth = await resolveVolt3DUser(request)
+    if (auth instanceof NextResponse) return auth
 
-    const { userId } = auth as ResolvedUser
+    const { userId } = auth as ResolvedVolt3DUser
 
     const formData = await request.formData()
     const name = (formData.get("name") as string | null)?.trim()
@@ -119,16 +123,8 @@ export async function POST(request: NextRequest) {
       return errorResponse("VALIDATION_ERROR", "glb file is required", 400, "glb")
     }
 
-    // Parse animClips — default to [] on any parse error
-    let animClips: { name: string; duration: number; isDefault: boolean }[] = []
-    try {
-      if (animClipsRaw) {
-        const parsed = JSON.parse(animClipsRaw)
-        if (Array.isArray(parsed)) animClips = parsed
-      }
-    } catch {
-      // Invalid JSON — leave animClips as []
-    }
+    // Parse and validate animClips — default to [] on any parse error or missing field
+    const animClips = animClipsRaw ? parseAnimClips(animClipsRaw) : []
 
     // Find or create asset
     let asset: { id: string }
