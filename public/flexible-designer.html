@@ -1017,6 +1017,18 @@
     .mtt-btn:hover { background:#f0f4ff;color:#0d6efd; }
     .mtt-btn.mtt-danger:hover { background:#fff0f0;color:#dc3545; }
     .mtt-sep { width:1px;height:16px;background:#e9ecef;margin:0 1px;flex-shrink:0; }
+    /* ── Volt Studio Modal ─────────────────────────────────────────── */
+    #volt-modal { position:fixed;inset:0;z-index:9999;display:none;flex-direction:column; }
+    #volt-modal.vm-open { display:flex; }
+    #volt-modal-overlay { position:absolute;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(3px); }
+    #volt-modal-frame { position:relative;z-index:1;display:flex;flex-direction:column;width:100%;height:100%; }
+    #volt-modal-header { background:#0d0d1a;color:white;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;border-bottom:1px solid #2a2a3e; }
+    #volt-modal-title { font-weight:700;font-size:14px;flex:1;color:#a5b4fc; }
+    #volt-modal-close { border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:white;padding:5px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;transition:background 0.15s; }
+    #volt-modal-close:hover { background:rgba(255,255,255,0.18); }
+    #volt-modal-iframe { flex:1;border:none;width:100%; }
+    .volt-create-btn { width:100%;margin-top:8px;padding:7px 10px;background:#1e1b4b;color:#a5b4fc;border:1px dashed #4f46e5;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;text-align:center; }
+    .volt-create-btn:hover { background:#312e81;color:#c7d2fe; }
   </style>
 </head>
 <body>
@@ -1233,8 +1245,11 @@
               </div>
               <div id="volt-lib-empty" class="sub-lock-notice" style="display:none;">
                 <i class="bi bi-lightning-charge"></i>
-                No Volt designs found. Create one in <strong>Volt Studio</strong>.
+                No Volt designs yet.
               </div>
+              <button class="volt-create-btn" onclick="createNewVoltFromCanvas()">
+                <i class="bi bi-plus-lg me-1"></i>Create New Volt
+              </button>
               <div id="volt-lib-items"></div>
             </div>
           </div>
@@ -1950,6 +1965,9 @@ function createBlockElement(block) {
   });
 
   el.addEventListener('click', e => { e.stopPropagation(); selectBlock(block.id); });
+  if (block.type === 'volt') {
+    el.addEventListener('dblclick', e => { e.stopPropagation(); openVoltModal(block.id); });
+  }
   return el;
 }
 
@@ -3415,13 +3433,15 @@ function renderBlockProps(block) {
   if (block.type==='banner') h+=renderNavSection(block.id,block.props.navTarget,'block','');
   if (block.type==='hero' && block.props.showBtn!==false) h+=renderNavSection(block.id,block.props.btnNavTarget,'block','');
 
-  h+=`<div class="props-section">
-    <div class="props-label"><i class="bi bi-layers"></i> Content (${block.subElements.length} sub-elements)</div>
-    ${isEdit
-      ? `<button class="action-btn exit-edit" onclick="exitEditMode()">✕ Exit Edit Mode</button>`
-      : `<button class="action-btn edit-mode" onclick="enterEditMode('${block.id}')"><i class="bi bi-pencil"></i> Edit Content — Add Sub-Elements</button>`
-    }
-  </div>`;
+  if (block.type !== 'volt') {
+    h+=`<div class="props-section">
+      <div class="props-label"><i class="bi bi-layers"></i> Content (${block.subElements.length} sub-elements)</div>
+      ${isEdit
+        ? `<button class="action-btn exit-edit" onclick="exitEditMode()">✕ Exit Edit Mode</button>`
+        : `<button class="action-btn edit-mode" onclick="enterEditMode('${block.id}')"><i class="bi bi-pencil"></i> Edit Content — Add Sub-Elements</button>`
+      }
+    </div>`;
+  }
 
   h+=`<div class="props-section">
     <div class="props-label"><i class="bi bi-code"></i> Custom CSS Override</div>
@@ -3520,7 +3540,21 @@ function renderTypeProps(block) {
       h+=`<div class="props-row"><label>Thickness</label><input class="props-input" type="range" min="1" max="10" value="${p.thickness||2}" oninput="updateBlockProp('${block.id}','thickness',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.thickness||2}px</span></div>`;
       h+=colorRow('Color',p.dividerColor||'#dee2e6',`updateBlockProp('${block.id}','dividerColor',this.value);renderCanvas()`);
       break;
+    case 'volt': {
+      const vThumb = p.voltThumbnail;
+      const vName = p.voltName || 'Unnamed Volt';
+      h+=`<div style="text-align:center;padding:4px 0 8px;">`;
+      if (vThumb) {
+        h+=`<img src="${vThumb}" alt="${vName}" style="max-width:100%;max-height:80px;object-fit:contain;border-radius:4px;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;">`;
+      } else {
+        h+=`<i class="bi bi-lightning-charge" style="font-size:32px;opacity:0.2;display:block;margin-bottom:8px;"></i>`;
+      }
+      h+=`<div style="font-size:12px;font-weight:600;margin-bottom:2px;">${vName}</div>`;
+      if (p.voltId) h+=`<div style="font-size:10px;color:#adb5bd;margin-bottom:10px;">ID: ${p.voltId.substring(0,8)}&hellip;</div>`;
+      h+=`<button class="action-btn" style="width:100%;background:#1e1b4b;color:#a5b4fc;border-color:#4f46e5;" onclick="openVoltModal('${block.id}')"><i class="bi bi-lightning-charge me-1"></i>Edit in Volt Studio</button>`;
+      h+=`</div>`;
       break;
+    }
   }
   return h;
 }
@@ -5288,7 +5322,10 @@ function updateMiniToolbar() {
 }
 
 function mttEdit() {
-  if (state.selectedBlockId) enterEditMode(state.selectedBlockId);
+  if (!state.selectedBlockId) return;
+  const b = state.blocks.find(b => b.id === state.selectedBlockId);
+  if (b && b.type === 'volt') { openVoltModal(state.selectedBlockId); return; }
+  enterEditMode(state.selectedBlockId);
 }
 
 function mttDuplicate() {
@@ -5309,6 +5346,89 @@ function mttDuplicate() {
 function mttDelete() {
   if (state.selectedBlockId) removeBlock(state.selectedBlockId);
 }
+
+// ─── Volt Studio Modal ────────────────────────────────────────────────────────
+let _voltModalBlockId = null;
+let _voltModalPendingLoad = null;
+
+function openVoltModal(blockId) {
+  const block = state.blocks.find(b => b.id === blockId);
+  if (!block) return;
+  _voltModalBlockId = blockId;
+  _voltModalPendingLoad = null;
+  const modal = document.getElementById('volt-modal');
+  const iframe = document.getElementById('volt-modal-iframe');
+  const title = document.getElementById('volt-modal-title');
+  title.textContent = block.props.voltName ? '\u26A1 Volt Studio \u2014 ' + block.props.voltName : '\u26A1 Volt Studio';
+  modal.classList.add('vm-open');
+  if (block.props.voltId) {
+    fetch('/api/volt/' + block.props.voltId)
+      .then(r => r.json())
+      .then(json => { _voltModalPendingLoad = json.data && json.data.volt ? json.data.volt : null; iframe.src = '/volt-designer.html'; })
+      .catch(() => { iframe.src = '/volt-designer.html'; });
+  } else {
+    iframe.src = '/volt-designer.html';
+  }
+}
+
+function closeVoltModal() {
+  const modal = document.getElementById('volt-modal');
+  const iframe = document.getElementById('volt-modal-iframe');
+  modal.classList.remove('vm-open');
+  _voltModalBlockId = null;
+  _voltModalPendingLoad = null;
+  iframe.src = '';
+}
+
+function createNewVoltFromCanvas() {
+  const block = { id: null, props: { voltId: null, voltName: 'New Volt', voltThumbnail: null } };
+  _voltModalBlockId = '__new__';
+  _voltModalPendingLoad = null;
+  const modal = document.getElementById('volt-modal');
+  const title = document.getElementById('volt-modal-title');
+  title.textContent = '\u26A1 Volt Studio \u2014 New Design';
+  modal.classList.add('vm-open');
+  document.getElementById('volt-modal-iframe').src = '/volt-designer.html';
+}
+
+window.addEventListener('message', function(e) {
+  const iframe = document.getElementById('volt-modal-iframe');
+  if (!iframe || !e.data || !e.data.type) return;
+  try { if (e.source !== iframe.contentWindow) return; } catch(_) { return; }
+  switch (e.data.type) {
+    case 'VOLT_DESIGNER_READY':
+      if (_voltModalPendingLoad) {
+        iframe.contentWindow.postMessage({ type: 'VOLT_DESIGNER_LOAD', payload: _voltModalPendingLoad }, '*');
+        _voltModalPendingLoad = null;
+      }
+      break;
+    case 'VOLT_DESIGNER_SAVE':
+    case 'VOLT_DESIGNER_DONE': {
+      const payload = e.data.payload;
+      if (!payload) { if (e.data.type === 'VOLT_DESIGNER_DONE') closeVoltModal(); break; }
+      const isNew = _voltModalBlockId === '__new__';
+      const block = isNew ? null : state.blocks.find(b => b.id === _voltModalBlockId);
+      const voltId = block ? block.props.voltId : null;
+      const apiUrl = voltId ? '/api/volt/' + voltId : '/api/volt';
+      const method = voltId ? 'PUT' : 'POST';
+      fetch(apiUrl, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: payload.name, layers: payload.layers, states: payload.states, isPublic: payload.isPublic, mood: payload.mood, elementType: payload.elementType, thumbnail: payload.thumbnail })
+      }).then(function(r) { return r.json(); }).then(function(json) {
+        const saved = json.data && json.data.volt ? json.data.volt : null;
+        if (saved && block) {
+          block.props = Object.assign({}, block.props, { voltId: saved.id, voltName: saved.name, voltThumbnail: saved.thumbnail || payload.thumbnail || null });
+          renderCanvas(); renderPropsPanel(); autoSave();
+        }
+        _voltLib.loaded = false;
+        if (document.getElementById('lib-volt') && document.getElementById('lib-volt').style.display !== 'none') loadVoltLibIfNeeded();
+      }).catch(function(err) { console.error('Volt save error:', err); });
+      if (e.data.type === 'VOLT_DESIGNER_DONE') closeVoltModal();
+      break;
+    }
+  }
+});
 </script>
 <div id="drop-conflict-popup">
   <div class="dcp-title">⚠️ Cell is occupied</div>
@@ -5337,5 +5457,18 @@ function mttDelete() {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Volt Studio Modal Overlay -->
+<div id="volt-modal">
+  <div id="volt-modal-overlay" onclick="closeVoltModal()"></div>
+  <div id="volt-modal-frame">
+    <div id="volt-modal-header">
+      <i class="bi bi-lightning-charge" style="color:#818cf8;font-size:15px;"></i>
+      <span id="volt-modal-title">Volt Studio</span>
+      <button id="volt-modal-close" onclick="closeVoltModal()">✕ Close</button>
+    </div>
+    <iframe id="volt-modal-iframe" src="" frameborder="0" allow="*"></iframe>
+  </div>
+</div>
 </body>
 </html>
