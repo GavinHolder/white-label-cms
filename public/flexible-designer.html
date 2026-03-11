@@ -156,17 +156,18 @@
     }
     .lib-tab {
       flex: 1;
-      padding: 7px;
+      padding: 6px 4px;
       text-align: center;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.4px;
+      letter-spacing: 0.2px;
       cursor: pointer;
       color: #6c757d;
       border-bottom: 2px solid transparent;
       margin-bottom: -2px;
       transition: all 0.15s;
+      white-space: nowrap;
     }
     .lib-tab.active { color: #0d6efd; border-bottom-color: #0d6efd; }
     .lib-tab:hover:not(.active) { color: #495057; }
@@ -996,6 +997,26 @@
     .xyslider-row input[type=range] { flex:1; accent-color:#0d6efd; }
     .xyslider-row input[type=number] { width:58px; font-size:12px; font-weight:700; color:#0d6efd; border:1px solid #dee2e6; border-radius:4px; padding:2px 5px; text-align:right; -moz-appearance:textfield; }
     .xyslider-row input[type=number]::-webkit-outer-spin-button, .xyslider-row input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; }
+
+    /* ── SECTION CONFIG COLLAPSE ───────────── */
+    #section-config-header { cursor:pointer; user-select:none; }
+    #section-config-header .sc-chevron { transition:transform 0.2s; font-size:10px; color:#adb5bd; }
+    #section-config-header.sc-collapsed .sc-chevron { transform:rotate(-90deg); }
+    #section-config-body.sc-hidden { display:none; }
+
+    /* ── CANVAS EMPTY HINT ─────────────────── */
+    #canvas-empty-hint { position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:8px;z-index:0; }
+    #canvas-empty-hint .ceh-icon { font-size:40px;color:#e0e5eb; }
+    #canvas-empty-hint p { font-size:13px;color:#c8cdd4;margin:0;font-weight:600; }
+    #canvas-empty-hint small { font-size:11px;color:#dee2e6; }
+
+    /* ── BLOCK MINI-TOOLBAR ─────────────────── */
+    #block-mini-toolbar { position:absolute;z-index:500;background:white;border:1px solid #dee2e6;border-radius:8px;box-shadow:0 3px 14px rgba(0,0,0,0.13);padding:3px;gap:1px;display:none;align-items:center;transform:translateX(-50%);white-space:nowrap; }
+    #block-mini-toolbar.mtt-visible { display:flex; }
+    .mtt-btn { display:flex;align-items:center;justify-content:center;width:30px;height:26px;border:none;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#495057;transition:all 0.1s; }
+    .mtt-btn:hover { background:#f0f4ff;color:#0d6efd; }
+    .mtt-btn.mtt-danger:hover { background:#fff0f0;color:#dc3545; }
+    .mtt-sep { width:1px;height:16px;background:#e9ecef;margin:0 1px;flex-shrink:0; }
   </style>
 </head>
 <body>
@@ -1033,8 +1054,8 @@
 
         <!-- Section Mode -->
         <div class="panel">
-          <div class="panel-header"><i class="bi bi-layout-text-window-reverse"></i> Section Configuration</div>
-          <div class="panel-body">
+          <div class="panel-header" id="section-config-header" onclick="toggleSectionConfig()"><i class="bi bi-layout-text-window-reverse"></i> Section Configuration <i class="bi bi-chevron-down sc-chevron ms-auto"></i></div>
+          <div class="panel-body" id="section-config-body">
             <div class="config-box">
               <div class="config-box-label">Content Mode</div>
               <select class="form-select form-select-sm mb-2" id="contentMode" onchange="onModeChange()">
@@ -1110,8 +1131,9 @@
           </div>
           <div class="panel-body" style="padding-top:8px;">
             <div class="lib-tabs">
-              <div class="lib-tab active" id="tab-containers" onclick="switchLibTab('containers')">Containers</div>
-              <div class="lib-tab" id="tab-sub" onclick="switchLibTab('sub')">Sub-Elements</div>
+              <div class="lib-tab active" id="tab-containers" onclick="switchLibTab('containers')">Blocks</div>
+              <div class="lib-tab" id="tab-sub" onclick="switchLibTab('sub')">Sub-Els</div>
+              <div class="lib-tab" id="tab-volt" onclick="switchLibTab('volt')">⚡ Volt</div>
             </div>
 
             <!-- Container blocks -->
@@ -1202,6 +1224,19 @@
                 </div>
               </div>
             </div>
+
+            <!-- Volt Designs -->
+            <div id="lib-volt" style="display:none;">
+              <div id="volt-lib-loading" class="sub-lock-notice">
+                <i class="bi bi-hourglass-split"></i>
+                Loading Volt designs…
+              </div>
+              <div id="volt-lib-empty" class="sub-lock-notice" style="display:none;">
+                <i class="bi bi-lightning-charge"></i>
+                No Volt designs found. Create one in <strong>Volt Studio</strong>.
+              </div>
+              <div id="volt-lib-items"></div>
+            </div>
           </div>
         </div>
 
@@ -1256,6 +1291,17 @@
         <div id="grid-overlay"></div>
         <div id="guide-overlay"></div>
         <div id="dim-display">—</div>
+        <div id="canvas-empty-hint">
+          <i class="bi bi-layout-text-window ceh-icon"></i>
+          <p>Drag a block to start designing</p>
+          <small>Use the Block Library on the left &nbsp;&middot;&nbsp; Drag blocks onto the canvas</small>
+        </div>
+        <div id="block-mini-toolbar">
+          <button class="mtt-btn" title="Edit Sub-Elements" onclick="mttEdit()"><i class="bi bi-pencil"></i></button>
+          <button class="mtt-btn" title="Duplicate Block" onclick="mttDuplicate()"><i class="bi bi-copy"></i></button>
+          <div class="mtt-sep"></div>
+          <button class="mtt-btn mtt-danger" title="Delete Block" onclick="mttDelete()"><i class="bi bi-trash3"></i></button>
+        </div>
       </div>
     </div>
   </div><!-- end canvas-area -->
@@ -1372,6 +1418,7 @@ const BLOCK_DEFAULTS = {
   video:       { label:'Video',   src:'', poster:'', autoplay:false, loop:false, customCss:'' },
   html:        { label:'HTML',    html:'<p>Custom HTML</p>', customCss:'' },
   divider:     { label:'Divider', thickness:2, dividerColor:'#dee2e6', customCss:'' },
+  volt:        { label:'Volt', bgColor:'transparent', voltId:'', voltName:'', voltThumbnail:null, customCss:'' },
 };
 
 const SUB_DEFAULTS = {
@@ -1793,6 +1840,11 @@ function renderBlocks() {
   state.blocks.forEach(block => {
     document.getElementById('canvas').appendChild(createBlockElement(block));
   });
+  // Show empty hint when canvas has no blocks
+  const hint = document.getElementById('canvas-empty-hint');
+  if (hint) hint.style.display = state.blocks.length === 0 ? 'flex' : 'none';
+  // Reposition mini-toolbar for selected block
+  updateMiniToolbar();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1987,6 +2039,29 @@ function createBlockPreview(block) {
     case 'divider':
       wrap.innerHTML = `<div style="padding:10px 0;"><hr style="border-top:${p.thickness}px solid ${p.dividerColor};margin:0;"></div>`;
       break;
+    case 'volt': {
+      const vContainer = document.createElement('div');
+      vContainer.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:4px;box-sizing:border-box;';
+      if (p.voltThumbnail) {
+        const vImg = document.createElement('img');
+        vImg.src = p.voltThumbnail;
+        vImg.alt = p.voltName || 'Volt';
+        vImg.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;';
+        vContainer.appendChild(vImg);
+      } else {
+        const vIcon = document.createElement('i');
+        vIcon.className = 'bi bi-lightning-charge';
+        vIcon.style.cssText = 'font-size:24px;opacity:0.3;';
+        const vLabel = document.createElement('span');
+        vLabel.textContent = p.voltName || 'Volt Design';
+        vLabel.style.cssText = 'font-size:11px;color:#6c757d;margin-top:4px;';
+        vContainer.style.flexDirection = 'column';
+        vContainer.appendChild(vIcon);
+        vContainer.appendChild(vLabel);
+      }
+      wrap.appendChild(vContainer);
+      break;
+    }
     default:
       wrap.innerHTML = `<div style="padding:12px;text-align:center;color:#adb5bd;font-size:12px;">${block.type}</div>`;
   }
@@ -2621,6 +2696,34 @@ function onCanvasDrop(e) {
   clearCellHighlights();
   if (!state.dragSource) return;
 
+  if (state.dragSource.kind === 'lib-volt') {
+    const rect = canvas.getBoundingClientRect();
+    const _drop_scale = getCanvasScale();
+    const x = (e.clientX - rect.left) / _drop_scale;
+    const y = (e.clientY - rect.top)  / _drop_scale;
+    const blockW = 300, blockH = 200;
+    const blockX = Math.max(0, Math.min(canvas.offsetWidth  - blockW, x - blockW/2));
+    const blockY = Math.max(0, Math.min(canvas.offsetHeight - blockH, y - blockH/2));
+    const src = state.dragSource;
+    pushHistory();
+    const block = {
+      id: `block-${state.nextId++}`,
+      type: 'volt',
+      section: 0, gridRow: 1, gridCol: 1, colSpan: 1, rowSpan: 1,
+      x: blockX, y: blockY, w: blockW, h: blockH,
+      zIndex: 1,
+      props: { ...BLOCK_DEFAULTS['volt'], voltId: src.voltId, voltName: src.voltName, voltThumbnail: src.voltThumbnail },
+      subElements: []
+    };
+    state.blocks.push(block);
+    selectBlock(block.id);
+    renderCanvas();
+    updateBlockCount();
+    autoSave();
+    state.dragSource = null;
+    return;
+  }
+
   if (state.dragSource.kind === 'lib-block') {
     const canvasArea = canvas.closest('.canvas-area');
     const rect = canvas.getBoundingClientRect();
@@ -3050,7 +3153,7 @@ function startResize(e, blockId, dir) {
  * the canvas and properties panel to reflect the new selection state.
  * @param {string} id - ID of the block to select.
  */
-function selectBlock(id) { state.selectedBlockId=id; state.selectedSubId=null; renderCanvas(); renderPropsPanel(); }
+function selectBlock(id) { state.selectedBlockId=id; state.selectedSubId=null; renderCanvas(); renderPropsPanel(); updateMiniToolbar(); }
 
 /**
  * Selects a sub-element within a block using fast DOM class toggling to
@@ -4254,7 +4357,7 @@ function installDesignerFont(bId, sId, safeId) {
  * @returns {string} Bootstrap icon class (e.g. 'bi-layout-text-window').
  */
 function getBlockIcon(type) {
-  return {hero:'bi-layout-text-window',card:'bi-card-text','text-block':'bi-text-paragraph',banner:'bi-megaphone',stats:'bi-graph-up',image:'bi-image',video:'bi-play-circle',html:'bi-code-slash',divider:'bi-dash-lg'}[type]||'bi-square';
+  return {hero:'bi-layout-text-window',card:'bi-card-text','text-block':'bi-text-paragraph',banner:'bi-megaphone',stats:'bi-graph-up',image:'bi-image',video:'bi-play-circle',html:'bi-code-slash',divider:'bi-dash-lg',volt:'bi-lightning-charge'}[type]||'bi-square';
 }
 /**
  * Converts a hex colour and an integer opacity value (0–100) to a CSS rgba()
@@ -4718,8 +4821,80 @@ function deleteGuide(guideId) {
 function switchLibTab(tab) {
   document.getElementById('lib-containers').style.display = tab==='containers'?'block':'none';
   document.getElementById('lib-sub').style.display        = tab==='sub'?'block':'none';
+  document.getElementById('lib-volt').style.display       = tab==='volt'?'block':'none';
   document.getElementById('tab-containers').className = 'lib-tab'+(tab==='containers'?' active':'');
   document.getElementById('tab-sub').className        = 'lib-tab'+(tab==='sub'?' active':'');
+  document.getElementById('tab-volt').className       = 'lib-tab'+(tab==='volt'?' active':'');
+  if (tab === 'volt') loadVoltLibIfNeeded();
+}
+
+// ─── Volt Library ────────────────────────────────────────────────────────────
+const _voltLib = { loaded: false, loading: false };
+
+function loadVoltLibIfNeeded() {
+  if (_voltLib.loaded || _voltLib.loading) return;
+  _voltLib.loading = true;
+  fetch('/api/volt')
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(json => {
+      _voltLib.loaded = true;
+      _voltLib.loading = false;
+      renderVoltLib(json.data?.volts || []);
+    })
+    .catch(() => {
+      _voltLib.loading = false;
+      const el = document.getElementById('volt-lib-loading');
+      if (el) { el.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Failed to load Volt designs.'; }
+    });
+}
+
+function renderVoltLib(volts) {
+  const loading = document.getElementById('volt-lib-loading');
+  const empty   = document.getElementById('volt-lib-empty');
+  const items   = document.getElementById('volt-lib-items');
+  if (!items) return;
+  if (loading) loading.style.display = 'none';
+  items.innerHTML = '';
+  if (!volts.length) { if (empty) empty.style.display = ''; return; }
+  volts.forEach(v => {
+    const card = document.createElement('div');
+    card.className = 'element-card';
+    card.draggable = true;
+    card.addEventListener('dragstart', e => onVoltDragStart(e, v));
+
+    const preview = document.createElement('div');
+    preview.style.cssText = 'width:32px;height:32px;flex-shrink:0;border-radius:4px;overflow:hidden;border:1px solid #dee2e6;display:flex;align-items:center;justify-content:center;background:#f8f9fa;';
+    if (v.thumbnail) {
+      const img = document.createElement('img');
+      img.src = v.thumbnail;
+      img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+      preview.appendChild(img);
+    } else {
+      const ic = document.createElement('i');
+      ic.className = 'bi bi-lightning-charge';
+      ic.style.cssText = 'font-size:14px;color:#6c757d;opacity:0.5;';
+      preview.appendChild(ic);
+    }
+
+    const name = document.createElement('div');
+    name.className = 'ec-name';
+    name.textContent = v.name;
+
+    const badge = document.createElement('span');
+    badge.className = 'ec-badge';
+    badge.style.cssText = 'background:#fff3cd;color:#856404;';
+    badge.textContent = 'Volt';
+
+    card.appendChild(preview);
+    card.appendChild(name);
+    card.appendChild(badge);
+    items.appendChild(card);
+  });
+}
+
+function onVoltDragStart(e, volt) {
+  state.dragSource = { kind: 'lib-volt', voltId: volt.id, voltName: volt.name, voltThumbnail: volt.thumbnail || null };
+  e.dataTransfer.effectAllowed = 'copy';
 }
 // Preset definitions: grid config + zone blocks to auto-place
 const PRESET_DEFS = {
@@ -5083,6 +5258,56 @@ window.addEventListener('message', function(e) {
 // Signal to parent that iframe is ready to receive data
 if (window.parent && window.parent !== window) {
   window.parent.postMessage({ type: 'FLEXIBLE_DESIGNER_READY' }, '*');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SECTION CONFIG COLLAPSE
+// ═══════════════════════════════════════════════════════════
+function toggleSectionConfig() {
+  const hdr = document.getElementById('section-config-header');
+  const body = document.getElementById('section-config-body');
+  if (!hdr || !body) return;
+  hdr.classList.toggle('sc-collapsed');
+  body.classList.toggle('sc-hidden');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BLOCK MINI-TOOLBAR
+// ═══════════════════════════════════════════════════════════
+function updateMiniToolbar() {
+  const tb = document.getElementById('block-mini-toolbar');
+  if (!tb) return;
+  const b = state.blocks.find(b => b.id === state.selectedBlockId);
+  if (!b) { tb.classList.remove('mtt-visible'); return; }
+  const dp = getDisplayPos(b);
+  const MARGIN = 6;
+  const topY = dp.y - 36 - MARGIN;
+  tb.style.left = (dp.x + dp.w / 2) + 'px';
+  tb.style.top = Math.max(4, topY) + 'px';
+  tb.classList.add('mtt-visible');
+}
+
+function mttEdit() {
+  if (state.selectedBlockId) enterEditMode(state.selectedBlockId);
+}
+
+function mttDuplicate() {
+  const b = state.blocks.find(b => b.id === state.selectedBlockId);
+  if (!b) return;
+  pushHistory();
+  const copy = JSON.parse(JSON.stringify(b));
+  copy.id = 'b' + (++state.nextId);
+  // Offset copy slightly so it's visible
+  copy.x = (copy.x || 0) + 20;
+  copy.y = (copy.y || 0) + 20;
+  copy.zIndex = (copy.zIndex || 1) + 1;
+  state.blocks.push(copy);
+  state.selectedBlockId = copy.id;
+  renderCanvas(); renderPropsPanel(); autoSave();
+}
+
+function mttDelete() {
+  if (state.selectedBlockId) removeBlock(state.selectedBlockId);
 }
 </script>
 <div id="drop-conflict-popup">
