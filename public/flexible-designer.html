@@ -1029,6 +1029,22 @@
     #volt-modal-iframe { flex:1;border:none;width:100%; }
     .volt-create-btn { width:100%;margin-top:8px;padding:7px 10px;background:#1e1b4b;color:#a5b4fc;border:1px dashed #4f46e5;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;text-align:center; }
     .volt-create-btn:hover { background:#312e81;color:#c7d2fe; }
+    /* ── Responsive Behavior (Phase 4) ────────────────────────────── */
+    .resp-behavior-strip { display:flex;gap:4px;margin-top:6px; }
+    .resp-behavior-btn { flex:1;padding:6px 4px;border-radius:6px;border:1.5px solid #dee2e6;background:white;font-size:11px;font-weight:600;cursor:pointer;text-align:center;transition:all 0.12s;color:#495057; }
+    .resp-behavior-btn:hover { border-color:#0d6efd;color:#0d6efd;background:#f0f4ff; }
+    .resp-behavior-btn.rb-active-auto { border-color:#0d6efd;background:#cfe2ff;color:#084298; }
+    .resp-behavior-btn.rb-active-stretch { border-color:#198754;background:#d1e7dd;color:#0a3622; }
+    .resp-behavior-btn.rb-active-hide { border-color:#dc3545;background:#f8d7da;color:#58151c; }
+    /* Block badge showing non-auto behavior */
+    .cb-behavior-badge { font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;letter-spacing:0.5px;margin-left:auto;flex-shrink:0; }
+    .cb-behavior-badge.stretch { background:#d1e7dd;color:#0a3622; }
+    .cb-behavior-badge.hide    { background:#f8d7da;color:#58151c; }
+    /* Hidden block in preview — ghosted + dashed border */
+    .container-block.preview-hidden { opacity:0.3;border:2px dashed #dc3545 !important;pointer-events:auto; }
+    .container-block.preview-hidden .cb-header { background:rgba(220,53,69,0.15);color:#dc3545; }
+    /* Stretched block indicator */
+    .container-block.preview-stretch .cb-header::after { content:'← STRETCH →';font-size:9px;font-weight:700;color:#198754;margin-left:auto;padding-right:4px;opacity:0.7; }
   </style>
 </head>
 <body>
@@ -1897,6 +1913,13 @@ function createBlockElement(block) {
   if (block.id === state.selectedBlockId) el.classList.add('selected');
   if (block.id === state.editingBlockId)  { el.classList.add('editing','selected'); }
   if (block.subElements?.length > 0)     el.classList.add('has-sub');
+  // Responsive behavior visual states
+  const _device = state.devicePreview;
+  const _behavior = _device === 'mobile' ? (block.mobileBehavior||'auto') : _device === 'tablet' ? (block.tabletBehavior||'auto') : 'auto';
+  if (_device !== 'desktop') {
+    if (_dp.hidden)             el.classList.add('preview-hidden');
+    if (_behavior === 'stretch') el.classList.add('preview-stretch');
+  }
 
   // Header (built with DOM API — no innerHTML)
   const hdr = document.createElement('div');
@@ -1905,6 +1928,13 @@ function createBlockElement(block) {
   hdrIc.className = 'bi ' + getBlockIcon(block.type);
   hdr.appendChild(hdrIc);
   hdr.appendChild(document.createTextNode(' ' + (block.props.label || block.type)));
+  // Responsive behavior badge (non-desktop only, non-auto only)
+  if (_device !== 'desktop' && _behavior !== 'auto') {
+    const badge = document.createElement('span');
+    badge.className = 'cb-behavior-badge ' + _behavior;
+    badge.textContent = _behavior === 'hide' ? 'HIDDEN' : '↔ STRETCH';
+    hdr.appendChild(badge);
+  }
   // "+" add sub-element button — for blocks that support sub-elements
   if (['card','text-block','banner','stats'].includes(block.type)) {
     const addSubBtn = document.createElement('button');
@@ -3317,6 +3347,23 @@ function renderBlockProps(block) {
   const isEdit=state.editingBlockId===block.id;
   let h='';
 
+  // ── Responsive Behavior (tablet/mobile preview only) ──────────────────────
+  if (state.devicePreview !== 'desktop') {
+    const dev = state.devicePreview;
+    const behavior = dev === 'mobile' ? (block.mobileBehavior||'auto') : (block.tabletBehavior||'auto');
+    const devLabel = dev === 'mobile' ? '📱 Mobile' : '💻 Tablet';
+    const devIcon  = dev === 'mobile' ? 'bi-phone' : 'bi-tablet';
+    h+=`<div class="props-section" style="background:#fff9e6;border-color:#ffc107;">
+      <div class="props-label" style="color:#856404;"><i class="bi ${devIcon}"></i> ${devLabel} Responsive Behavior</div>
+      <div style="font-size:11px;color:#856404;margin-bottom:6px;">How should this block behave at ${dev} size?</div>
+      <div class="resp-behavior-strip">
+        <button class="resp-behavior-btn${behavior==='auto'?' rb-active-auto':''}" onclick="setBlockBehavior('${block.id}','auto')" title="Auto-scale from desktop (default)">Auto</button>
+        <button class="resp-behavior-btn${behavior==='stretch'?' rb-active-stretch':''}" onclick="setBlockBehavior('${block.id}','stretch')" title="Stretch to full canvas width">↔ Stretch</button>
+        <button class="resp-behavior-btn${behavior==='hide'?' rb-active-hide':''}" onclick="setBlockBehavior('${block.id}','hide')" title="Hide this block at this size">✕ Hide</button>
+      </div>
+    </div>`;
+  }
+
   // Pixel dimensions for designers
   const dimW = Math.round(block.w);
   const dimH = Math.round(block.h);
@@ -4536,13 +4583,20 @@ function getDisplayPos(block) {
   const srcW = state._desktopCanvasW || (() => {
     const c = document.getElementById('canvas'); return c ? c.offsetWidth : 1200;
   })();
+  const canvas = document.getElementById('canvas');
   if (device === 'mobile') {
-    if (block.mobilePos) return { ...block.mobilePos };
-    return autoScalePos({ x: block.x, y: block.y, w: block.w, h: block.h }, 375, srcW);
+    const behavior = block.mobileBehavior || 'auto';
+    const basePos = block.mobilePos || autoScalePos({ x: block.x, y: block.y, w: block.w, h: block.h }, 375, srcW);
+    if (behavior === 'stretch') { const cw = canvas ? canvas.offsetWidth : 375; return { x:0, y:basePos.y, w:cw, h:basePos.h, hidden:false }; }
+    if (behavior === 'hide')    return { ...basePos, hidden:true };
+    return { ...basePos, hidden:false };
   }
   if (device === 'tablet') {
-    if (block.tabletPos) return { ...block.tabletPos };
-    return autoScalePos({ x: block.x, y: block.y, w: block.w, h: block.h }, 768, srcW);
+    const behavior = block.tabletBehavior || 'auto';
+    const basePos = block.tabletPos || autoScalePos({ x: block.x, y: block.y, w: block.w, h: block.h }, 768, srcW);
+    if (behavior === 'stretch') { const cw = canvas ? canvas.offsetWidth : 768; return { x:0, y:basePos.y, w:cw, h:basePos.h, hidden:false }; }
+    if (behavior === 'hide')    return { ...basePos, hidden:true };
+    return { ...basePos, hidden:false };
   }
   return { x: block.x, y: block.y, w: block.w, h: block.h };
 }
@@ -5151,10 +5205,13 @@ function buildJson() {
       // Pixel position (used for absolute renderer in free mode)
       pixelPos:    { x:Math.round(b.x||0), y:Math.round(b.y||0), w:Math.round(b.w||300), h:Math.round(b.h||180) },
       // Responsive positions for tablet/mobile breakpoints
-      tabletPos:   b.tabletPos || undefined,
-      mobilePos:   b.mobilePos || undefined,
-      props:       b.props,
-      subElements: b.subElements
+      tabletPos:      b.tabletPos || undefined,
+      mobilePos:      b.mobilePos || undefined,
+      // Responsive constraint behaviors (Hybrid B+C)
+      tabletBehavior: b.tabletBehavior || undefined,
+      mobileBehavior: b.mobileBehavior || undefined,
+      props:          b.props,
+      subElements:    b.subElements
     }))
   },null,2);
 }
@@ -5345,6 +5402,16 @@ function mttDuplicate() {
 
 function mttDelete() {
   if (state.selectedBlockId) removeBlock(state.selectedBlockId);
+}
+
+// ─── Responsive Behavior ─────────────────────────────────────────────────────
+function setBlockBehavior(blockId, behavior) {
+  const block = state.blocks.find(b => b.id === blockId);
+  if (!block) return;
+  pushHistory();
+  if (state.devicePreview === 'mobile')       block.mobileBehavior  = behavior === 'auto' ? undefined : behavior;
+  else if (state.devicePreview === 'tablet')  block.tabletBehavior  = behavior === 'auto' ? undefined : behavior;
+  renderCanvas(); renderPropsPanel(); autoSave();
 }
 
 // ─── Volt Studio Modal ────────────────────────────────────────────────────────
