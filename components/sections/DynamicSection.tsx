@@ -40,7 +40,7 @@ import type { VoltElementData } from '@/types/volt'
  * This is the bridge between backend data and React components.
  *
  * Supports visual override mode: when a section has visualOverride.enabled = true,
- * it renders the GrapesJS-generated HTML instead of the structured component.
+ * it renders custom HTML instead of the structured component.
  *
  * Usage:
  * ```tsx

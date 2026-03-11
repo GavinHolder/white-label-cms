@@ -25,9 +25,6 @@ export type BannerSection = NormalSection;
 export type TableSection = NormalSection;
 export type CTAFooterSection = CTASection;
 
-/** CSS isolation mode for freeform sections */
-export type CSSIsolationMode = "global" | "scoped" | "shadow";
-
 /** Page config type (used in section-data.ts localStorage layer) */
 export interface PageConfig {
   id: string;
@@ -485,8 +482,7 @@ export interface NormalSection extends BaseSectionConfig {
       | "text-image"
       | "image-text"
       | "grid"
-      | "columns"
-      | "freeform";
+      | "columns";
     layoutPreset?: LayoutPreset; // Layout-specific positioning preset
     // Flexible content for different layouts
     items?: Array<Record<string, any>>;
