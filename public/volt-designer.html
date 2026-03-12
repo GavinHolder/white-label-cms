@@ -39,13 +39,24 @@
     .layer-row{display:flex;align-items:center;gap:5px;padding:5px 7px;border:1px solid #e9ecef;border-radius:5px;margin-bottom:3px;background:white;cursor:pointer;transition:all 0.15s;font-size:12px;}
     .layer-row:hover{border-color:#0d6efd;background:#f0f4ff;}
     .layer-row.selected{border-color:#0d6efd;background:#e7f0ff;}
-    .layer-name{flex:1;font-weight:600;color:#212529;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .layer-name{flex:1;font-weight:600;color:#212529;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text;}
     .lbadge{font-size:9px;padding:1px 4px;border-radius:3px;font-weight:700;text-transform:uppercase;}
     .lb-str{background:#cfe2ff;color:#0a58ca;}
     .lb-slt{background:#d1fae5;color:#065f46;}
     .lb-acc{background:#fde8f9;color:#9333ea;}
     .lbtn{background:none;border:none;padding:1px 3px;cursor:pointer;color:#adb5bd;border-radius:3px;font-size:12px;line-height:1;}
     .lbtn:hover{color:#212529;background:#f8f9fa;}
+    .lbtn-rename{background:none;border:none;padding:1px 3px;cursor:pointer;color:#adb5bd;border-radius:3px;font-size:11px;line-height:1;opacity:0;transition:opacity 0.1s;}
+    .lbtn-rename:hover{color:#0d6efd;background:#e8f4fd;}
+    .layer-row:hover .lbtn-rename,.layer-group-row:hover .lbtn-rename{opacity:1;}
+    /* ── Group rows ── */
+    .layer-group-row{display:flex;align-items:center;gap:3px;padding:4px 6px;border-radius:5px;background:#f0f4ff;border-left:3px solid #0d6efd;margin-bottom:2px;font-size:12px;}
+    .layer-group-row:hover{background:#e4edff;}
+    .layer-group-name{flex:1;font-weight:700;color:#0d6efd;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .layer-row.layer-child{padding-left:16px;border-left:3px solid #dee2e6;background:#fafbfd;}
+    .layer-row.layer-child.selected{border-left-color:#0d6efd;background:#e7f0ff;}
+    .layer-row.layer-child:hover{border-left-color:#6ea8fe;background:#f0f4ff;}
+    #layer-group-bar{padding:3px 5px;display:flex;align-items:center;gap:4px;border-bottom:1px solid #f0f0f0;}
     .prop-section{margin-bottom:12px;}
     .prop-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#6c757d;margin-bottom:4px;}
     .canvas-wrap{flex:1;position:relative;overflow:hidden;background:#dee2e6;display:flex;align-items:center;justify-content:center;}
@@ -177,6 +188,12 @@
         <div class="panel">
           <div class="panel-header" data-panel="layers"><i class="bi bi-stack"></i> Layers <span id="layer-count" class="badge bg-secondary ms-1 rounded-pill" style="font-size:9px;">0</span><i class="bi bi-chevron-down chevron"></i></div>
           <div class="panel-body" id="pb-layers">
+            <div id="layer-group-bar">
+              <button class="lbtn d-flex align-items-center gap-1" title="Group selected layers (Ctrl+G)" id="btn-group-layers" style="color:#0d6efd;font-size:11px;padding:2px 5px;">
+                <i class="bi bi-folder-plus"></i><span style="font-size:10px;font-weight:600;">Group</span>
+              </button>
+              <span style="font-size:9px;color:#adb5bd;margin-left:2px;">Select ≥2 layers then click</span>
+            </div>
             <div id="layer-list">
               <div id="no-layers" style="text-align:center;padding:14px 8px;color:#adb5bd;font-size:11px;background:#f8f9fa;border-radius:6px;border:1px dashed #dee2e6;">
                 <i class="bi bi-layers" style="font-size:20px;display:block;margin-bottom:5px;"></i>No layers yet
@@ -1308,120 +1325,235 @@
     function roleLbl(r){return {structure:'STR',background:'BG',content:'CNT',accent:'ACC',overlay:'OVR'}[r]||(r||'?').slice(0,3).toUpperCase();}
     function mkI(cls){var i=document.createElement('i');i.className=cls;return i;}
     var _dragOverId=null;
+
+    // ── Inline rename helper ──────────────────────────────────────────────────
+    // Opens an inline text input replacing `nmEl` inside `rowEl` for `layer`.
+    function _openLayerRename(layer,rowEl,nmEl){
+      if(!rowEl.contains(nmEl))return; // already replaced (e.g. double-trigger guard)
+      _lyrDblClick={id:null,time:0};
+      var inp=document.createElement('input');inp.type='text';inp.value=layer.name;
+      inp.className='form-control form-control-sm';
+      inp.style.cssText='height:22px;padding:0 4px;font-size:11px;flex:1;min-width:0;';
+      rowEl.replaceChild(inp,nmEl);inp.select();inp.focus();
+      function _commit(){
+        var newName=inp.value.trim()||layer.name;
+        var i=state.element.layers.findIndex(function(l){return l.id===layer.id;});
+        if(i>=0&&newName!==state.element.layers[i].name){pushHistory();state.element.layers[i].name=newName;markDirty();}
+        renderLayers();renderProps();
+      }
+      inp.addEventListener('blur',_commit);
+      inp.addEventListener('keydown',function(ev2){if(ev2.key==='Enter'){ev2.preventDefault();inp.removeEventListener('blur',_commit);_commit();}else if(ev2.key==='Escape'){inp.removeEventListener('blur',_commit);renderLayers();}});
+      inp.addEventListener('click',function(ev2){ev2.stopPropagation();});
+    }
+
+    // ── Group management ──────────────────────────────────────────────────────
+    function groupSelectedLayers(){
+      var ids=(state.multiSelectIds.length>0?state.multiSelectIds.slice():[]);
+      if(state.selectedLayerId&&ids.indexOf(state.selectedLayerId)<0)ids.push(state.selectedLayerId);
+      // Only group non-group, non-cutter layers
+      ids=ids.filter(function(id){var l=state.element.layers.find(function(x){return x.id===id;});return l&&l.type!=='group'&&l.boolRole!=='cutter';});
+      if(ids.length<2){return;}
+      pushHistory();
+      var gid='grp-'+Math.random().toString(36).slice(2,10);
+      var children=state.element.layers.filter(function(l){return ids.indexOf(l.id)>=0;});
+      var maxZ=Math.max.apply(null,children.map(function(c){return c.zIndex||0;}));
+      state.element.layers.push({id:gid,name:'Group',type:'group',zIndex:maxZ,visible:true,locked:false,groupCollapsed:false});
+      children.forEach(function(c){c.parentGroupId=gid;});
+      state.selectedLayerId=null;state.multiSelectIds=[];
+      markDirty();renderAll();
+    }
+    function ungroupLayer(groupId){
+      var idx=state.element.layers.findIndex(function(l){return l.id===groupId;});if(idx<0)return;
+      pushHistory();
+      state.element.layers.forEach(function(l){if(l.parentGroupId===groupId)delete l.parentGroupId;});
+      state.element.layers.splice(idx,1);
+      if(state.selectedLayerId===groupId)state.selectedLayerId=null;
+      markDirty();renderAll();
+    }
+    function deleteGroup(groupId){
+      pushHistory();
+      state.element.layers=state.element.layers.filter(function(l){return l.parentGroupId!==groupId&&l.id!==groupId;});
+      if(state.selectedLayerId===groupId)state.selectedLayerId=null;
+      markDirty();renderAll();
+    }
+
+    // ── Render a single (non-group) layer row ─────────────────────────────────
+    function renderLayerRow(layer,list,isChild){
+      var isSelected=layer.id===state.selectedLayerId||state.multiSelectIds.indexOf(layer.id)>=0;
+      var isCutterHidden=layer.boolRole==='cutter';
+      var row=document.createElement('div');
+      row.className='layer-row'+(isSelected?' selected':'')+(isCutterHidden?' opacity-50':'')+(isChild?' layer-child':'');
+      row.draggable=true;row.dataset.layerId=layer.id;row.style.cursor='grab';
+      var eyeBtn=document.createElement('button');eyeBtn.className='lbtn';eyeBtn.dataset.a='eye';eyeBtn.dataset.id=layer.id;
+      eyeBtn.appendChild(mkI('bi bi-eye'+(layer.visible?'':'-slash')));if(!layer.visible)eyeBtn.style.opacity='0.4';
+      var lockBtn=document.createElement('button');lockBtn.className='lbtn';lockBtn.dataset.a='lock';lockBtn.dataset.id=layer.id;
+      lockBtn.appendChild(mkI('bi bi-lock'+(layer.locked?'-fill':'')));
+      var badge=document.createElement('span');
+      var badgeClass=layer.type==='slot'?'lb-slt':roleCls(layer.role);
+      if(isCutterHidden)badgeClass='lb-acc';
+      badge.className='lbadge '+badgeClass;
+      badge.textContent=isCutterHidden?'CUT':(layer.type==='slot'?'SLT':roleLbl(layer.role));
+      var nm=document.createElement('span');nm.className='layer-name';nm.textContent=layer.name;nm.title='Double-click or click ✏ to rename';
+      var renBtn=document.createElement('button');renBtn.className='lbtn-rename';renBtn.title='Rename';renBtn.appendChild(mkI('bi bi-pencil'));
+      var del=document.createElement('button');del.className='lbtn';del.dataset.a='del';del.dataset.id=layer.id;
+      var delI=mkI('bi bi-trash3');delI.style.color='#dc3545';del.appendChild(delI);
+      row.appendChild(eyeBtn);row.appendChild(lockBtn);row.appendChild(badge);row.appendChild(nm);row.appendChild(renBtn);row.appendChild(del);
+      // Pencil button opens rename directly
+      renBtn.addEventListener('click',function(ev){ev.stopPropagation();_openLayerRename(layer,row,nm);});
+      // ── Row click ───────────────────────────────────────────────────────────
+      row.addEventListener('click',function(ev){
+        var btn=ev.target.closest('[data-a]');
+        if(!btn){
+          var onName=ev.target===nm||nm.contains(ev.target);
+          // Ctrl/Cmd+click → toggle layer in multi-select (for grouping)
+          if((ev.ctrlKey||ev.metaKey)&&!ev.shiftKey){
+            var mIdx=state.multiSelectIds.indexOf(layer.id);
+            if(mIdx>=0){state.multiSelectIds.splice(mIdx,1);}else{state.multiSelectIds.push(layer.id);}
+            if(!state.selectedLayerId)state.selectedLayerId=layer.id;
+            renderLayers();return;
+          }
+          if(ev.shiftKey&&state.selectedLayerId&&layer.id!==state.selectedLayerId){state.boolBaseId=layer.id;renderAll();}
+          else if(layer.id!==state.selectedLayerId){
+            if(onName){_lyrDblClick={id:layer.id,time:Date.now()};}
+            selectLayer(layer.id);
+          }else{
+            if(onName){
+              var _ldc_now=Date.now();
+              if(_lyrDblClick.id===layer.id&&_ldc_now-_lyrDblClick.time<500){
+                _openLayerRename(layer,row,nm);return;
+              }else{_lyrDblClick={id:layer.id,time:_ldc_now};}
+            }
+          }
+          return;
+        }
+        var id=btn.dataset.id,idx=state.element.layers.findIndex(function(l){return l.id===id;});if(idx<0)return;
+        if(btn.dataset.a==='eye'){pushHistory();state.element.layers[idx].visible=!state.element.layers[idx].visible;markDirty();renderCanvas();renderLayers();}
+        else if(btn.dataset.a==='lock'){state.element.layers[idx].locked=!state.element.layers[idx].locked;renderLayers();}
+        else if(btn.dataset.a==='del'){
+          pushHistory();
+          if(state.element.layers[idx].boolChildren){
+            state.element.layers[idx].boolChildren.forEach(function(bc){
+              var ci=state.element.layers.findIndex(function(l){return l.id===bc.cutterId;});
+              if(ci>=0)state.element.layers.splice(ci,1);
+            });
+            idx=state.element.layers.findIndex(function(l){return l.id===id;});
+          }
+          if(idx>=0)state.element.layers.splice(idx,1);
+          if(state.selectedLayerId===id){state.selectedLayerId=null;state.multiSelectIds=[];}
+          markDirty();renderAll();document.getElementById('btn-delete-layer').disabled=!state.selectedLayerId;
+        }
+      });
+      // ── Drag to reorder ─────────────────────────────────────────────────────
+      row.addEventListener('dragstart',function(ev){
+        ev.dataTransfer.setData('text/plain',layer.id);ev.dataTransfer.effectAllowed='move';row.style.opacity='0.5';
+      });
+      row.addEventListener('dragend',function(){row.style.opacity='';_dragOverId=null;list.querySelectorAll('.layer-row').forEach(function(r){r.style.borderTop='';r.style.borderBottom='';});});
+      row.addEventListener('dragover',function(ev){
+        ev.preventDefault();ev.dataTransfer.dropEffect='move';
+        list.querySelectorAll('.layer-row').forEach(function(r){r.style.borderTop='';r.style.borderBottom='';});
+        var rect=row.getBoundingClientRect(),mid=rect.top+rect.height/2;
+        if(ev.clientY<mid){row.style.borderTop='2px solid #0d6efd';}else{row.style.borderBottom='2px solid #0d6efd';}
+        _dragOverId=layer.id+'|'+(ev.clientY<rect.top+rect.height/2?'before':'after');
+      });
+      row.addEventListener('drop',function(ev){
+        ev.preventDefault();
+        var fromId=ev.dataTransfer.getData('text/plain');if(!fromId||fromId===layer.id)return;
+        var fromLayer=state.element.layers.find(function(l){return l.id===fromId;});if(!fromLayer)return;
+        var rect=row.getBoundingClientRect(),before=ev.clientY<rect.top+rect.height/2;
+        var sorted2=state.element.layers.filter(function(l){return l.boolRole!=='cutter'&&l.type!=='group';}).sort(function(a,b){return b.zIndex-a.zIndex;});
+        var fromIdx2=sorted2.findIndex(function(l){return l.id===fromId;});
+        if(fromIdx2>=0)sorted2.splice(fromIdx2,1);
+        var toIdx2=sorted2.findIndex(function(l){return l.id===layer.id;});
+        if(toIdx2<0)return;
+        sorted2.splice(before?toIdx2:toIdx2+1,0,fromLayer);
+        var maxZ2=sorted2.length-1;
+        sorted2.forEach(function(l,i){l.zIndex=maxZ2-i;});
+        pushHistory();markDirty();renderAll();
+      });
+      list.appendChild(row);
+    }
+
+    // ── Render a group accordion row + its children ───────────────────────────
+    function renderGroupRow(group,children,list){
+      var isCollapsed=!!group.groupCollapsed;
+      var row=document.createElement('div');
+      row.className='layer-group-row';row.dataset.groupId=group.id;
+      // Eye
+      var eyeBtn=document.createElement('button');eyeBtn.className='lbtn';eyeBtn.title='Toggle visibility for all layers in group';
+      eyeBtn.appendChild(mkI('bi bi-eye'+(group.visible===false?'-slash':'')));
+      if(group.visible===false)eyeBtn.style.opacity='0.4';
+      eyeBtn.addEventListener('click',function(ev){
+        ev.stopPropagation();pushHistory();
+        var nowVisible=group.visible===false;group.visible=nowVisible;
+        children.forEach(function(c){c.visible=nowVisible;});
+        markDirty();renderCanvas();renderLayers();
+      });
+      // Collapse chevron
+      var chevBtn=document.createElement('button');chevBtn.className='lbtn';chevBtn.style.color='#0d6efd';
+      chevBtn.title=isCollapsed?'Expand group':'Collapse group';
+      chevBtn.appendChild(mkI('bi bi-chevron-'+(isCollapsed?'right':'down')));
+      chevBtn.addEventListener('click',function(ev){ev.stopPropagation();group.groupCollapsed=!group.groupCollapsed;renderLayers();});
+      // Folder icon
+      var folderI=mkI('bi bi-folder'+(isCollapsed?'':'-open'));folderI.style.cssText='font-size:13px;color:#0d6efd;';
+      // Name (double-click or pencil to rename)
+      var nm=document.createElement('span');nm.className='layer-group-name';nm.textContent=group.name+' ('+children.length+')';nm.title='Double-click or click ✏ to rename';
+      nm.addEventListener('click',function(ev){
+        var _now=Date.now();
+        if(_lyrDblClick.id===group.id&&_now-_lyrDblClick.time<500){_openLayerRename(group,row,nm);}
+        else{_lyrDblClick={id:group.id,time:_now};}
+      });
+      var grpRenBtn=document.createElement('button');grpRenBtn.className='lbtn-rename';grpRenBtn.title='Rename group';grpRenBtn.appendChild(mkI('bi bi-pencil'));
+      grpRenBtn.addEventListener('click',function(ev){ev.stopPropagation();_openLayerRename(group,row,nm);});
+      // Ungroup button
+      var ungroupBtn=document.createElement('button');ungroupBtn.className='lbtn';ungroupBtn.title='Ungroup — keep all layers';
+      ungroupBtn.appendChild(mkI('bi bi-box-arrow-up'));
+      ungroupBtn.addEventListener('click',function(ev){ev.stopPropagation();ungroupLayer(group.id);});
+      // Delete group + children
+      var delBtn=document.createElement('button');delBtn.className='lbtn';delBtn.title='Delete group and all '+children.length+' layers';
+      var dI=mkI('bi bi-trash3');dI.style.color='#dc3545';delBtn.appendChild(dI);
+      delBtn.addEventListener('click',function(ev){
+        ev.stopPropagation();
+        if(children.length===0||confirm('Delete group and all '+children.length+' layer'+(children.length===1?'':'s')+'?'))deleteGroup(group.id);
+      });
+      row.appendChild(eyeBtn);row.appendChild(chevBtn);row.appendChild(folderI);row.appendChild(nm);row.appendChild(grpRenBtn);row.appendChild(ungroupBtn);row.appendChild(delBtn);
+      list.appendChild(row);
+      if(!isCollapsed){children.forEach(function(c){renderLayerRow(c,list,true);});}
+    }
+
+    // ── Main layer panel renderer ─────────────────────────────────────────────
     function renderLayers(){
       var list=document.getElementById('layer-list'),noL=document.getElementById('no-layers');
-      var layers=state.element.layers.slice().sort(function(a,b){return b.zIndex-a.zIndex;});
-      document.getElementById('layer-count').textContent=layers.length;
-      list.querySelectorAll('.layer-row').forEach(function(e){e.remove();});
-      if(!layers.length){noL.style.display='';return;}noL.style.display='none';
-      layers.forEach(function(layer,orderIdx){
-        var isSelected=layer.id===state.selectedLayerId||state.multiSelectIds.indexOf(layer.id)>=0;
-        var isCutterHidden=layer.boolRole==='cutter';
-        var row=document.createElement('div');
-        row.className='layer-row'+(isSelected?' selected':'')+(isCutterHidden?' opacity-50':'');
-        row.draggable=true;row.dataset.layerId=layer.id;row.style.cursor='grab';
-        var eyeBtn=document.createElement('button');eyeBtn.className='lbtn';eyeBtn.dataset.a='eye';eyeBtn.dataset.id=layer.id;
-        eyeBtn.appendChild(mkI('bi bi-eye'+(layer.visible?'':'-slash')));if(!layer.visible)eyeBtn.style.opacity='0.4';
-        var lockBtn=document.createElement('button');lockBtn.className='lbtn';lockBtn.dataset.a='lock';lockBtn.dataset.id=layer.id;
-        lockBtn.appendChild(mkI('bi bi-lock'+(layer.locked?'-fill':'')));
-        var badge=document.createElement('span');
-        var badgeClass=layer.type==='slot'?'lb-slt':roleCls(layer.role);
-        if(isCutterHidden)badgeClass='lb-acc';
-        badge.className='lbadge '+badgeClass;
-        badge.textContent=isCutterHidden?'CUT':(layer.type==='slot'?'SLT':roleLbl(layer.role));
-        var nm=document.createElement('span');nm.className='layer-name';nm.textContent=layer.name;
-        var del=document.createElement('button');del.className='lbtn';del.dataset.a='del';del.dataset.id=layer.id;
-        var delI=mkI('bi bi-trash3');delI.style.color='#dc3545';del.appendChild(delI);
-        row.appendChild(eyeBtn);row.appendChild(lockBtn);row.appendChild(badge);row.appendChild(nm);row.appendChild(del);
-        // ── Row click ──────────────────────────────────────────────────────
-        row.addEventListener('click',function(ev){
-          var btn=ev.target.closest('[data-a]');
-          if(!btn){
-            var onName=ev.target===nm||nm.contains(ev.target);
-            if(ev.shiftKey&&state.selectedLayerId&&layer.id!==state.selectedLayerId){state.boolBaseId=layer.id;renderAll();}
-            else if(layer.id!==state.selectedLayerId){
-              // Track first click for potential rename dblclick (layer will be re-selected & DOM rebuilt)
-              if(onName){_lyrDblClick={id:layer.id,time:Date.now()};}
-              selectLayer(layer.id);
-            }else{
-              // Layer already selected — detect dblclick on name for rename
-              if(onName){
-                var _ldc_now=Date.now();
-                if(_lyrDblClick.id===layer.id&&_ldc_now-_lyrDblClick.time<350){
-                  _lyrDblClick={id:null,time:0};
-                  // Trigger inline rename
-                  var inp=document.createElement('input');inp.type='text';inp.value=layer.name;
-                  inp.className='form-control form-control-sm';
-                  inp.style.cssText='height:22px;padding:0 4px;font-size:11px;flex:1;min-width:0;';
-                  row.replaceChild(inp,nm);inp.select();inp.focus();
-                  function _commitRename(){
-                    var newName=inp.value.trim()||layer.name;
-                    var i=state.element.layers.findIndex(function(l){return l.id===layer.id;});
-                    if(i>=0&&newName!==state.element.layers[i].name){pushHistory();state.element.layers[i].name=newName;markDirty();}
-                    renderLayers();renderProps();
-                  }
-                  inp.addEventListener('blur',_commitRename);
-                  inp.addEventListener('keydown',function(ev2){if(ev2.key==='Enter'){ev2.preventDefault();inp.removeEventListener('blur',_commitRename);_commitRename();}else if(ev2.key==='Escape'){inp.removeEventListener('blur',_commitRename);renderLayers();}});
-                  inp.addEventListener('click',function(ev2){ev2.stopPropagation();});
-                  return;
-                }else{_lyrDblClick={id:layer.id,time:_ldc_now};}
-              }
-            }
-            return;
-          }
-          var id=btn.dataset.id,idx=state.element.layers.findIndex(function(l){return l.id===id;});if(idx<0)return;
-          if(btn.dataset.a==='eye'){pushHistory();state.element.layers[idx].visible=!state.element.layers[idx].visible;markDirty();renderCanvas();renderLayers();}
-          else if(btn.dataset.a==='lock'){state.element.layers[idx].locked=!state.element.layers[idx].locked;renderLayers();}
-          else if(btn.dataset.a==='del'){
-            pushHistory();
-            // Also delete any cutter children of this layer
-            if(state.element.layers[idx].boolChildren){
-              state.element.layers[idx].boolChildren.forEach(function(bc){
-                var ci=state.element.layers.findIndex(function(l){return l.id===bc.cutterId;});
-                if(ci>=0)state.element.layers.splice(ci,1);
-              });
-              // Recalculate idx after splicing cutters
-              idx=state.element.layers.findIndex(function(l){return l.id===id;});
-            }
-            if(idx>=0)state.element.layers.splice(idx,1);
-            if(state.selectedLayerId===id){state.selectedLayerId=null;state.multiSelectIds=[];}
-            markDirty();renderAll();document.getElementById('btn-delete-layer').disabled=!state.selectedLayerId;
-          }
-        });
-        // (rename handled via timer-based dblclick in row click handler above)
-        // ── Drag to reorder ────────────────────────────────────────────────
-        row.addEventListener('dragstart',function(ev){
-          ev.dataTransfer.setData('text/plain',layer.id);
-          ev.dataTransfer.effectAllowed='move';
-          row.style.opacity='0.5';
-        });
-        row.addEventListener('dragend',function(){row.style.opacity='';_dragOverId=null;list.querySelectorAll('.layer-row').forEach(function(r){r.style.borderTop='';r.style.borderBottom='';});});
-        row.addEventListener('dragover',function(ev){
-          ev.preventDefault();ev.dataTransfer.dropEffect='move';
-          list.querySelectorAll('.layer-row').forEach(function(r){r.style.borderTop='';r.style.borderBottom='';});
-          var rect=row.getBoundingClientRect(),mid=rect.top+rect.height/2;
-          if(ev.clientY<mid){row.style.borderTop='2px solid #0d6efd';}else{row.style.borderBottom='2px solid #0d6efd';}
-          _dragOverId=layer.id+'|'+(ev.clientY<row.getBoundingClientRect().top+row.getBoundingClientRect().height/2?'before':'after');
-        });
-        row.addEventListener('drop',function(ev){
-          ev.preventDefault();
-          var fromId=ev.dataTransfer.getData('text/plain');if(!fromId||fromId===layer.id)return;
-          var fromLayer=state.element.layers.find(function(l){return l.id===fromId;});if(!fromLayer)return;
-          var rect=row.getBoundingClientRect(),before=ev.clientY<rect.top+rect.height/2;
-          // Reorder: reassign zIndex values
-          var sorted2=state.element.layers.filter(function(l){return l.boolRole!=='cutter';}).sort(function(a,b){return b.zIndex-a.zIndex;});
-          var fromIdx2=sorted2.findIndex(function(l){return l.id===fromId;});
-          if(fromIdx2>=0)sorted2.splice(fromIdx2,1);
-          var toIdx2=sorted2.findIndex(function(l){return l.id===layer.id;});
-          if(toIdx2<0)return;
-          sorted2.splice(before?toIdx2:toIdx2+1,0,fromLayer);
-          // Assign descending zIndex (first in sorted2 = highest zIndex in UI = rendered on top)
-          var maxZ2=sorted2.length-1;
-          sorted2.forEach(function(l,i){l.zIndex=maxZ2-i;});
-          pushHistory();markDirty();renderAll();
-        });
-        list.appendChild(row);
+      var nonGroupNonCutter=state.element.layers.filter(function(l){return l.type!=='group'&&l.boolRole!=='cutter';});
+      document.getElementById('layer-count').textContent=nonGroupNonCutter.length;
+      list.querySelectorAll('.layer-row,.layer-group-row').forEach(function(e){e.remove();});
+      if(!state.element.layers.length){noL.style.display='';return;}noL.style.display='none';
+
+      var groups=state.element.layers.filter(function(l){return l.type==='group';});
+      var topLevel=state.element.layers.filter(function(l){return l.type!=='group'&&l.boolRole!=='cutter'&&!l.parentGroupId;});
+      var cutters=state.element.layers.filter(function(l){return l.boolRole==='cutter';});
+
+      // Determine visual z position of a group (max zIndex of its children)
+      function groupMaxZ(g){
+        var ch=state.element.layers.filter(function(l){return l.parentGroupId===g.id;});
+        return ch.length?Math.max.apply(null,ch.map(function(c){return c.zIndex||0;})):g.zIndex||0;
+      }
+
+      // Build a unified render list mixing groups and top-level layers by z
+      var renderItems=[];
+      groups.forEach(function(g){renderItems.push({isGroup:true,layer:g,z:groupMaxZ(g)});});
+      topLevel.forEach(function(l){renderItems.push({isGroup:false,layer:l,z:l.zIndex||0});});
+      renderItems.sort(function(a,b){return b.z-a.z;});
+
+      renderItems.forEach(function(item){
+        if(item.isGroup){
+          var children=state.element.layers.filter(function(l){return l.parentGroupId===item.layer.id;}).sort(function(a,b){return b.zIndex-a.zIndex;});
+          renderGroupRow(item.layer,children,list);
+        }else{
+          renderLayerRow(item.layer,list,false);
+        }
       });
+      // Render boolean cutters at bottom (semi-transparent, informational)
+      cutters.forEach(function(c){renderLayerRow(c,list,false);});
       renderBoolPanel();
     }
     // ── Boolean ops panel ─────────────────────────────────────────────────────
@@ -2022,6 +2154,7 @@
     // ── Toolbar ───────────────────────────────────────────────────────────────
     document.getElementById('btn-undo').addEventListener('click',undo);
     document.getElementById('btn-redo').addEventListener('click',redo);
+    document.getElementById('btn-group-layers').addEventListener('click',groupSelectedLayers);
     document.getElementById('btn-delete-layer').addEventListener('click',function(){if(!state.selectedLayerId)return;var i=state.element.layers.findIndex(function(l){return l.id===state.selectedLayerId;});if(i>=0){pushHistory();state.element.layers.splice(i,1);state.selectedLayerId=null;markDirty();renderAll();document.getElementById('btn-delete-layer').disabled=true;}});
     // ── Keyboard ──────────────────────────────────────────────────────────────
     document.addEventListener('keydown',function(e){
@@ -2033,6 +2166,7 @@
       if(e.key==='Escape'){e.preventDefault();if(state.activeTool==='pen'&&penState.verts.length>0){cancelPen();return;}if(state.boolEditParentId){var _bep=state.element.layers.find(function(l){return l.id===state.boolEditParentId;});if(_bep){recalcLayerBounds(_bep);markDirty();}state.boolEditParentId=null;state.selectedLayerId=_bep?_bep.id:null;renderCanvas();renderLayers();return;}if(state.vertexEditLayerId){state.vertexEditLayerId=null;renderCanvas();return;}if(marqueeSt){marqueeSt=null;renderCanvas();return;}if(state.activeTool==='polygon')cancelPolygon();return;}
       if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key==='z'){e.preventDefault();undo();return;}
       if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){e.preventDefault();redo();return;}
+      if((e.ctrlKey||e.metaKey)&&e.key==='g'){e.preventDefault();groupSelectedLayers();return;}
       if((e.key==='Delete'||e.key==='Backspace')&&state.selectedLayerId)document.getElementById('btn-delete-layer').click();
     });
     // Alt key capture — intercept before browser opens menu (Windows)
