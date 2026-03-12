@@ -158,6 +158,8 @@ export default function FlexibleSectionRenderer({ section }: FlexibleSectionRend
   // Scroll Stage config — only active when contentMode === "multi" and enabled
   const scrollStage = (content as any).scrollStage as import("./scroll-stage/types").ScrollStageConfig | undefined;
   const scrollStageActive = contentMode === "multi" && scrollStage?.enabled === true && (scrollStage.zones?.length ?? 0) > 0;
+  // Tracks the current scroll stage zone so content column shows only the active zone's blocks
+  const [scrollStageZone, setScrollStageZone] = useState(0);
 
   // Animated background config from content.animBg
   const animBg: AnimBgConfig = (content as any).animBg || DEFAULT_ANIM_BG_CONFIG;
@@ -236,15 +238,26 @@ export default function FlexibleSectionRenderer({ section }: FlexibleSectionRend
         </div>
       )}
 
-      <div className="section-content-wrapper" style={{ position: "relative", zIndex: 11 }}>
+      <div
+        className="section-content-wrapper"
+        style={{
+          position: "relative",
+          zIndex: 11,
+          // Scroll stage: remove padding and overflow so sticky columns work against #snap-container
+          ...(scrollStageActive ? { paddingTop: 0, paddingBottom: 0, overflow: "visible", height: "auto" } : {}),
+        }}
+      >
         {scrollStageActive ? (
           <ScrollStageWrapper
             config={scrollStage!}
             multiLimit={scrollStage!.zones.length}
+            contentPaddingTop={paddingTop ?? 100}
+            contentPaddingBottom={paddingBottom ?? 100}
+            onActiveZoneChange={setScrollStageZone}
           >
-            <div className="container-fluid">
+            <div className="container-fluid px-0">
               {designerData
-                ? <DesignerBlocksRenderer designerData={designerData} darkBg={darkBg} />
+                ? <DesignerBlocksRenderer designerData={designerData} darkBg={darkBg} scrollStageZone={scrollStageZone} />
                 : <>
                     {layout.type === "grid"     && <GridLayout    layout={layout} elements={elements} darkBg={darkBg} />}
                     {layout.type === "absolute" && <AbsoluteLayout elements={elements} darkBg={darkBg} />}
@@ -337,7 +350,7 @@ function canvasRefW(block: { pixelPos?: PixelPos; tabletPos?: PixelPos; mobilePo
  * Tracks window width via state so blocks re-position correctly across breakpoints.
  * Renders a graceful error message if designerData fails to parse.
  */
-function DesignerBlocksRenderer({ designerData, darkBg }: { designerData: string; darkBg: boolean }) {
+function DesignerBlocksRenderer({ designerData, darkBg, scrollStageZone }: { designerData: string; darkBg: boolean; scrollStageZone?: number }) {
   // Hooks must be called before any conditional returns
   const [screenW, setScreenW] = useState(typeof window !== "undefined" ? window.innerWidth : 1440);
   // Update screen width on resize so responsive positions re-calculate
@@ -368,7 +381,13 @@ function DesignerBlocksRenderer({ designerData, darkBg }: { designerData: string
     const isMulti    = data.contentMode === "multi";
     // multiLimit defines how many 100vh screens the section spans in multi mode
     const multiLimit = isMulti ? (data.multiLimit || 1) : 1;
-    const containerH = isMulti ? `${multiLimit * 100}vh` : "100vh";
+    // In scroll stage mode, content column is sticky (100vh) — show only active zone's blocks
+    const isScrollStage = scrollStageZone !== undefined;
+    const containerH = (isMulti && !isScrollStage) ? `${multiLimit * 100}vh` : "100vh";
+    // Filter blocks to active zone when in scroll stage mode
+    const filteredBlocks = isScrollStage
+      ? blocks.filter(b => (b.position?.section ?? 0) === scrollStageZone)
+      : blocks;
 
     // ── Free / absolute positioning mode ──────────────────────────────────
     if (isFreeMode) {
@@ -384,7 +403,7 @@ function DesignerBlocksRenderer({ designerData, darkBg }: { designerData: string
           minHeight: containerH,
           overflow: "hidden",
         }}>
-          {blocks.map((block) => {
+          {filteredBlocks.map((block) => {
             // Pick the responsive position set and reference canvas width for this block
             const pos = pickPos(block, screenW);
             const refW = canvasRefW(block, cw, screenW);
@@ -410,8 +429,9 @@ function DesignerBlocksRenderer({ designerData, darkBg }: { designerData: string
     const cols   = data.grid?.cols || 3;
     const rows   = data.grid?.rows || 2;
     // In multi-section mode the grid must accommodate rows from all stacked sections
-    const totalRows = rows * multiLimit;
-    const gap    = data.grid?.gap  || 16;
+    // In scroll stage mode only one zone is shown at a time, so totalRows = rows
+    const totalRows = isScrollStage ? rows : rows * multiLimit;
+    const gap    = data.grid?.gap  ?? 16;
     const gridH  = containerH;
 
     if (isGrid) {
@@ -424,10 +444,10 @@ function DesignerBlocksRenderer({ designerData, darkBg }: { designerData: string
           height: gridH,
           minHeight: gridH,
         }}>
-          {blocks.map((block) => {
+          {filteredBlocks.map((block) => {
             const pos           = block.position || { row: 1, col: 1, colSpan: 1, rowSpan: 1, section: 0 };
-            // Offset the block's row by the section index so multi-section grids stack correctly
-            const sectionOffset = (pos.section || 0) * rows;
+            // In scroll stage mode blocks are already filtered to active zone — no section offset needed
+            const sectionOffset = isScrollStage ? 0 : (pos.section || 0) * rows;
             const absoluteRow   = sectionOffset + pos.row;
             return (
               <div key={block.id} style={{
@@ -452,7 +472,7 @@ function DesignerBlocksRenderer({ designerData, darkBg }: { designerData: string
         gap: `${gap ?? 16}px`,
         minHeight: gridH,
       }}>
-        {blocks.map((block) => (
+        {filteredBlocks.map((block) => (
           <div key={block.id} style={{ flex: isMulti ? `0 0 calc(${100 / multiLimit}%)` : "1 1 280px", minWidth: 0 }}>
             <DesignerBlock block={block} darkBg={darkBg} />
           </div>

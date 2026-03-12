@@ -8,14 +8,27 @@ interface Props {
   config: ScrollStageConfig;
   multiLimit: number;
   children: React.ReactNode;
+  /** Section padding values — applied to the content column only */
+  contentPaddingTop?: number;
+  contentPaddingBottom?: number;
+  /** Called whenever the active zone changes — lets parent sync content filtering */
+  onActiveZoneChange?: (zone: number) => void;
 }
 
-export default function ScrollStageWrapper({ config, multiLimit, children }: Props) {
+export default function ScrollStageWrapper({
+  config,
+  multiLimit,
+  children,
+  contentPaddingTop = 100,
+  contentPaddingBottom = 100,
+  onActiveZoneChange,
+}: Props) {
   const [activeZone, setActiveZone] = useState(0);
+  const [contentOpacity, setContentOpacity] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  // Store section top offset so ScrollStageTrack can compute parallax
   const sectionTopRef = useRef<number>(0);
+  const prevZoneRef = useRef(0);
 
   // Mobile detection via matchMedia — avoids SSR mismatch
   useEffect(() => {
@@ -26,47 +39,86 @@ export default function ScrollStageWrapper({ config, multiLimit, children }: Pro
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  // Record the section's top offset once mounted (stable unless page reflows)
-  useEffect(() => {
+  const getScroller = () =>
+    (document.getElementById('snap-container') as HTMLElement | null) ?? document.documentElement;
+
+  const updateSectionTop = () => {
     if (!wrapperRef.current) return;
-    const update = () => {
-      sectionTopRef.current = (wrapperRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY;
-    };
-    update();
-    window.addEventListener('resize', update, { passive: true });
-    return () => window.removeEventListener('resize', update);
+    const scroller = getScroller();
+    const scrollerTop = scroller === document.documentElement ? 0 : scroller.getBoundingClientRect().top;
+    const wrapperTop = wrapperRef.current.getBoundingClientRect().top;
+    const scrollTop = scroller === document.documentElement ? window.scrollY : scroller.scrollTop;
+    sectionTopRef.current = wrapperTop - scrollerTop + scrollTop;
+  };
+
+  useEffect(() => {
+    updateSectionTop();
+    window.addEventListener('resize', updateSectionTop, { passive: true });
+    return () => window.removeEventListener('resize', updateSectionTop);
   }, []);
 
-  // Zone detection via scroll position — avoids IntersectionObserver threshold edge cases
+  // Zone detection via scroll position
   useEffect(() => {
     if (isMobile) return;
+    const scroller = getScroller();
     const handleScroll = () => {
+      updateSectionTop();
       const sectionTop = sectionTopRef.current;
       const zoneH = window.innerHeight;
-      const scrollY = window.scrollY;
-      const relScroll = scrollY - sectionTop;
-      // Active zone = which 100vh screen the user's viewport midpoint is in
+      const scrollTop = scroller === document.documentElement ? window.scrollY : scroller.scrollTop;
+      const relScroll = scrollTop - sectionTop;
       const mid = relScroll + zoneH * 0.5;
       const zone = Math.max(0, Math.min(multiLimit - 1, Math.floor(mid / zoneH)));
-      setActiveZone(zone);
+
+      if (zone !== prevZoneRef.current) {
+        // Cross-fade content on zone change
+        setContentOpacity(0);
+        setTimeout(() => {
+          setActiveZone(zone);
+          prevZoneRef.current = zone;
+          onActiveZoneChange?.(zone);
+          setContentOpacity(1);
+        }, 150);
+      }
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    const target: EventTarget = scroller === document.documentElement ? window : scroller;
+    target.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isMobile, multiLimit]);
+    return () => target.removeEventListener('scroll', handleScroll);
+  }, [isMobile, multiLimit, onActiveZoneChange]);
 
-  const side = config.side || 'right';
+  const globalSide = config.side || 'right';
   const zones = config.zones || [];
+  // Only use sideOverride that doesn't flip mid-section — use active zone's override
+  const side = zones[activeZone]?.sideOverride || globalSide;
 
-  // On mobile — render children only, no scroll stage
   if (isMobile) {
     return <>{children}</>;
   }
 
+  // The outer wrapper is exactly multiLimit * 100vh tall — this is the scroll spacer.
+  // Both columns stretch to fill it via alignItems: stretch. Sticky children inside each
+  // column then scroll normally against #snap-container.
+  const zoneH = `${multiLimit * 100}vh`;
+
   const contentCol = (
     <div style={{ flex: '0 0 60%', minWidth: 0, position: 'relative' }}>
-      {children}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        height: '100vh',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        paddingTop: contentPaddingTop,
+        paddingBottom: contentPaddingBottom,
+        opacity: contentOpacity,
+        transition: 'opacity 150ms ease',
+      }}>
+        {children}
+      </div>
     </div>
   );
 
@@ -76,6 +128,7 @@ export default function ScrollStageWrapper({ config, multiLimit, children }: Pro
         zones={zones}
         activeZone={activeZone}
         sectionTopRef={sectionTopRef}
+        scrollMode={config.scrollMode ?? 'snap'}
       />
     </div>
   );
@@ -83,8 +136,26 @@ export default function ScrollStageWrapper({ config, multiLimit, children }: Pro
   return (
     <div
       ref={wrapperRef}
-      style={{ display: 'flex', alignItems: 'flex-start', width: '100%' }}
+      style={{ display: 'flex', alignItems: 'stretch', width: '100%', height: zoneH, position: 'relative' }}
     >
+      {/* Zone snap markers — give #snap-container a snap point at each zone boundary.
+          Zone 0 is covered by the section element's own scroll-snap-align: start.
+          Zones 1..N need explicit markers so mandatory snap doesn't skip them. */}
+      {Array.from({ length: multiLimit }, (_, i) => i > 0 && (
+        <div
+          key={`snap-zone-${i}`}
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: `${i * 100}vh`,
+            left: 0,
+            width: '100%',
+            height: 1,
+            scrollSnapAlign: 'start',
+            pointerEvents: 'none',
+          }}
+        />
+      ))}
       {side === 'right'
         ? <>{contentCol}{trackCol}</>
         : <>{trackCol}{contentCol}</>

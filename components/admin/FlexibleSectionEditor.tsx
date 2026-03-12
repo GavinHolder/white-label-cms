@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import type { FlexibleSection, FlexibleElement, FlexibleAnimationType } from "@/types/section";
 import { defaultScrollStage, defaultZone } from "@/components/sections/scroll-stage/types";
-import type { ScrollStageConfig, ScrollStageZoneConfig } from "@/components/sections/scroll-stage/types";
+import type { ScrollStageConfig, ScrollStageZoneConfig, ScrollStageZoneImageConfig } from "@/components/sections/scroll-stage/types";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -1092,8 +1092,8 @@ function ScrollStageTab({
 
   const updateConfig = (patch: Partial<ScrollStageConfig>) => onChange({ ...config, ...patch });
 
-  const updateZone = (idx: number, patch: Partial<ScrollStageZoneConfig>) => {
-    const zones = config.zones.map((z, i) => (i === idx ? { ...z, ...patch } : z));
+  const updateZone = (idx: number, patch: Partial<ScrollStageZoneImageConfig>) => {
+    const zones = config.zones.map((z, i) => (i === idx ? { ...z, ...patch } as ScrollStageZoneConfig : z));
     updateConfig({ zones });
   };
 
@@ -1161,7 +1161,7 @@ function ScrollStageTab({
           </div>
 
           {/* Zone configs */}
-          {config.zones.map((zone, idx) => (
+          {config.zones.map((zoneRaw, idx) => { const zone = zoneRaw as ScrollStageZoneImageConfig; return (
             <div key={idx} className="col-12">
               <div className="card border-secondary">
                 <div className="card-header d-flex justify-content-between align-items-center py-2 bg-secondary bg-opacity-10">
@@ -1290,7 +1290,7 @@ function ScrollStageTab({
                 </div>
               </div>
             </div>
-          ))}
+          ); })}
 
           {/* Add zone */}
           <div className="col-12">

@@ -578,7 +578,7 @@ function FooterRenderer({ section }: { section: FooterSection }) {
       style={{
         ...backgroundStyles,
         "--section-bg": bgColor,
-        "--section-pt": `${paddingTop ?? 80}px`,
+        "--section-pt": `${paddingTop ?? 100}px`,
         "--section-pb": `${paddingBottom ?? 40}px`,
       } as React.CSSProperties}
     >

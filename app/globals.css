@@ -62,6 +62,11 @@ body:has(#snap-container) {
   scroll-behavior: smooth;
   position: relative;
   width: 100%;
+  /* Hide native scrollbar — CMS uses custom scroll buttons instead */
+  scrollbar-width: none;
+}
+#snap-container::-webkit-scrollbar {
+  display: none;
 }
 
 /* ===== SECTION STYLING (matching prototype exactly) ===== */

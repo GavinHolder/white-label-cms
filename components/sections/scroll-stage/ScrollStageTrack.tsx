@@ -1,22 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ScrollStageZoneConfig } from "./types";
+import type { ScrollStageZoneConfig, ScrollStageZoneImageConfig, ScrollStageZoneThreeConfig } from "./types";
+import ScrollStageThreeScene from "./ScrollStageThreeScene";
 
 interface Props {
   zones: ScrollStageZoneConfig[];
   activeZone: number;
   sectionTopRef: React.RefObject<number>;
+  /** "snap" = cross-fade only at zone boundary; "smooth" = continuous cross-fade based on scroll */
+  scrollMode?: 'snap' | 'smooth';
 }
 
-export default function ScrollStageTrack({ zones, activeZone, sectionTopRef }: Props) {
+export default function ScrollStageTrack({ zones, activeZone, sectionTopRef, scrollMode = 'snap' }: Props) {
   const [visibleZone, setVisibleZone] = useState(activeZone);
   const [opacity, setOpacity] = useState(1);
   const prevZone = useRef(activeZone);
   const [parallaxOffset, setParallaxOffset] = useState(0);
 
-  // Cross-fade when active zone changes
+  // --- SNAP MODE: Cross-fade only when active zone crosses a boundary ---
   useEffect(() => {
+    if (scrollMode !== 'snap') return;
     if (activeZone === prevZone.current) return;
     const visual = zones[activeZone];
     const duration = (visual?.transitionDuration ?? 400) / 2;
@@ -28,111 +32,133 @@ export default function ScrollStageTrack({ zones, activeZone, sectionTopRef }: P
       setOpacity(1);
     }, duration);
     return () => clearTimeout(timer);
-  }, [activeZone, zones]);
+  }, [activeZone, zones, scrollMode]);
 
-  // Parallax scroll handler
+  // --- SMOOTH MODE: Continuously interpolate opacity based on scroll progress ---
+  const [smoothProgress, setSmoothProgress] = useState(0);
+
   useEffect(() => {
+    if (scrollMode !== 'smooth') return;
+    const scroller = document.getElementById('snap-container');
+    const getScrollTop = () => scroller ? scroller.scrollTop : window.scrollY;
+
     const handleScroll = () => {
       const sectionTop = sectionTopRef.current ?? 0;
       const zoneH = window.innerHeight;
-      const scrollY = window.scrollY;
-      const zoneTop = sectionTop + visibleZone * zoneH;
-      const progress = (scrollY - zoneTop) / zoneH; // 0 → 1
+      const scrollTop = getScrollTop();
+      const relScroll = scrollTop - sectionTop;
+      const rawZone = relScroll / zoneH;
+      const clampedZone = Math.max(0, Math.min(zones.length - 1, rawZone));
 
-      const config = zones[visibleZone];
+      const fromZone = Math.floor(clampedZone);
+      const progress = clampedZone - fromZone;
+
+      const BLEND_START = 0.7;
+      if (progress >= BLEND_START) {
+        const blendProgress = (progress - BLEND_START) / (1 - BLEND_START);
+        const toZone = Math.min(zones.length - 1, fromZone + 1);
+        setVisibleZone(fromZone);
+        prevZone.current = toZone;
+        setSmoothProgress(blendProgress);
+      } else {
+        setVisibleZone(fromZone);
+        prevZone.current = fromZone;
+        setSmoothProgress(0);
+      }
+    };
+
+    const target: EventTarget = scroller ?? window;
+    target.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => target.removeEventListener('scroll', handleScroll);
+  }, [scrollMode, zones, sectionTopRef]);
+
+  // Parallax scroll handler (image zones only)
+  useEffect(() => {
+    const currentConfig = zones[visibleZone];
+    if (currentConfig?.visualType !== 'image') return;
+
+    const scroller = document.getElementById('snap-container');
+    const getScrollTop = () => scroller ? scroller.scrollTop : window.scrollY;
+
+    const handleScroll = () => {
+      const sectionTop = sectionTopRef.current ?? 0;
+      const zoneH = window.innerHeight;
+      const scrollTop = getScrollTop();
+      const zoneTop = sectionTop + visibleZone * zoneH;
+      const progress = (scrollTop - zoneTop) / zoneH;
+
+      const config = zones[visibleZone] as ScrollStageZoneImageConfig;
       const factor = config?.parallaxFactor ?? 1.3;
       const dir = config?.parallaxDirection ?? 'up';
-      const maxOffset = 50; // px — image oversized by 2× this
+      const maxOffset = 50;
       const rawOffset = (progress - 0.5) * factor * maxOffset;
       setParallaxOffset(dir === 'up' ? -rawOffset : rawOffset);
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll(); // run once on mount / zone change
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [visibleZone, zones, sectionTopRef]);
+    const target: EventTarget = scroller ?? window;
+    target.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => target.removeEventListener('scroll', handleScroll);
+  }, [visibleZone, zones, sectionTopRef, scrollMode]);
 
-  const visual = zones[visibleZone];
-  const duration = (zones[activeZone]?.transitionDuration ?? 400) / 2;
+  const currentZone = zones[visibleZone];
+  const nextZone = scrollMode === 'smooth' ? zones[prevZone.current] : null;
+  const snapDuration = (zones[activeZone]?.transitionDuration ?? 400) / 2;
+
+  // Image style factory
+  const imgStyle = (zone: ScrollStageZoneImageConfig, extraOpacity: number, offset: number): React.CSSProperties => ({
+    position: 'absolute',
+    inset: `-${50 + 10}px`,
+    width: `calc(100% + ${(50 + 10) * 2}px)`,
+    height: `calc(100% + ${(50 + 10) * 2}px)`,
+    objectFit: zone.objectFit ?? 'cover',
+    objectPosition: zone.objectPosition ?? 'center',
+    transform: `translateY(${offset}px)`,
+    opacity: extraOpacity,
+    transition: scrollMode === 'snap' ? `opacity ${snapDuration}ms ease` : 'none',
+    willChange: 'transform, opacity',
+  });
+
+  const placeholder = (
+    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', gap: 8 }}>
+      <i className="bi bi-image" style={{ fontSize: 32, color: 'rgba(255,255,255,0.2)' }} />
+      <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'system-ui' }}>
+        Zone {visibleZone + 1} — no image set
+      </span>
+    </div>
+  );
+
+  const renderZone = (zone: ScrollStageZoneConfig | null, extraOpacity: number, offset: number, key: string) => {
+    if (!zone) return null;
+    if (zone.visualType === 'threejs') {
+      return (
+        <ScrollStageThreeScene
+          key={key}
+          zone={zone as ScrollStageZoneThreeConfig}
+          opacity={extraOpacity}
+          sectionTopRef={sectionTopRef}
+        />
+      );
+    }
+    const imgZone = zone as ScrollStageZoneImageConfig;
+    if (!imgZone.src) return placeholder;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img key={key} src={imgZone.src} alt={imgZone.alt ?? ''} style={imgStyle(imgZone, extraOpacity, offset)} />
+    );
+  };
 
   return (
-    <div
-      style={{
-        position: 'sticky',
-        top: 0,
-        height: '100vh',
-        width: '100%',
-        overflow: 'hidden',
-        alignSelf: 'flex-start',
-      }}
-    >
-      {visual?.src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={visual.src}
-          alt={visual.alt ?? ''}
-          style={{
-            position: 'absolute',
-            // Oversized so parallax movement doesn't show edges
-            inset: `-${50 + 10}px`,
-            width: `calc(100% + ${(50 + 10) * 2}px)`,
-            height: `calc(100% + ${(50 + 10) * 2}px)`,
-            objectFit: visual.objectFit ?? 'cover',
-            objectPosition: visual.objectPosition ?? 'center',
-            transform: `translateY(${parallaxOffset}px)`,
-            opacity,
-            transition: `opacity ${duration}ms ease`,
-            willChange: 'transform, opacity',
-          }}
-        />
-      ) : (
-        /* Empty state placeholder */
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
-            gap: 8,
-          }}
-        >
-          <i className="bi bi-image" style={{ fontSize: 32, color: 'rgba(255,255,255,0.2)' }} />
-          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', fontFamily: 'system-ui' }}>
-            Zone {visibleZone + 1} — no image set
-          </span>
-        </div>
-      )}
+    <div style={{ position: 'sticky', top: 0, height: '100vh', width: '100%', overflow: 'hidden', alignSelf: 'flex-start' }}>
+      {/* Current / departing zone */}
+      {renderZone(currentZone ?? null, scrollMode === 'smooth' ? 1 - smoothProgress : opacity, parallaxOffset, `zone-${visibleZone}`)}
 
-      {/* Zone indicator dots */}
-      {zones.length > 1 && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 24,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            gap: 6,
-            zIndex: 2,
-          }}
-        >
-          {zones.map((_, i) => (
-            <div
-              key={i}
-              style={{
-                width: i === visibleZone ? 20 : 6,
-                height: 6,
-                borderRadius: 3,
-                background: i === visibleZone ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)',
-                transition: 'width 0.3s ease, background 0.3s ease',
-              }}
-            />
-          ))}
-        </div>
-      )}
+      {/* Arriving zone (smooth mode only) */}
+      {scrollMode === 'smooth' && nextZone && smoothProgress > 0 &&
+        renderZone(nextZone, smoothProgress, parallaxOffset, `zone-next-${prevZone.current}`)
+      }
+
     </div>
   );
 }

@@ -14,8 +14,8 @@ import type { AnimBgConfig } from "@/lib/anim-bg/types";
 import { DEFAULT_ANIM_BG_CONFIG } from "@/lib/anim-bg/defaults";
 import LowerThirdTab from "@/components/admin/LowerThirdTab";
 import MotionElementEditor, { createDefaultMotionElement } from "@/components/admin/MotionElementEditor";
-import { defaultScrollStage, defaultZone } from "@/components/sections/scroll-stage/types";
-import type { ScrollStageConfig, ScrollStageZoneConfig } from "@/components/sections/scroll-stage/types";
+import { defaultScrollStage, defaultZone, defaultThreeZone } from "@/components/sections/scroll-stage/types";
+import type { ScrollStageConfig, ScrollStageZoneConfig, ScrollStageZoneImageConfig, ScrollStageZoneThreeConfig } from "@/components/sections/scroll-stage/types";
 import { DEFAULT_LOWER_THIRD } from "@/lib/lower-third-presets";
 import {
   PRESET_COLORS,
@@ -428,65 +428,54 @@ export default function FlexibleSectionEditorModal({
               </div>
 
               {/* Tabs */}
-              <ul className="nav nav-tabs mb-4">
-                {(["content", "background", "animation", "overlay", "triangle", "lower-third", "motion", "spacing"] as ActiveTab[]).map((tab) => {
-                  const icons: Record<string, string> = {
-                    content: "bi-grid-1x2",
-                    background: "bi-image",
-                    animation: "bi-stars",
-                    overlay: "bi-layers",
-                    triangle: "bi-triangle",
-                    "lower-third": "bi-layout-bottom",
-                    motion: "bi-film",
-                    spacing: "bi-arrows-expand-vertical",
-                  };
-                  const labels: Record<string, string> = {
-                    content: "Content",
-                    background: "Background",
-                    animation: "Animation",
-                    overlay: "Text Overlay",
-                    triangle: "Section Into",
-                    "lower-third": "Lower Third",
-                    motion: "Motion",
-                    spacing: "Spacing",
-                  };
-                  return (
-                    <li className="nav-item" key={tab}>
-                      <button
-                        className={`nav-link ${activeTab === tab ? "active" : ""}`}
-                        onClick={() => setActiveTab(tab)}
-                      >
-                        <i className={`bi ${icons[tab]} me-2`} />
-                        {labels[tab]}
-                      </button>
-                    </li>
-                  );
-                })}
-                {/* Scroll Stage tab — only in multi mode */}
-                {contentMode === "multi" && (
-                  <li className="nav-item">
-                    <button
-                      className={`nav-link ${activeTab === "scroll-stage" ? "active" : ""} position-relative`}
-                      onClick={() => setActiveTab("scroll-stage")}
-                    >
-                      <i className="bi bi-layers me-2" />
-                      Scroll Stage
-                      {scrollStage?.enabled && (
-                        <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style={{ fontSize: "9px" }}>ON</span>
-                      )}
-                    </button>
-                  </li>
-                )}
-                <li className="nav-item ms-auto">
+              <div className="d-flex align-items-center border-bottom mb-4" style={{ gap: 0 }}>
+                <div className="d-flex flex-nowrap overflow-auto" style={{ flex: 1, scrollbarWidth: "none" }}>
+                {([
+                  { id: "content",       icon: "bi-grid-1x2",              label: "Content"      },
+                  { id: "background",    icon: "bi-image",                  label: "Background"   },
+                  { id: "animation",     icon: "bi-stars",                  label: "Animation"    },
+                  { id: "overlay",       icon: "bi-type",                   label: "Overlay"      },
+                  { id: "triangle",      icon: "bi-triangle",               label: "Intro"        },
+                  { id: "lower-third",   icon: "bi-layout-bottom",          label: "Lower Third"  },
+                  { id: "motion",        icon: "bi-film",                   label: "Motion"       },
+                  { id: "spacing",       icon: "bi-arrows-expand-vertical", label: "Spacing"      },
+                  ...(contentMode === "multi" ? [{ id: "scroll-stage", icon: "bi-layers-half", label: "Scroll Stage" }] : []),
+                ] as { id: ActiveTab; icon: string; label: string }[]).map(({ id, icon, label }) => (
                   <button
-                    className={`nav-link ${activeTab === "preview" ? "active text-success" : "text-primary"}`}
+                    key={id}
+                    type="button"
+                    className="btn btn-link text-decoration-none px-3 py-2 border-0 rounded-0 text-nowrap"
+                    style={{
+                      fontSize: "0.82rem",
+                      color: activeTab === id ? "#0d6efd" : "#6c757d",
+                      borderBottom: activeTab === id ? "2px solid #0d6efd" : "2px solid transparent",
+                      fontWeight: activeTab === id ? 600 : 400,
+                      marginBottom: "-1px",
+                    }}
+                    onClick={() => setActiveTab(id)}
+                  >
+                    <i className={`bi ${icon} me-1`} />
+                    {label}
+                  </button>
+                ))}
+                </div>
+                {/* Live Preview — pinned right */}
+                <button
+                    className={`btn btn-link text-decoration-none px-3 py-2 border-0 rounded-0 text-nowrap ms-auto`}
+                    style={{
+                      fontSize: "0.82rem",
+                      color: activeTab === "preview" ? "#198754" : "#0d6efd",
+                      borderBottom: activeTab === "preview" ? "2px solid #198754" : "2px solid transparent",
+                      fontWeight: activeTab === "preview" ? 600 : 400,
+                      marginBottom: "-1px",
+                      flexShrink: 0,
+                    }}
                     onClick={() => setActiveTab("preview")}
                   >
-                    <i className="bi bi-eye me-2" />
-                    Live Preview
+                    <i className="bi bi-eye me-1" />
+                    Preview
                   </button>
-                </li>
-              </ul>
+              </div>
 
               {/* ══ CONTENT TAB ════════════════════════════════════════════ */}
               {activeTab === "content" && (
@@ -2239,12 +2228,21 @@ function ModalScrollStageTab({
 
   const updateConfig = (patch: Partial<ScrollStageConfig>) => onChange({ ...config, ...patch });
 
-  const updateZone = (idx: number, patch: Partial<ScrollStageZoneConfig>) => {
-    const zones = config.zones.map((z, i) => (i === idx ? { ...z, ...patch } : z));
+  const updateZone = (idx: number, patch: Partial<ScrollStageZoneImageConfig | ScrollStageZoneThreeConfig>) => {
+    const zones = config.zones.map((z, i) => (i === idx ? { ...z, ...patch } as ScrollStageZoneConfig : z));
     updateConfig({ zones });
   };
 
   const addZone = () => updateConfig({ zones: [...config.zones, defaultZone()] });
+
+  const switchZoneType = (idx: number, type: 'image' | 'threejs') => {
+    const current = config.zones[idx];
+    const replacement = type === 'threejs'
+      ? { ...defaultThreeZone(), sideOverride: current.sideOverride ?? null, transitionDuration: current.transitionDuration ?? 400 }
+      : { ...defaultZone(), sideOverride: current.sideOverride ?? null, transitionDuration: current.transitionDuration ?? 400 };
+    const zones = config.zones.map((z, i) => i === idx ? replacement : z);
+    updateConfig({ zones });
+  };
 
   const removeZone = (idx: number) => {
     if (config.zones.length <= 1) return;
@@ -2276,6 +2274,32 @@ function ModalScrollStageTab({
 
       {config.enabled && (
         <>
+          {/* Scroll mode */}
+          <div className="col-12">
+            <label className="form-label fw-semibold">Scroll Transition Mode</label>
+            <div className="d-flex gap-2">
+              {([
+                { value: "snap",   label: "Snappy",  icon: "bi-skip-forward-fill", desc: "Image switches instantly at each zone boundary" },
+                { value: "smooth", label: "Smooth",  icon: "bi-water",             desc: "Image fades gradually as you scroll between zones" },
+              ] as const).map(({ value, label, icon, desc }) => (
+                <button
+                  key={value}
+                  type="button"
+                  title={desc}
+                  className={`btn btn-sm ${(config.scrollMode ?? "snap") === value ? "btn-primary" : "btn-outline-secondary"}`}
+                  onClick={() => updateConfig({ scrollMode: value })}
+                >
+                  <i className={`bi ${icon} me-1`} />{label}
+                </button>
+              ))}
+            </div>
+            <p className="form-text">
+              {(config.scrollMode ?? "snap") === "smooth"
+                ? "Zones blend continuously — the next image fades in during the final 30% of each zone."
+                : "Zones snap — image cross-fades only when you cross a zone boundary."}
+            </p>
+          </div>
+
           <div className="col-12">
             <label className="form-label fw-semibold">Default Track Side</label>
             <div className="d-flex gap-2">
@@ -2324,71 +2348,191 @@ function ModalScrollStageTab({
                 </div>
                 <div className="card-body">
                   <div className="row g-2">
+                    {/* Visual type toggle */}
                     <div className="col-12">
-                      <label className="form-label small fw-semibold">Image URL</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm"
-                        placeholder="https://... or /images/..."
-                        value={zone.src}
-                        onChange={(e) => updateZone(idx, { src: e.target.value })}
-                      />
-                    </div>
-                    <div className="col-md-6">
-                      <label className="form-label small fw-semibold">Alt Text</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm"
-                        value={zone.alt ?? ""}
-                        onChange={(e) => updateZone(idx, { alt: e.target.value })}
-                      />
-                    </div>
-                    <div className="col-md-6">
-                      <label className="form-label small fw-semibold">Object Fit</label>
-                      <select
-                        className="form-select form-select-sm"
-                        value={zone.objectFit ?? "cover"}
-                        onChange={(e) => updateZone(idx, { objectFit: e.target.value as "cover" | "contain" })}
-                      >
-                        <option value="cover">Cover</option>
-                        <option value="contain">Contain</option>
-                      </select>
-                    </div>
-                    <div className="col-md-4">
-                      <label className="form-label small fw-semibold">Parallax Factor</label>
-                      <input
-                        type="number" min={0} max={3} step={0.1}
-                        className="form-control form-control-sm"
-                        value={zone.parallaxFactor ?? 1.3}
-                        onChange={(e) => updateZone(idx, { parallaxFactor: Number(e.target.value) })}
-                      />
-                      <div className="form-text" style={{ fontSize: "10px" }}>1 = static · 1.3 = default</div>
-                    </div>
-                    <div className="col-md-4">
-                      <label className="form-label small fw-semibold">Direction</label>
-                      <div className="d-flex gap-1">
-                        {(["up", "down"] as const).map((dir) => (
+                      <label className="form-label small fw-semibold">Visual Type</label>
+                      <div className="d-flex gap-2">
+                        {([
+                          { value: "image", icon: "bi-image", label: "Image" },
+                          { value: "threejs", icon: "bi-cube", label: "3D Object" },
+                        ] as const).map(({ value, icon, label }) => (
                           <button
-                            key={dir}
+                            key={value}
                             type="button"
-                            className={`btn btn-sm ${(zone.parallaxDirection ?? "up") === dir ? "btn-primary" : "btn-outline-secondary"}`}
-                            onClick={() => updateZone(idx, { parallaxDirection: dir })}
+                            className={`btn btn-sm ${zone.visualType === value ? "btn-primary" : "btn-outline-secondary"}`}
+                            onClick={() => switchZoneType(idx, value)}
                           >
-                            <i className={`bi bi-arrow-${dir}`} />
+                            <i className={`bi ${icon} me-1`} />{label}
                           </button>
                         ))}
                       </div>
                     </div>
-                    <div className="col-md-4">
-                      <label className="form-label small fw-semibold">Transition (ms)</label>
-                      <input
-                        type="number" min={0} max={2000} step={50}
-                        className="form-control form-control-sm"
-                        value={zone.transitionDuration ?? 400}
-                        onChange={(e) => updateZone(idx, { transitionDuration: Number(e.target.value) })}
-                      />
-                    </div>
-                    <div className="col-md-6">
+
+                    {/* IMAGE fields */}
+                    {zone.visualType === "image" && (() => {
+                      const imgZone = zone as ScrollStageZoneImageConfig;
+                      return (<>
+                        <div className="col-12">
+                          <label className="form-label small fw-semibold">Image URL</label>
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            placeholder="https://... or /images/..."
+                            value={imgZone.src}
+                            onChange={(e) => updateZone(idx, { src: e.target.value })}
+                          />
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label small fw-semibold">Alt Text</label>
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            value={imgZone.alt ?? ""}
+                            onChange={(e) => updateZone(idx, { alt: e.target.value })}
+                          />
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label small fw-semibold">Object Fit</label>
+                          <select
+                            className="form-select form-select-sm"
+                            value={imgZone.objectFit ?? "cover"}
+                            onChange={(e) => updateZone(idx, { objectFit: e.target.value as "cover" | "contain" })}
+                          >
+                            <option value="cover">Cover</option>
+                            <option value="contain">Contain</option>
+                          </select>
+                        </div>
+                        <div className="col-md-4">
+                          <label className="form-label small fw-semibold">Parallax Factor</label>
+                          <input
+                            type="number" min={0} max={3} step={0.1}
+                            className="form-control form-control-sm"
+                            value={imgZone.parallaxFactor ?? 1.3}
+                            onChange={(e) => updateZone(idx, { parallaxFactor: Number(e.target.value) })}
+                          />
+                          <div className="form-text" style={{ fontSize: "10px" }}>1 = static · 1.3 = default</div>
+                        </div>
+                        <div className="col-md-4">
+                          <label className="form-label small fw-semibold">Direction</label>
+                          <div className="d-flex gap-1">
+                            {(["up", "down"] as const).map((dir) => (
+                              <button
+                                key={dir}
+                                type="button"
+                                className={`btn btn-sm ${(imgZone.parallaxDirection ?? "up") === dir ? "btn-primary" : "btn-outline-secondary"}`}
+                                onClick={() => updateZone(idx, { parallaxDirection: dir })}
+                              >
+                                <i className={`bi bi-arrow-${dir}`} />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="col-md-4">
+                          <label className="form-label small fw-semibold">Transition (ms)</label>
+                          <input
+                            type="number" min={0} max={2000} step={50}
+                            className="form-control form-control-sm"
+                            value={imgZone.transitionDuration ?? 400}
+                            onChange={(e) => updateZone(idx, { transitionDuration: Number(e.target.value) })}
+                          />
+                        </div>
+                        {imgZone.src && (
+                          <div className="col-12">
+                            <div style={{ height: 80, overflow: "hidden", borderRadius: 6, border: "1px solid #dee2e6" }}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={imgZone.src}
+                                alt={imgZone.alt ?? ""}
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </>);
+                    })()}
+
+                    {/* THREE.JS fields */}
+                    {zone.visualType === "threejs" && (() => {
+                      const threeZone = zone as ScrollStageZoneThreeConfig;
+                      return (<>
+                        <div className="col-md-6">
+                          <label className="form-label small fw-semibold">Shape</label>
+                          <select
+                            className="form-select form-select-sm"
+                            value={threeZone.shape ?? "torusKnot"}
+                            onChange={(e) => updateZone(idx, { shape: e.target.value as ScrollStageZoneThreeConfig["shape"] })}
+                          >
+                            <option value="torusKnot">Torus Knot</option>
+                            <option value="sphere">Sphere</option>
+                            <option value="torus">Torus</option>
+                            <option value="icosahedron">Icosahedron</option>
+                            <option value="box">Box</option>
+                          </select>
+                        </div>
+                        <div className="col-md-3">
+                          <label className="form-label small fw-semibold">Colour</label>
+                          <input type="color" className="form-control form-control-sm p-1"
+                            value={threeZone.color ?? "#6366f1"}
+                            onChange={(e) => updateZone(idx, { color: e.target.value })}
+                          />
+                        </div>
+                        <div className="col-md-3">
+                          <label className="form-label small fw-semibold">Emissive</label>
+                          <input type="color" className="form-control form-control-sm p-1"
+                            value={threeZone.emissive ?? "#1e1b4b"}
+                            onChange={(e) => updateZone(idx, { emissive: e.target.value })}
+                          />
+                        </div>
+                        <div className="col-md-4">
+                          <label className="form-label small fw-semibold">Rotation Speed</label>
+                          <input type="number" min={0} max={5} step={0.1} className="form-control form-control-sm"
+                            value={threeZone.rotationSpeed ?? 1}
+                            onChange={(e) => updateZone(idx, { rotationSpeed: Number(e.target.value) })}
+                          />
+                        </div>
+                        <div className="col-md-4">
+                          <label className="form-label small fw-semibold">Scroll Spin</label>
+                          <input type="number" min={0} max={10} step={0.5} className="form-control form-control-sm"
+                            value={threeZone.scrollSpin ?? 2}
+                            onChange={(e) => updateZone(idx, { scrollSpin: Number(e.target.value) })}
+                          />
+                          <div className="form-text" style={{ fontSize: "10px" }}>Scroll-driven rotation intensity</div>
+                        </div>
+                        <div className="col-md-4">
+                          <label className="form-label small fw-semibold">Transition (ms)</label>
+                          <input type="number" min={0} max={2000} step={50} className="form-control form-control-sm"
+                            value={threeZone.transitionDuration ?? 400}
+                            onChange={(e) => updateZone(idx, { transitionDuration: Number(e.target.value) })}
+                          />
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label small fw-semibold">Background</label>
+                          <input type="text" className="form-control form-control-sm"
+                            placeholder="Leave empty for transparent"
+                            value={threeZone.bgColor ?? ""}
+                            onChange={(e) => updateZone(idx, { bgColor: e.target.value })}
+                          />
+                        </div>
+                        <div className="col-md-6 d-flex align-items-end">
+                          <div className="form-check mb-1">
+                            <input type="checkbox" className="form-check-input" id={`wire-${idx}`}
+                              checked={threeZone.wireframe ?? false}
+                              onChange={(e) => updateZone(idx, { wireframe: e.target.checked })}
+                            />
+                            <label className="form-check-label small" htmlFor={`wire-${idx}`}>Wireframe</label>
+                          </div>
+                        </div>
+                        <div className="col-12">
+                          <div style={{ padding: "8px 10px", background: "#f0f4ff", borderRadius: 6, fontSize: "0.75rem", color: "#6366f1" }}>
+                            <i className="bi bi-cube me-1" />3D scene renders at runtime — preview on the live page
+                          </div>
+                        </div>
+                      </>);
+                    })()}
+
+                    {/* Common: side override */}
+                    <div className="col-12">
                       <label className="form-label small fw-semibold">Side Override</label>
                       <select
                         className="form-select form-select-sm"
@@ -2400,19 +2544,6 @@ function ModalScrollStageTab({
                         <option value="right">Right</option>
                       </select>
                     </div>
-                    {zone.src && (
-                      <div className="col-12">
-                        <div style={{ height: 80, overflow: "hidden", borderRadius: 6, border: "1px solid #dee2e6" }}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={zone.src}
-                            alt={zone.alt ?? ""}
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                          />
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
