@@ -195,7 +195,13 @@
     <div class="canvas-area">
       <div class="canvas-toolbar">
         <div class="tools-strip">
-          <button class="tool-btn-h active" data-tool="select" title="Select &amp; Move (V)"><i class="bi bi-cursor"></i></button>
+          <div style="position:relative;display:inline-flex;align-items:stretch;">
+            <button class="tool-btn-h active" data-tool="select" title="Select &amp; Move (V)" style="border-radius:6px 0 0 6px;"><i class="bi bi-cursor"></i></button><button id="btn-select-mode-caret" title="Tool behaviour" style="border:none;background:rgba(0,0,0,0.04);padding:0 4px;font-size:9px;line-height:1;color:#6c757d;cursor:pointer;border-radius:0 6px 6px 0;border-left:1px solid rgba(0,0,0,0.08);">▾</button>
+            <div id="select-mode-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:white;border:1px solid #dee2e6;border-radius:7px;box-shadow:0 4px 14px rgba(0,0,0,0.13);z-index:9999;min-width:168px;padding:4px 0;font-size:12px;">
+              <div class="sel-mode-opt" data-mode="auto" style="padding:7px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;"><i class="bi bi-cursor" style="width:14px;"></i><span>Auto-select</span><span id="sel-mode-check-auto" style="margin-left:auto;color:#6366f1;display:none;">✓</span></div>
+              <div class="sel-mode-opt" data-mode="sticky" style="padding:7px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;"><i class="bi bi-pin-angle" style="width:14px;"></i><span>Sticky tool</span><span id="sel-mode-check-sticky" style="margin-left:auto;color:#6366f1;display:none;">✓</span></div>
+            </div>
+          </div>
           <button class="tool-btn-h" data-tool="rectangle" title="Rectangle (R)"><i class="bi bi-square"></i></button>
           <button class="tool-btn-h" data-tool="ellipse" title="Ellipse (E)"><i class="bi bi-circle"></i></button>
           <button class="tool-btn-h" data-tool="line" title="Line (L)"><i class="bi bi-slash-lg"></i></button>
@@ -362,6 +368,7 @@
     function lxi(p,q,a,b){var A1=q.y-p.y,B1=p.x-q.x,C1=A1*p.x+B1*p.y,A2=b.y-a.y,B2=a.x-b.x,C2=A2*a.x+B2*a.y,det=A1*B2-A2*B1;return Math.abs(det)<1e-10?p:{x:(C1*B2-C2*B1)/det,y:(A1*C2-A2*C1)/det};}
     function shClip(subj,clip){var out=subj.slice();for(var i=0;i<clip.length;i++){if(!out.length)return [];var inp=out.slice();out=[];var A=clip[(i+clip.length-1)%clip.length],B=clip[i];for(var j=0;j<inp.length;j++){var P=inp[(j+inp.length-1)%inp.length],Q=inp[j];if(ptIn(Q,A,B)){if(!ptIn(P,A,B))out.push(lxi(P,Q,A,B));out.push(Q);}else if(ptIn(P,A,B))out.push(lxi(P,Q,A,B));}}return out;}
     // ── Layer factories ───────────────────────────────────────────────────────
+    var _stickyTool=false; // when true: stay on current tool after drawing instead of returning to select
     var _shapeColors=['#6366f1','#ec4899','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ef4444','#06b6d4','#84cc16','#f97316'];
     var _shapeColorIdx=0;
     function nextColor(){var c=_shapeColors[_shapeColorIdx%_shapeColors.length];_shapeColorIdx++;return c;}
@@ -603,7 +610,7 @@
       pvx.forEach(function(p,i){var near=polyState.cursorPt&&i===0&&polyState.verts.length>=3&&dist2(polyState.cursorPt,p)<near12;var c=svgNs('circle');c.setAttribute('cx',p.x);c.setAttribute('cy',p.y);c.setAttribute('r',near?r2:r1);c.setAttribute('fill',near?'#22c55e':(i===0?'#0d6efd':'#6366f1'));c.setAttribute('stroke','white');c.setAttribute('stroke-width',sw3);g.appendChild(c);});
       svgEl.appendChild(g);
     }
-    function commitPolygon(){if(polyState.verts.length<3){cancelPolygon();return;}pushHistory();var layer=mkPolygon(polyState.verts);var maxZ=state.element.layers.reduce(function(m,l){return Math.max(m,l.zIndex);},-1);layer.zIndex=maxZ+1;state.element.layers.push(layer);state.selectedLayerId=layer.id;polyState.verts=[];polyState.cursorPt=null;markDirty();renderAll();activateTool('select');}
+    function commitPolygon(){if(polyState.verts.length<3){cancelPolygon();return;}pushHistory();var layer=mkPolygon(polyState.verts);var maxZ=state.element.layers.reduce(function(m,l){return Math.max(m,l.zIndex);},-1);layer.zIndex=maxZ+1;state.element.layers.push(layer);state.selectedLayerId=layer.id;polyState.verts=[];polyState.cursorPt=null;markDirty();renderAll();if(!_stickyTool)activateTool('select');}
     function cancelPolygon(){polyState.verts=[];polyState.cursorPt=null;renderPolyGhost();}
     function activateTool(name){var btn=document.querySelector('.tool-btn-h[data-tool="'+name+'"]');if(btn)btn.click();}
     function snapPt(pt,doSnap){if(!doSnap||!state.gridSize)return pt;var g=state.gridSize;return{x:Math.round(pt.x/g)*g,y:Math.round(pt.y/g)*g};}
@@ -781,6 +788,8 @@
       if(!drawSt)return;
       var spt2=snapPt(pt,e.ctrlKey);drawSt.curX=spt2.x;drawSt.curY=spt2.y;
       var gx=Math.min(drawSt.startX,drawSt.curX),gy=Math.min(drawSt.startY,drawSt.curY),gw=Math.abs(drawSt.curX-drawSt.startX),gh=Math.abs(drawSt.curY-drawSt.startY);
+      // Shift = constrain to square (1:1 ratio), expand from origin corner
+      if(e.shiftKey&&(state.activeTool==='rectangle'||state.activeTool==='ellipse'||state.activeTool==='slot')){var gs=Math.max(gw,gh);gw=gs;gh=gs;if(drawSt.curX<drawSt.startX)gx=drawSt.startX-gs;if(drawSt.curY<drawSt.startY)gy=drawSt.startY-gs;}
       if(ghostEl){ghostEl.setAttribute('x',gx);ghostEl.setAttribute('y',gy);ghostEl.setAttribute('width',gw);ghostEl.setAttribute('height',gh);}
     });
     svgEl.addEventListener('pointerup',function(e){
@@ -837,6 +846,8 @@
       if(ghostEl){svgEl.removeChild(ghostEl);ghostEl=null;}
       var rawSX=drawSt.startX,rawSY=drawSt.startY,rawCX=drawSt.curX,rawCY=drawSt.curY;
       var x=Math.min(rawSX,rawCX),y=Math.min(rawSY,rawCY),w=Math.abs(rawCX-rawSX),h=Math.abs(rawCY-rawSY);
+      // Shift = constrain to square
+      if(e.shiftKey&&['rectangle','ellipse','slot'].indexOf(state.activeTool)>=0){var _cs=Math.max(w,h);if(rawCX<rawSX)x=rawSX-_cs;if(rawCY<rawSY)y=rawSY-_cs;w=_cs;h=_cs;}
       drawSt=null;
       if(w<4&&h<4)return;
       var px2=pct(x,CW),py2=pct(y,CH),pw=pct(w,CW),ph=pct(h,CH);
@@ -849,7 +860,7 @@
       else if(tool==='line')layer=mkLine(pct(rawSX,CW),pct(rawSY,CH),pct(rawCX,CW),pct(rawCY,CH));
       if(!layer)return;
       layer.zIndex=maxZ+1;state.element.layers.push(layer);state.selectedLayerId=layer.id;
-      markDirty();renderAll();activateTool('select');
+      markDirty();renderAll();if(!_stickyTool)activateTool('select');
     });
     // Cursor on hover
     svgEl.addEventListener('mousemove',function(e){
@@ -1500,6 +1511,31 @@
     // Alt key capture — intercept before browser opens menu (Windows)
     window.addEventListener('keydown',function(e){if(e.key==='Alt'){_altHeld=true;if(state.vertexEditLayerId){e.preventDefault();renderCanvas();}}},{capture:true});
     window.addEventListener('keyup',function(e){if(e.key==='Alt'){_altHeld=false;_vxDblClick={id:null,vi:-1,time:0};if(state.vertexEditLayerId)renderCanvas();}},{capture:true});
+    // ── Tool mode (auto-select vs sticky) ─────────────────────────────────────
+    function applyToolMode(mode){
+      _stickyTool=(mode==='sticky');
+      state.element.toolMode=mode;
+      var caret=document.getElementById('btn-select-mode-caret');
+      if(caret){caret.style.background=_stickyTool?'rgba(99,102,241,0.15)':'rgba(0,0,0,0.04)';caret.style.color=_stickyTool?'#6366f1':'#6c757d';caret.title=_stickyTool?'Sticky tool — click to change':'Auto-select — click to change';}
+      var ca=document.getElementById('sel-mode-check-auto'),cs=document.getElementById('sel-mode-check-sticky');
+      if(ca)ca.style.display=mode==='auto'?'inline':'none';
+      if(cs)cs.style.display=mode==='sticky'?'inline':'none';
+      var menu=document.getElementById('select-mode-menu');if(menu)menu.style.display='none';
+      markDirty();
+    }
+    var _toolMenuOpen=false;
+    document.getElementById('btn-select-mode-caret').addEventListener('click',function(e){
+      e.stopPropagation();
+      var menu=document.getElementById('select-mode-menu');
+      _toolMenuOpen=!_toolMenuOpen;menu.style.display=_toolMenuOpen?'block':'none';
+    });
+    document.querySelectorAll('.sel-mode-opt').forEach(function(opt){
+      opt.addEventListener('mouseenter',function(){opt.style.background='#f0f0ff';});
+      opt.addEventListener('mouseleave',function(){opt.style.background='';});
+      opt.addEventListener('click',function(e){e.stopPropagation();_toolMenuOpen=false;applyToolMode(opt.dataset.mode);});
+    });
+    document.addEventListener('click',function(){if(_toolMenuOpen){_toolMenuOpen=false;var menu=document.getElementById('select-mode-menu');if(menu)menu.style.display='none';}});
+    applyToolMode('auto'); // default on init
     // ── Sidebar toggles ───────────────────────────────────────────────────────
     document.getElementById('toggle-left').addEventListener('click',function(){var s=document.getElementById('sidebar-left'),ic=document.getElementById('toggle-left-icon');s.classList.toggle('collapsed');ic.className=s.classList.contains('collapsed')?'bi bi-chevron-right':'bi bi-chevron-left';});
     document.getElementById('toggle-right').addEventListener('click',function(){var s=document.getElementById('sidebar-right'),ic=document.getElementById('toggle-right-icon');s.classList.toggle('collapsed');ic.className=s.classList.contains('collapsed')?'bi bi-chevron-left':'bi bi-chevron-right';});
@@ -1576,7 +1612,7 @@
         _v3dClips = e.data.clips || [];
       }
       if(!e.data||e.data.type!=='VOLT_DESIGNER_LOAD')return;
-      var el=e.data.payload;state.element=Object.assign({},state.element,el);pushHistory();
+      var el=e.data.payload;state.element=Object.assign({},state.element,el);pushHistory();if(el.toolMode)applyToolMode(el.toolMode);
       document.getElementById('el-name').value=el.name||'New Design';document.getElementById('element-name-badge').textContent=el.name||'New Design';
       if(el.elementType)document.getElementById('el-type').value=el.elementType;
       if(el.mood)document.getElementById('el-mood').value=el.mood;
@@ -1603,6 +1639,7 @@
           document.getElementById('element-name-badge').textContent=saEl.name||'Test Design';
           if(saEl.elementType)document.getElementById('el-type').value=saEl.elementType;
           if(saEl.mood)document.getElementById('el-mood').value=saEl.mood;
+          if(saEl.toolMode)applyToolMode(saEl.toolMode);
           document.getElementById('el-public').checked=!!saEl.isPublic;
           var sw2=saEl.canvasWidth||800,sh2=saEl.canvasHeight||500;
           state.element.canvasWidth=sw2;state.element.canvasHeight=sh2;
