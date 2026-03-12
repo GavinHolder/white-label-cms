@@ -68,7 +68,10 @@ const menuItems: MenuItem[] = [
     id: "volt",
     label: "Volt Studio",
     icon: "bi-lightning-charge-fill",
-    href: "/admin/volt",
+    subItems: [
+      { id: "volt-vector", label: "Vector Designs", icon: "bi-vector-pen", href: "/admin/volt" },
+      { id: "volt-3d", label: "3D Assets", icon: "bi-box", href: "/admin/volt-3d" },
+    ],
   },
   {
     id: "users",
