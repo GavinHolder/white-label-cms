@@ -328,6 +328,19 @@
           <div id="v3d-section-assets"></div>
           <div id="v3d-section-clips"></div>
           <div id="v3d-section-versions"></div>
+          <div id="v3d-section-format" style="margin-top:10px;display:none;">
+            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">FORMAT OVERRIDE</div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span id="v3d-format-detected" style="font-size:10px;color:#94a3b8;font-style:italic;"></span>
+              <select id="v3d-format-select" style="flex:1;font-size:11px;border:1px solid #dee2e6;border-radius:4px;padding:2px 4px;">
+                <option value="auto">Auto-detect</option>
+                <option value="glb">GLB</option>
+                <option value="gltf">GLTF</option>
+                <option value="fbx">FBX</option>
+                <option value="obj">OBJ</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -352,6 +365,7 @@
     var _v3dViewerReady = false, _v3dPendingLoad = null;
     var _v3dCurrentAsset = null, _v3dCurrentVersion = null;
     var _v3dClips = [], _v3dActiveClip = null;
+    var _v3dFormatOverride = 'auto'; // 'auto' | 'glb' | 'gltf' | 'fbx' | 'obj'
     // ── Utilities ─────────────────────────────────────────────────────────────
     function nanoid(){return Math.random().toString(36).slice(2,11)+Math.random().toString(36).slice(2,11);}
     function dist2(a,b){return Math.sqrt((a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y));}
@@ -1581,6 +1595,11 @@
     // ── 3D Object modal ───────────────────────────────────────────────────────
     function openV3DModal() {
       document.getElementById('v3d-modal').classList.add('open');
+      // Reset format override on each open
+      _v3dFormatOverride = 'auto';
+      var fmtSel = document.getElementById('v3d-format-select');
+      if (fmtSel) fmtSel.value = 'auto';
+      document.getElementById('v3d-section-format').style.display = 'none';
       loadV3DAssets();
       var iframe = document.getElementById('v3d-iframe');
       if (!iframe.src || iframe.src === 'about:blank' || iframe.src === window.location.href) {
@@ -1696,7 +1715,17 @@
       approveBtn.style.display = version.isConfirmed ? '' : 'none';
       var defaultClip = animClips.find(function(c) { return c.isDefault; });
       _v3dActiveClip = (defaultClip || animClips[0] || {}).name || null;
-      var msg = { type: 'VOLT3D_LOAD', glbUrl: version.glbPath, lowRes: true, activeClip: _v3dActiveClip };
+      // Show format section + auto-detect label
+      var fmtSection = document.getElementById('v3d-section-format');
+      var fmtDetected = document.getElementById('v3d-format-detected');
+      var fmtSelect = document.getElementById('v3d-format-select');
+      if (fmtSection) {
+        fmtSection.style.display = '';
+        var ext = (version.glbPath || '').split('?')[0].split('.').pop().toLowerCase();
+        fmtDetected.textContent = 'Detected: ' + (ext || 'glb');
+        fmtSelect.value = _v3dFormatOverride;
+      }
+      var msg = { type: 'VOLT3D_LOAD', assetUrl: version.glbPath, glbUrl: version.glbPath, lowRes: true, activeClip: _v3dActiveClip, format: _v3dFormatOverride };
       var iframe = document.getElementById('v3d-iframe');
       if (_v3dViewerReady && iframe.contentWindow) {
         iframe.contentWindow.postMessage(msg, '*');
@@ -2369,6 +2398,13 @@
     document.getElementById('v3d-modal').addEventListener('click', function(e) {
       if (e.target === this) closeV3DModal();
     });
+    // Format override select — re-loads the current version with the new format
+    document.getElementById('v3d-format-select').addEventListener('change', function() {
+      _v3dFormatOverride = this.value;
+      if (_v3dCurrentAsset && _v3dCurrentVersion) {
+        loadV3DVersion(_v3dCurrentAsset, _v3dCurrentVersion);
+      }
+    });
     document.getElementById('v3d-approve-btn').addEventListener('click', function() {
       if (!_v3dCurrentAsset || !_v3dCurrentVersion) return;
       pushHistory();
@@ -2388,6 +2424,7 @@
           assetUrl: _v3dCurrentVersion.glbPath,
           assetName: _v3dCurrentAsset.name,
           activeClip: _v3dActiveClip || null,
+          fileFormat: _v3dFormatOverride !== 'auto' ? _v3dFormatOverride : null,
           availableTracks: _v3dClips,
           triggerEvents: [],
           cameraAzimuth: 45,

@@ -11,11 +11,19 @@
     .ctrl-btn:hover { background: rgba(255,255,255,0.2); }
     #clip-label { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.6); font-size: 11px; font-family: monospace; }
     #status { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); color: rgba(255,255,255,0.4); font-size: 13px; font-family: system-ui; }
+    #format-badge {
+      position: fixed; top: 12px; right: 12px;
+      background: rgba(99,102,241,0.25); border: 1px solid rgba(99,102,241,0.5);
+      color: rgba(255,255,255,0.8); font-size: 10px; font-family: monospace;
+      padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px;
+      display: none;
+    }
   </style>
 </head>
 <body>
   <div id="status">Waiting for 3D object…</div>
   <div id="clip-label" style="display:none"></div>
+  <div id="format-badge"></div>
   <div id="controls" style="display:none">
     <button class="ctrl-btn" id="btn-play">▶ Play</button>
     <button class="ctrl-btn" id="btn-pause">⏸ Pause</button>
@@ -32,10 +40,25 @@
   <script type="module">
     import * as THREE from 'three'
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+    import { FBXLoader }  from 'three/addons/loaders/FBXLoader.js'
+    import { OBJLoader }  from 'three/addons/loaders/OBJLoader.js'
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
     let renderer, scene, camera, controls, mixer, clock, animAction
     let clips = [], isLowRes = false
+
+    // ── Format detection ─────────────────────────────────────────────────────
+    // Returns one of: 'glb' | 'gltf' | 'fbx' | 'obj'
+    // override (string) takes precedence when provided and not 'auto'.
+    function detectFormat(url, override) {
+      if (override && override !== 'auto') return override.toLowerCase()
+      const ext = (url || '').split('?')[0].split('.').pop().toLowerCase()
+      if (ext === 'glb')  return 'glb'
+      if (ext === 'gltf') return 'gltf'
+      if (ext === 'fbx')  return 'fbx'
+      if (ext === 'obj')  return 'obj'
+      return 'glb' // default fallback
+    }
 
     function init(lowRes) {
       isLowRes = lowRes
@@ -82,65 +105,95 @@
       renderer?.render(scene, camera)
     }
 
-    function loadGLB(glbUrl, activeClip) {
+    // ── Post-load: fit, center, animate ──────────────────────────────────────
+    function onModelLoaded(model, modelClips, activeClip) {
+      model.userData.isModel = true
+
+      // Auto-fit to 2-unit bounding box
+      const box = new THREE.Box3().setFromObject(model)
+      const size = box.getSize(new THREE.Vector3())
+      const maxDim = Math.max(size.x, size.y, size.z)
+      if (maxDim > 0) model.scale.setScalar(2 / maxDim)
+
+      // Center at origin
+      box.setFromObject(model)
+      const center = box.getCenter(new THREE.Vector3())
+      model.position.sub(center)
+
+      scene.add(model)
+
+      // Animation
+      clips = modelClips || []
+      if (clips.length > 0) {
+        mixer = new THREE.AnimationMixer(model)
+        const targetClip = clips.find(c => c.name === activeClip) || clips[0]
+        animAction = mixer.clipAction(targetClip)
+        animAction.play()
+
+        document.getElementById('controls').style.display = 'flex'
+        const clipLabel = document.getElementById('clip-label')
+        clipLabel.textContent = targetClip.name
+        clipLabel.style.display = 'block'
+      }
+
+      document.getElementById('status').style.display = 'none'
+
+      // Notify parent
+      const clipData = clips.map((c, i) => ({
+        name: c.name,
+        duration: Math.round(c.duration * 1000) / 1000,
+        isDefault: i === 0
+      }))
+      window.parent.postMessage({ type: 'VOLT3D_READY', clips: clipData }, '*')
+    }
+
+    // ── Main loader — auto-detects format ─────────────────────────────────────
+    function load3D(assetUrl, activeClip, formatOverride) {
       // Remove previous model
       scene.children.filter(c => c.userData.isModel).forEach(c => scene.remove(c))
+
+      // Reset animation state
+      if (mixer) { mixer.stopAllAction(); mixer = null }
+      animAction = null; clips = []
+      document.getElementById('controls').style.display = 'none'
+      document.getElementById('clip-label').style.display = 'none'
 
       document.getElementById('status').textContent = 'Loading…'
       document.getElementById('status').style.display = 'block'
       clock = new THREE.Clock()
 
-      const loader = new GLTFLoader()
-      loader.load(
-        glbUrl,
-        (gltf) => {
-          const model = gltf.scene
-          model.userData.isModel = true
+      const fmt = detectFormat(assetUrl, formatOverride)
 
-          // Auto-fit to 2-unit bounding box
-          const box = new THREE.Box3().setFromObject(model)
-          const size = box.getSize(new THREE.Vector3())
-          const maxDim = Math.max(size.x, size.y, size.z)
-          if (maxDim > 0) model.scale.setScalar(2 / maxDim)
+      // Show format badge
+      const badge = document.getElementById('format-badge')
+      badge.textContent = fmt
+      badge.style.display = 'block'
 
-          // Center at origin
-          box.setFromObject(model)
-          const center = box.getCenter(new THREE.Vector3())
-          model.position.sub(center)
+      const onError = (err) => {
+        document.getElementById('status').textContent = `Failed to load ${fmt.toUpperCase()} model`
+        document.getElementById('status').style.display = 'block'
+        console.error(`${fmt} load error:`, err)
+      }
 
-          scene.add(model)
+      if (fmt === 'fbx') {
+        const loader = new FBXLoader()
+        loader.load(assetUrl, (fbx) => {
+          onModelLoaded(fbx, fbx.animations || [], activeClip)
+        }, undefined, onError)
 
-          // Animation
-          clips = gltf.animations || []
-          if (clips.length > 0) {
-            mixer = new THREE.AnimationMixer(model)
-            const targetClip = clips.find(c => c.name === activeClip) || clips[0]
-            animAction = mixer.clipAction(targetClip)
-            animAction.play()
+      } else if (fmt === 'obj') {
+        const loader = new OBJLoader()
+        loader.load(assetUrl, (obj) => {
+          onModelLoaded(obj, [], null)
+        }, undefined, onError)
 
-            document.getElementById('controls').style.display = 'flex'
-            const clipLabel = document.getElementById('clip-label')
-            clipLabel.textContent = targetClip.name
-            clipLabel.style.display = 'block'
-          }
-
-          document.getElementById('status').style.display = 'none'
-
-          // Notify parent
-          const clipData = clips.map((c, i) => ({
-            name: c.name,
-            duration: Math.round(c.duration * 1000) / 1000,
-            isDefault: i === 0
-          }))
-          window.parent.postMessage({ type: 'VOLT3D_READY', clips: clipData }, '*')
-        },
-        undefined,
-        (err) => {
-          document.getElementById('status').textContent = 'Failed to load model'
-          document.getElementById('status').style.display = 'block'
-          console.error('GLB load error:', err)
-        }
-      )
+      } else {
+        // Default: GLB / GLTF — use GLTFLoader
+        const loader = new GLTFLoader()
+        loader.load(assetUrl, (gltf) => {
+          onModelLoaded(gltf.scene, gltf.animations || [], activeClip)
+        }, undefined, onError)
+      }
     }
 
     function playClip(clipName) {
@@ -165,7 +218,8 @@
       if (!d?.type) return
       if (d.type === 'VOLT3D_LOAD') {
         if (!renderer) init(d.lowRes || false)
-        loadGLB(d.glbUrl, d.activeClip)
+        // Accept both legacy glbUrl and new assetUrl; support optional format override
+        load3D(d.assetUrl || d.glbUrl, d.activeClip, d.format || 'auto')
       } else if (d.type === 'VOLT3D_PLAY') {
         playClip(d.clip)
       } else if (d.type === 'VOLT3D_PAUSE') {
