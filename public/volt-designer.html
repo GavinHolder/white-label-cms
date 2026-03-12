@@ -352,7 +352,17 @@
     function ptsToPath(pts){if(!pts||!pts.length)return '';var d='M '+pts[0].x.toFixed(3)+' '+pts[0].y.toFixed(3);for(var i=1;i<pts.length;i++)d+=' L '+pts[i].x.toFixed(3)+' '+pts[i].y.toFixed(3);return d+' Z';}
     function parsePts(d){var pts=[],toks=d.trim().split(/\s+/),i=0;while(i<toks.length){var t=toks[i];if(t==='M'||t==='L'){pts.push({x:parseFloat(toks[i+1]),y:parseFloat(toks[i+2])});i+=3;}else if(t==='A'){i+=8;}else{i++;}}return pts;}
     function reversePath(d){return ptsToPath(parsePts(d).reverse());}
-    function translatePath(d,dx,dy){var toks=d.trim().split(/\s+/),out=[],i=0;while(i<toks.length){var t=toks[i];if(t==='M'||t==='L'){out.push(t,(parseFloat(toks[i+1])+dx).toFixed(3),(parseFloat(toks[i+2])+dy).toFixed(3));i+=3;}else if(t==='A'){out.push('A',toks[i+1],toks[i+2],toks[i+3],toks[i+4],toks[i+5],(parseFloat(toks[i+6])+dx).toFixed(3),(parseFloat(toks[i+7])+dy).toFixed(3));i+=8;}else{out.push(t);i++;}}return out.join(' ');}
+    function translatePath(d,dx,dy){
+      var toks=d.trim().split(/\s+/),out=[],i=0;
+      while(i<toks.length){
+        var t=toks[i];
+        if(t==='M'||t==='L'){out.push(t,(parseFloat(toks[i+1])+dx).toFixed(4),(parseFloat(toks[i+2])+dy).toFixed(4));i+=3;}
+        else if(t==='C'){out.push('C',(parseFloat(toks[i+1])+dx).toFixed(4),(parseFloat(toks[i+2])+dy).toFixed(4),(parseFloat(toks[i+3])+dx).toFixed(4),(parseFloat(toks[i+4])+dy).toFixed(4),(parseFloat(toks[i+5])+dx).toFixed(4),(parseFloat(toks[i+6])+dy).toFixed(4));i+=7;}
+        else if(t==='A'){out.push('A',toks[i+1],toks[i+2],toks[i+3],toks[i+4],toks[i+5],(parseFloat(toks[i+6])+dx).toFixed(4),(parseFloat(toks[i+7])+dy).toFixed(4));i+=8;}
+        else{out.push(t);i++;}
+      }
+      return out.join(' ');
+    }
     function layerToPoly(layer){if(layer.type!=='vector'||!layer.vectorData)return null;var d=layer.vectorData.pathData;if(/\bA\b/.test(d)){var cx=layer.x+layer.width/2,cy=layer.y+layer.height/2,rx=layer.width/2,ry=layer.height/2,pts=[];for(var i=0;i<64;i++){var a=(2*Math.PI*i)/64;pts.push({x:cx+rx*Math.cos(a),y:cy+ry*Math.sin(a)});}return pts;}return parsePts(d);}
     // ── Boolean display path (non-destructive) ────────────────────────────────
     function getBoolDisplayPath(layer){
