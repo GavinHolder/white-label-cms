@@ -452,7 +452,7 @@
     // ── Render canvas ─────────────────────────────────────────────────────────
     function renderCanvas(){
       renderKeyLegend();
-      var hint=document.getElementById('canvas-empty-hint');if(hint)hint.style.display=state.element.layers.length===0?'flex':'none';
+      var hint=document.getElementById('canvas-empty-hint');if(hint){var _hshow=state.element.layers.length===0&&state.activeTool==='select'&&penState.verts.length===0&&polyState.verts.length===0&&!drawSt;hint.style.display=_hshow?'flex':'none';}
       var beb=document.getElementById('bool-edit-badge');if(beb)beb.style.display=state.boolEditParentId?'inline-flex':'none';
       while(svgEl.firstChild)svgEl.removeChild(svgEl.firstChild);
       artboard.querySelectorAll('.slot-overlay').forEach(function(e){e.remove();});
