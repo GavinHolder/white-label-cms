@@ -214,10 +214,10 @@
           <button class="tool-btn-h" data-tool="line" title="Line (L)"><i class="bi bi-slash-lg"></i></button>
           <button class="tool-btn-h" data-tool="polygon" title="Polygon (P)"><i class="bi bi-pentagon"></i></button>
           <button class="tool-btn-h" data-tool="pen" title="Pen/Bezier (B)"><i class="bi bi-pen"></i></button>
-          <div class="slot-btn-grp" style="position:relative;display:inline-flex;align-items:stretch;">
+          <div class="slot-btn-grp" style="position:relative;display:inline-flex;align-items:stretch;z-index:1000;">
             <button class="tool-btn-h" data-tool="slot" id="btn-tool-slot" title="Slot (S)" style="width:auto;padding:0 6px;border-radius:6px 0 0 6px;border-right:none;gap:3px;"><i class="bi bi-layout-text-window"></i><span id="slot-type-tag" style="font-size:8px;font-weight:800;letter-spacing:0.3px;color:#22c55e;">TIT</span></button>
             <button id="btn-slot-type-caret" style="width:16px;padding:0 2px;border:1.5px solid #dee2e6;border-left:none;background:white;cursor:pointer;border-radius:0 6px 6px 0;font-size:9px;color:#6c757d;line-height:1;transition:background 0.12s;" title="Choose slot type">&#9660;</button>
-            <div id="slot-type-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:200;min-width:115px;padding:4px 0;"></div>
+            <div id="slot-type-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:9999;min-width:115px;padding:4px 0;"></div>
           </div>
           <div class="tools-sep"></div>
         </div>
@@ -670,17 +670,7 @@
           vbox.setAttribute('fill','none');vbox.setAttribute('stroke','#f59e0b');vbox.setAttribute('stroke-width',(1/state.zoom).toFixed(3));
           vbox.setAttribute('stroke-dasharray',(3/state.zoom).toFixed(1)+' '+(2/state.zoom).toFixed(1));vbox.setAttribute('pointer-events','none');svgEl.appendChild(vbox);
           var _vhit_r=VX_RAD*2/state.zoom;
-          // Handle arms + dots first (behind vertex circles)
-          vanch.forEach(function(va){
-            var vax=topx(va.x,CW),vay=topx(va.y,CH);
-            ['cpOut','cpIn'].forEach(function(hk){
-              var h=va[hk];if(h.dx===0&&h.dy===0)return;
-              var hx=vax+topx(h.dx,CW),hy=vay+topx(h.dy,CH);
-              var arm=svgNs('line');arm.setAttribute('x1',vax);arm.setAttribute('y1',vay);arm.setAttribute('x2',hx);arm.setAttribute('y2',hy);arm.setAttribute('stroke','#94a3b8');arm.setAttribute('stroke-width',(0.8/state.zoom).toFixed(3));arm.setAttribute('pointer-events','none');svgEl.appendChild(arm);
-              var hdot=svgNs('circle');hdot.setAttribute('cx',hx);hdot.setAttribute('cy',hy);hdot.setAttribute('r',(vr*0.7).toFixed(2));hdot.setAttribute('fill','#6366f1');hdot.setAttribute('stroke','white');hdot.setAttribute('stroke-width',(1/state.zoom).toFixed(3));hdot.setAttribute('pointer-events','none');svgEl.appendChild(hdot);
-            });
-          });
-          // Vertex circles
+          // Vertex circles first (behind handle dots)
           vanch.forEach(function(vp,vi){
             var vcx2=topx(vp.x,CW),vcy2=topx(vp.y,CH);
             var _onThis=_vxMousePt&&dist2(_vxMousePt,{x:vcx2,y:vcy2})<=_vhit_r;
@@ -689,6 +679,23 @@
             var _vStroke=_altHeld?'#ef4444':'#f59e0b';
             vc.setAttribute('fill',_vFill);vc.setAttribute('stroke',_vStroke);vc.setAttribute('stroke-width',(1.5/state.zoom).toFixed(3));
             vc.setAttribute('pointer-events','none');vc.setAttribute('data-vi',vi);svgEl.appendChild(vc);
+          });
+          // Handle arms + dots (drawn ON TOP of vertex circles)
+          vanch.forEach(function(va){
+            var vax=topx(va.x,CW),vay=topx(va.y,CH);
+            ['cpOut','cpIn'].forEach(function(hk){
+              var h=va[hk];var isZero=h.dx===0&&h.dy===0;
+              var hx=vax+topx(h.dx,CW),hy=vay+topx(h.dy,CH);
+              if(!isZero){var arm=svgNs('line');arm.setAttribute('x1',vax);arm.setAttribute('y1',vay);arm.setAttribute('x2',hx);arm.setAttribute('y2',hy);arm.setAttribute('stroke','#94a3b8');arm.setAttribute('stroke-width',(0.8/state.zoom).toFixed(3));arm.setAttribute('pointer-events','none');svgEl.appendChild(arm);}
+              // Draw dot at handle position (or at vertex for zero-distance handles)
+              var hdot=svgNs('circle');hdot.setAttribute('cx',hx);hdot.setAttribute('cy',hy);
+              hdot.setAttribute('r',isZero?(vr*0.5).toFixed(2):(vr*0.7).toFixed(2));
+              hdot.setAttribute('fill',isZero?'rgba(99,102,241,0.35)':'#6366f1');
+              hdot.setAttribute('stroke',isZero?'#6366f1':'white');
+              hdot.setAttribute('stroke-width',(isZero?0.8:1)/state.zoom+'');
+              if(isZero)hdot.setAttribute('stroke-dasharray',(1.5/state.zoom).toFixed(2)+' '+(1/state.zoom).toFixed(2));
+              hdot.setAttribute('pointer-events','none');svgEl.appendChild(hdot);
+            });
           });
           // Edge add preview dot (Alt held, not over a vertex)
           if(_altHeld&&_vxMousePt&&vanch.length>=2){
@@ -1863,29 +1870,50 @@
       _slotPreviewMode=!_slotPreviewMode;updateSlotPreviewBtn();renderCanvas();
     });
     // ── Corner rounding bar ───────────────────────────────────────────────────
-    function resetRoundBar(){var r=document.getElementById('vx-round-range');if(r)r.value=0;var v=document.getElementById('vx-round-val');if(v)v.textContent='0%';}
+    var _origRoundPath=null; // original path before rounding — set fresh on vertex edit entry
+    function resetRoundBar(){var r=document.getElementById('vx-round-range');if(r)r.value=0;var v=document.getElementById('vx-round-val');if(v)v.textContent='0%';_origRoundPath=null;}
     function applyCornerRound(t){
       if(!state.vertexEditLayerId)return;
       var li=state.element.layers.findIndex(function(l){return l.id===state.vertexEditLayerId;});
       if(li<0)return;
-      var l=state.element.layers[li],a=parseAnchors(l.vectorData.pathData),n=a.length;
+      var l=state.element.layers[li];
+      // Capture original path the first time rounding is applied
+      if(!_origRoundPath)_origRoundPath=l.vectorData.pathData;
+      // Always apply rounding from the ORIGINAL path, not the already-rounded one
+      if(t<=0){l.vectorData.pathData=_origRoundPath;recalcLayerBounds(l);markDirty();renderCanvas();return;}
+      var a=parseAnchors(_origRoundPath),n=a.length;
       if(n<2)return;
-      pushHistory();
-      var rounded=a.map(function(v,i){
-        var prev=a[(i-1+n)%n],next=a[(i+1)%n];
-        var dix=prev.x-v.x,diy=prev.y-v.y,dox=next.x-v.x,doy=next.y-v.y;
-        return {x:v.x,y:v.y,cpIn:{dx:dix*t,dy:diy*t},cpOut:{dx:dox*t,dy:doy*t}};
-      });
-      l.vectorData.pathData=anchorsToPath(rounded,l.vectorData.closed!==false);
-      markDirty();renderCanvas();
+      // Build new anchor list: replace each sharp corner with two new points on adjacent edges
+      // Approximation constant for circular arc: k=0.5523
+      var k=0.5523,isClosed=l.vectorData.closed!==false;
+      var newAnch=[];
+      for(var i=0;i<n;i++){
+        var vi=a[i],vprev=a[(i-1+n)%n],vnext=a[(i+1)%n];
+        var dpx=vprev.x-vi.x,dpy=vprev.y-vi.y;
+        var dnx=vnext.x-vi.x,dny=vnext.y-vi.y;
+        var lp=Math.sqrt(dpx*dpx+dpy*dpy),ln=Math.sqrt(dnx*dnx+dny*dny);
+        // If vertex already curved or degenerate edges, keep as-is
+        if(lp<0.001||ln<0.001||(vi.cpOut.dx!==0||vi.cpOut.dy!==0||vi.cpIn.dx!==0||vi.cpIn.dy!==0)){newAnch.push(cloneAnchor(vi));continue;}
+        // Radius = t proportion of the shorter adjacent edge
+        var r=t*Math.min(lp,ln)*0.5;
+        // Point on edge toward prev (entry point of rounded arc)
+        var sp={x:vi.x+(dpx/lp)*r,y:vi.y+(dpy/lp)*r};
+        // Point on edge toward next (exit point of rounded arc)
+        var ep={x:vi.x+(dnx/ln)*r,y:vi.y+(dny/ln)*r};
+        // cpOut of entry point aims toward corner; cpIn of exit point aims toward corner
+        newAnch.push({x:sp.x,y:sp.y,cpIn:{dx:0,dy:0},cpOut:{dx:(vi.x-sp.x)*k,dy:(vi.y-sp.y)*k}});
+        newAnch.push({x:ep.x,y:ep.y,cpIn:{dx:(vi.x-ep.x)*k,dy:(vi.y-ep.y)*k},cpOut:{dx:0,dy:0}});
+      }
+      l.vectorData.pathData=anchorsToPath(newAnch,isClosed);
+      recalcLayerBounds(l);markDirty();renderCanvas();
     }
     document.getElementById('vx-round-range').addEventListener('input',function(){
-      var t=parseFloat(this.value)/100;
       document.getElementById('vx-round-val').textContent=this.value+'%';
-      applyCornerRound(t);
+      applyCornerRound(parseFloat(this.value)/100);
     });
+    document.getElementById('vx-round-range').addEventListener('change',function(){pushHistory();});
     document.getElementById('vx-round-reset').addEventListener('click',function(){
-      var rng=document.getElementById('vx-round-range');rng.value=0;document.getElementById('vx-round-val').textContent='0%';applyCornerRound(0);
+      var rng=document.getElementById('vx-round-range');rng.value=0;document.getElementById('vx-round-val').textContent='0%';applyCornerRound(0);pushHistory();
     });
     // ── Sidebar toggles ───────────────────────────────────────────────────────
     document.getElementById('toggle-left').addEventListener('click',function(){var s=document.getElementById('sidebar-left'),ic=document.getElementById('toggle-left-icon');s.classList.toggle('collapsed');ic.className=s.classList.contains('collapsed')?'bi bi-chevron-right':'bi bi-chevron-left';});
