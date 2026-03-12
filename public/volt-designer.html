@@ -393,8 +393,8 @@
       var CW=state.element.canvasWidth,CH=state.element.canvasHeight;
       var sorted=state.element.layers.slice().sort(function(a,b){return a.zIndex-b.zIndex;});
       sorted.forEach(function(layer){
-        if(!layer.visible)return;
-        // Hidden cutter layers only rendered in bool-edit mode (handled below)
+        // Cutter layers are visible:false but must render in bool-edit mode
+        if(!layer.visible&&!(layer.boolRole==='cutter'&&state.boolEditParentId===layer.boolParentId))return;
         if(layer.boolRole==='cutter'&&state.boolEditParentId!==layer.boolParentId)return;
         if(layer.type==='vector'&&layer.vectorData){
           var g=svgNs('g');g.setAttribute('opacity',layer.opacity);g.style.mixBlendMode=layer.blendMode;
