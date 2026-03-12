@@ -404,6 +404,8 @@
       z-index: 10;
       overflow: hidden;
       transition: border-color 0.15s, box-shadow 0.15s;
+      display: flex;
+      flex-direction: column;
     }
     .container-block:hover {
       box-shadow: 0 4px 16px rgba(13,110,253,0.2);
@@ -420,12 +422,11 @@
     }
 
     .cb-header {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      z-index: 5;
+      flex-shrink: 0;
+      width: 100%;
       background: rgba(13,110,253,0.92);
       color: white;
-      padding: 3px 8px;
+      padding: 0 8px;
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
@@ -434,14 +435,17 @@
       align-items: center;
       gap: 6px;
       cursor: move;
+      max-height: 0;
+      overflow: hidden;
       opacity: 0;
-      transition: opacity 0.12s;
+      transition: max-height 0.12s ease, padding 0.12s ease, opacity 0.12s;
       pointer-events: none;
       border-radius: 4px 4px 0 0;
+      box-sizing: border-box;
     }
     .container-block:hover .cb-header,
     .container-block.selected .cb-header,
-    .container-block.editing  .cb-header { opacity: 1; pointer-events: auto; }
+    .container-block.editing  .cb-header { max-height: 26px; overflow: visible; padding: 3px 8px; opacity: 1; pointer-events: auto; }
     .container-block.selected .cb-header { background: rgba(32,201,151,0.92); color: #fff; }
     .container-block.editing  .cb-header { background: rgba(255,193,7,0.92); color: #212529; }
     /* Text-block: invisible frame — text IS the design, no blue outline */
@@ -475,7 +479,8 @@
 
     .cb-content {
       padding: 8px;
-      height: 100%;
+      flex: 1;
+      min-height: 0;
       position: relative;
       overflow: hidden;
       border-radius: 0 0 4px 4px;
@@ -904,6 +909,7 @@
       inset: 0;
       pointer-events: none;
       z-index: 9990;
+      overflow: hidden;
     }
     .guide-line {
       position: absolute;
@@ -1063,6 +1069,8 @@
     <span class="pos-mode-badge free" id="pos-mode-badge" onclick="togglePositionMode()" title="Toggle: Free Positioning / Grid Snap">⟜ FREE</span>
     <!-- Guides toggle (icon-only) -->
     <button class="btn btn-sm btn-outline-primary" id="guides-btn" onclick="toggleGuides()" title="Show / Hide grid guides"><i class="bi bi-grid"></i></button>
+    <!-- Pixel-grid snap toggle (free mode) -->
+    <button class="btn btn-sm btn-outline-secondary" id="snap-btn" onclick="toggleSnapGrid()" title="Grid snap OFF — press S to toggle" style="font-size:10px;padding:2px 7px;font-weight:600;letter-spacing:0.3px;">SNAP</button>
     <!-- Utilities (icon-only) -->
     <button class="btn btn-sm btn-outline-primary" onclick="toggleJson()" title="JSON Output"><i class="bi bi-code-slash"></i></button>
     <button class="btn btn-sm btn-outline-danger" onclick="clearAll()" title="Clear entire canvas"><i class="bi bi-trash"></i></button>
@@ -1307,6 +1315,13 @@
         <!-- Divider before preview to prevent accidental clicks -->
         <div style="width:1px;height:20px;background:rgba(255,255,255,0.15);margin:0 4px;flex-shrink:0;"></div>
         <!-- Preview -->
+        <!-- Zoom controls -->
+        <div class="d-flex gap-1 align-items-center" style="border-left:1px solid #dee2e6;padding-left:8px;">
+          <button class="btn btn-sm btn-outline-secondary" onclick="adjustUserZoom(-0.1)" title="Zoom out (Ctrl+-)"><i class="bi bi-dash-lg"></i></button>
+          <span id="zoom-label" style="font-size:11px;font-weight:700;min-width:36px;text-align:center;color:#495057;">100%</span>
+          <button class="btn btn-sm btn-outline-secondary" onclick="adjustUserZoom(0.1)" title="Zoom in (Ctrl+=)"><i class="bi bi-plus-lg"></i></button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="resetUserZoom()" title="Reset zoom (Ctrl+0)" style="font-size:10px;padding:2px 5px;">1:1</button>
+        </div>
         <button class="btn btn-sm btn-outline-secondary" onclick="previewSection()" title="Preview section in tab"><i class="bi bi-eye"></i></button>
       </div>
     </div>
@@ -1418,12 +1433,15 @@ const state = {
   positionMode: 'free',   // 'free' | 'grid'  — default: free-form absolute positioning
   devicePreview: 'desktop', // 'mobile'|'tablet'|'desktop'
   _desktopCanvasW: null,    // cached desktop canvas width for responsive scaling
+  userZoom: 1,              // manual zoom multiplier (0.25–2.0), applied on top of auto-fit scale
   blocks: [],
   selectedBlockId: null,
   selectedSubId: null,
   editingBlockId: null,
   dragSource: null,
   showGuides: true,
+  snapGrid: false,   // pixel-grid snap in free mode (S key or toolbar button)
+  snapSize: 10,      // snap increment in px
   isResizing: false,
   nextId: 1,
   navOptions: [],
@@ -1435,7 +1453,9 @@ const state = {
 let _saveTimer = null;
 
 const BLOCK_DEFAULTS = {
-  hero:        { label:'Hero',    bgColor:'#1e3a5f', textColor:'#ffffff',
+  hero:        { label:'Hero',    bgType:'color', bgColor:'#1e3a5f', bgImage:'', bgVideo:'',
+                 bgGradFrom:'#1e3a5f', bgGradTo:'#312e81', bgGradAngle:135,
+                 textColor:'#ffffff',
                  heading:'Hero Heading', subtext:'Subheading text',
                  headingX:50, headingY:38, subX:50, subY:52, btnX:50, btnY:67,
                  overlayBgColor:'#000000', overlayBgOpacity:30,
@@ -1617,11 +1637,28 @@ function loadAutoSave() {
 }
 
 // Keyboard shortcut: Ctrl+Z / Cmd+Z
+// Ctrl+scroll to zoom canvas
+document.addEventListener('wheel', e => {
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    adjustUserZoom(e.deltaY < 0 ? 0.1 : -0.1);
+  }
+}, { passive: false });
+
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
     e.preventDefault();
     undo();
     return;
+  }
+  // Ctrl+= zoom in, Ctrl+- zoom out, Ctrl+0 reset
+  if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) { e.preventDefault(); adjustUserZoom(0.1); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); adjustUserZoom(-0.1); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); resetUserZoom(); return; }
+  // S — toggle grid snap (skip when typing in inputs)
+  if (e.key === 's' && !e.ctrlKey && !e.metaKey &&
+      !e.target.closest('input, textarea, [contenteditable="true"], select')) {
+    e.preventDefault(); toggleSnapGrid(); return;
   }
   // Delete / Backspace — delete selected element (skip when typing in inputs)
   if ((e.key === 'Delete' || e.key === 'Backspace') &&
@@ -1962,6 +1999,14 @@ function createBlockElement(block) {
   // Content
   const content = document.createElement('div');
   content.className = 'cb-content';
+  // Apply text-block padding props to the content area
+  if (block.type === 'text-block') {
+    const p = block.props;
+    content.style.paddingTop    = (p.paddingTop    ?? 16) + 'px';
+    content.style.paddingBottom = (p.paddingBottom ?? 16) + 'px';
+    content.style.paddingLeft   = (p.paddingX ?? 20) + 'px';
+    content.style.paddingRight  = (p.paddingX ?? 20) + 'px';
+  }
 
   const dropZone = document.createElement('div');
   dropZone.className = 'cb-drop-zone';
@@ -2021,7 +2066,16 @@ function createBlockPreview(block) {
       const overlayAlpha = Math.max(0,Math.min(100,p.overlayBgOpacity||0))/100;
       const hexToRgb = hh => { const r=parseInt(hh.slice(1,3),16),g=parseInt(hh.slice(3,5),16),b=parseInt(hh.slice(5,7),16); return `${r},${g},${b}`; };
       const overlayBgCss = overlayAlpha>0 ? `rgba(${hexToRgb(overlayRgb)},${overlayAlpha})` : 'transparent';
-      const bgStyle = p.bgImage ? `background:url(${p.bgImage}) center/cover no-repeat` : `background:${p.bgColor||'#1e3a5f'}`;
+      // Resolve background style based on bgType
+      const _bgType = p.bgType || (p.bgImage ? 'image' : 'color');
+      let bgStyle = '';
+      if (_bgType === 'image' && p.bgImage) {
+        bgStyle = `background:url(${p.bgImage}) center/cover no-repeat`;
+      } else if (_bgType === 'gradient') {
+        bgStyle = `background:linear-gradient(${p.bgGradAngle??135}deg,${p.bgGradFrom||'#1e3a5f'},${p.bgGradTo||'#312e81'})`;
+      } else {
+        bgStyle = `background:${p.bgColor||'#1e3a5f'}`;
+      }
       let btnHtml = '';
       if (p.showBtn!==false) {
         if (p.btnImage) {
@@ -2033,17 +2087,46 @@ function createBlockPreview(block) {
           btnHtml = `<div style="position:absolute;left:${bx}%;top:${by}%;transform:translate(-50%,-50%);z-index:1;pointer-events:none;"><div style="background:${btnBg};color:${btnTc};padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;border:${btnBorder};display:inline-block;white-space:nowrap;">${p.btnText||'Learn More'}</div></div>`;
         }
       }
-      wrap.style.cssText = 'height:100%;width:100%;';
-      wrap.innerHTML = `<div style="${bgStyle};position:relative;overflow:hidden;width:100%;height:100%;border-radius:4px;">
-        <div style="position:absolute;inset:0;background:${overlayBgCss};pointer-events:none;"></div>
-        <div style="position:absolute;left:${hx}%;top:${hy}%;transform:translate(-50%,-50%);z-index:1;text-align:center;max-width:90%;pointer-events:none;">
-          <div style="font-size:14px;font-weight:800;color:${p.textColor||'#fff'};text-shadow:0 1px 4px rgba(0,0,0,0.5);white-space:nowrap;">${p.heading||'Hero Heading'}</div>
-        </div>
-        <div style="position:absolute;left:${sx}%;top:${sy}%;transform:translate(-50%,-50%);z-index:1;text-align:center;max-width:90%;pointer-events:none;">
-          <div style="font-size:10px;color:${p.textColor||'#fff'};opacity:0.85;">${p.subtext||''}</div>
-        </div>
-        ${btnHtml}
-      </div>`;
+      wrap.style.cssText = 'height:100%;width:100%;position:relative;';
+      // Video background — use a <video> element under the overlay
+      if (_bgType === 'video' && p.bgVideo) {
+        wrap.style.cssText += 'overflow:hidden;border-radius:4px;';
+        const vid = document.createElement('video');
+        vid.src = p.bgVideo;
+        vid.setAttribute('autoplay', '');
+        vid.setAttribute('muted', '');
+        vid.setAttribute('loop', '');
+        vid.setAttribute('playsinline', '');
+        vid.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;';
+        wrap.appendChild(vid);
+        // overlay + text on top of video
+        const over = document.createElement('div');
+        over.style.cssText = `position:absolute;inset:0;background:${overlayBgCss};pointer-events:none;`;
+        wrap.appendChild(over);
+        wrap.innerHTML += `
+          <div style="position:absolute;left:${hx}%;top:${hy}%;transform:translate(-50%,-50%);z-index:1;text-align:center;max-width:90%;pointer-events:none;">
+            <div style="font-size:14px;font-weight:800;color:${p.textColor||'#fff'};text-shadow:0 1px 4px rgba(0,0,0,0.5);white-space:nowrap;">${p.heading||'Hero Heading'}</div>
+          </div>
+          <div style="position:absolute;left:${sx}%;top:${sy}%;transform:translate(-50%,-50%);z-index:1;text-align:center;max-width:90%;pointer-events:none;">
+            <div style="font-size:10px;color:${p.textColor||'#fff'};opacity:0.85;">${p.subtext||''}</div>
+          </div>
+          ${btnHtml}`;
+      } else if (_bgType === 'video' && !p.bgVideo) {
+        // No video uploaded yet — show placeholder
+        wrap.innerHTML = `<div style="background:#111;position:relative;overflow:hidden;width:100%;height:100%;border-radius:4px;display:flex;align-items:center;justify-content:center;">
+          <div style="text-align:center;color:#666;"><i class="bi bi-camera-video" style="font-size:28px;display:block;margin-bottom:6px;"></i><div style="font-size:11px;">Upload a video in properties</div></div></div>`;
+      } else {
+        wrap.innerHTML = `<div style="${bgStyle};position:relative;overflow:hidden;width:100%;height:100%;border-radius:4px;">
+          <div style="position:absolute;inset:0;background:${overlayBgCss};pointer-events:none;"></div>
+          <div style="position:absolute;left:${hx}%;top:${hy}%;transform:translate(-50%,-50%);z-index:1;text-align:center;max-width:90%;pointer-events:none;">
+            <div style="font-size:14px;font-weight:800;color:${p.textColor||'#fff'};text-shadow:0 1px 4px rgba(0,0,0,0.5);white-space:nowrap;">${p.heading||'Hero Heading'}</div>
+          </div>
+          <div style="position:absolute;left:${sx}%;top:${sy}%;transform:translate(-50%,-50%);z-index:1;text-align:center;max-width:90%;pointer-events:none;">
+            <div style="font-size:10px;color:${p.textColor||'#fff'};opacity:0.85;">${p.subtext||''}</div>
+          </div>
+          ${btnHtml}
+        </div>`;
+      }
       break;
     }
     case 'card':
@@ -2057,9 +2140,9 @@ function createBlockPreview(block) {
       </div>`;
       break;
     case 'text-block':
-      wrap.innerHTML = `<div style="padding:6px;">
-        <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Text Block</div>
-        <div style="font-size:11px;color:#6c757d;line-height:1.5;">Add headings, paragraphs and buttons inside.</div>
+      wrap.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 8px;text-align:center;min-height:60px;">
+        <div style="font-size:22px;line-height:1;color:#adb5bd;">T</div>
+        <div style="font-size:11px;font-weight:700;color:#495057;">Click <kbd style="background:#e9ecef;border:1px solid #ced4da;border-radius:3px;padding:1px 5px;font-size:10px;font-weight:700;">+ add</kbd> in the header to insert headings, paragraphs &amp; buttons.</div>
       </div>`;
       break;
     case 'banner':
@@ -2300,8 +2383,10 @@ function estimateSubElementHeight(type) {
  * @param {Object} block - The parent block whose subElements to initialise.
  */
 function ensureSubElementPositions(block) {
-  // Auto-stack sub-elements that have no y position yet
-  let nextY = 8;
+  // Auto-stack sub-elements that have no y position yet.
+  // For text-blocks respect paddingTop so elements visually start inside the padding area.
+  const startY = block.type === 'text-block' ? (block.props?.paddingTop ?? 16) : 8;
+  let nextY = startY;
   block.subElements.forEach(se => {
     if (se.y === undefined || se.y === null) {
       se.x = 0;
@@ -2503,7 +2588,10 @@ function fitBlockToSubElements(blockId) {
   // Resize block to always contain all sub-elements (grows AND shrinks, both axes)
   const block = state.blocks.find(b => b.id === blockId);
   if (!block || !block.subElements?.length) return;
-  let maxBottom = 24;
+  // Reserve space for the flex header (visible on hover/select) so sub-elements
+  // at the bottom of cb-content are never clipped behind it.
+  const HEADER_H = 26;
+  let maxBottom = 0;
   let maxRight = 0;
   block.subElements.forEach(se => {
     // Prefer cached measured height from previous DOM pass; fall back to type estimate
@@ -2517,8 +2605,9 @@ function fitBlockToSubElements(blockId) {
       if (right > maxRight) maxRight = right;
     }
   });
-  // Enforce minimum block dimensions so the block header remains usable
-  block.h = Math.max(56, maxBottom + 20);
+  // bottom padding (16) + header reserve so nothing is clipped
+  const bottomPad = block.type === 'text-block' ? (block.props?.paddingBottom ?? 16) : 16;
+  block.h = Math.max(56, maxBottom + bottomPad + HEADER_H);
   if (maxRight > 0) block.w = Math.max(200, maxRight + 20);
 }
 
@@ -2534,7 +2623,10 @@ function fitBlockToSubElementsDOM(blockId) {
   // DOM-aware: reads actual rendered sizes; always grows AND shrinks, both axes
   const block = state.blocks.find(b => b.id === blockId);
   if (!block || !block.subElements?.length) return;
-  let maxBottom = 24;
+  // Reserve space for the flex header (visible on hover/select) so sub-elements
+  // at the bottom of cb-content are never clipped behind it.
+  const HEADER_H = 26;
+  let maxBottom = 0;
   let maxRight = 0;
   block.subElements.forEach(se => {
     // Use actual rendered height when available — more accurate than the estimate
@@ -2548,7 +2640,8 @@ function fitBlockToSubElementsDOM(blockId) {
       if (right > maxRight) maxRight = right;
     }
   });
-  block.h = Math.max(56, maxBottom + 20);
+  const bottomPad = block.type === 'text-block' ? (block.props?.paddingBottom ?? 16) : 16;
+  block.h = Math.max(56, maxBottom + bottomPad + HEADER_H);
   if (maxRight > 0) block.w = Math.max(200, maxRight + 20);
   // Update DOM immediately to avoid a full re-render on every drag tick
   const blockEl = document.querySelector(`.container-block[data-block-id="${blockId}"]`);
@@ -3045,9 +3138,9 @@ function startBlockMove(e, blockId) {
     const el = document.querySelector(`[data-block-id="${blockId}"]`);
 
     if (state.positionMode === 'free') {
-      // Free mode: raw pixel positioning clamped to canvas bounds
-      const _nx = Math.max(0, Math.min(canvasW - dragDispW, nx));
-      const _ny = Math.max(0, Math.min(canvasH - dragDispH, ny));
+      // Free mode: pixel positioning (optionally grid-snapped) clamped to canvas bounds
+      const _nx = Math.max(0, Math.min(canvasW - dragDispW, snapToGrid(nx)));
+      const _ny = Math.max(0, Math.min(canvasH - dragDispH, snapToGrid(ny)));
       setDisplayPos(block, _nx, _ny, dragDispW, dragDispH);
       if (el) { el.style.left=`${_nx}px`; el.style.top=`${_ny}px`; }
       // Update props panel X/Y live
@@ -3136,10 +3229,10 @@ function startResize(e, blockId, dir) {
       const dx = (e.clientX - startX) / _res_scale;
       const dy = (e.clientY - startY) / _res_scale;
       let nx=origX, ny=origY, nw=origW, nh=origH;
-      if (dir==='right' ||dir==='tr'||dir==='br') nw = Math.max(MIN_W, origW + dx);
-      if (dir==='bottom'||dir==='bl'||dir==='br') nh = Math.max(MIN_H, origH + dy);
-      if (dir==='left'  ||dir==='tl'||dir==='bl') { nx = Math.max(0, origX + dx); nw = Math.max(MIN_W, origW - (nx - origX)); }
-      if (dir==='top'   ||dir==='tl'||dir==='tr') { ny = Math.max(0, origY + dy); nh = Math.max(MIN_H, origH - (ny - origY)); }
+      if (dir==='right' ||dir==='tr'||dir==='br') nw = Math.max(MIN_W, snapToGrid(origW + dx));
+      if (dir==='bottom'||dir==='bl'||dir==='br') nh = Math.max(MIN_H, snapToGrid(origH + dy));
+      if (dir==='left'  ||dir==='tl'||dir==='bl') { nx = Math.max(0, snapToGrid(origX + dx)); nw = Math.max(MIN_W, origW - (nx - origX)); }
+      if (dir==='top'   ||dir==='tl'||dir==='tr') { ny = Math.max(0, snapToGrid(origY + dy)); nh = Math.max(MIN_H, origH - (ny - origY)); }
       // Clamp to canvas bounds
       nw = Math.min(nw, canvas.offsetWidth  - nx);
       nh = Math.min(nh, canvas.offsetHeight - ny);
@@ -3514,9 +3607,20 @@ function renderTypeProps(block) {
   const p=block.props; let h='';
   switch(block.type) {
     case 'hero': {
-      // Background
-      h+=colorRow('Background',p.bgColor||'#1e3a5f',`updateBlockProp('${block.id}','bgColor',this.value);renderCanvas()`);
-      h+=mediaPickerRow('BG Image',p.bgImage||'',block.id,'bgImage','image/*',true);
+      // Background type
+      const bgType = p.bgType || 'color';
+      h+=selectRow('BG Type',bgType,[['color','Solid Color'],['gradient','Gradient'],['image','Image'],['video','Video']],`updateBlockProp('${block.id}','bgType',this.value);renderCanvas();renderPropsPanel()`);
+      if (bgType === 'color') {
+        h+=colorRow('Background',p.bgColor||'#1e3a5f',`updateBlockProp('${block.id}','bgColor',this.value);renderCanvas()`);
+      } else if (bgType === 'gradient') {
+        h+=colorRow('Gradient From',p.bgGradFrom||'#1e3a5f',`updateBlockProp('${block.id}','bgGradFrom',this.value);renderCanvas()`);
+        h+=colorRow('Gradient To',p.bgGradTo||'#312e81',`updateBlockProp('${block.id}','bgGradTo',this.value);renderCanvas()`);
+        h+=`<div class="props-row"><label>Angle</label><input class="props-input" type="range" min="0" max="360" value="${p.bgGradAngle??135}" oninput="updateBlockProp('${block.id}','bgGradAngle',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'°'"><span class="val">${p.bgGradAngle??135}°</span></div>`;
+      } else if (bgType === 'image') {
+        h+=mediaPickerRow('BG Image',p.bgImage||'',block.id,'bgImage','image/*',true);
+      } else if (bgType === 'video') {
+        h+=mediaPickerRow('BG Video',p.bgVideo||'',block.id,'bgVideo','video/*',true);
+      }
       h+=`<div class="props-row"><label>Overlay Opacity</label><input class="props-input" type="range" min="0" max="80" value="${p.overlayBgOpacity||0}" oninput="updateBlockProp('${block.id}','overlayBgOpacity',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'%'"><span class="val">${p.overlayBgOpacity||0}%</span></div>`;
       h+=colorRow('Overlay Color',p.overlayBgColor||'#000000',`updateBlockProp('${block.id}','overlayBgColor',this.value);renderCanvas()`);
       // Text overlay
@@ -4713,37 +4817,41 @@ function renderRulers() {
   const rulerH = document.getElementById('ruler-h');
   const rulerV = document.getElementById('ruler-v');
   if (!rulerH || !rulerV || !canvas) return;
-  const cw = canvas.offsetWidth;
-  const ch = canvas.offsetHeight;
+  // Use actual design dimensions, scale ticks to visual positions
+  const scale = getCanvasScale();
+  const cw = canvas.offsetWidth;   // layout width (design px)
+  const ch = canvas.offsetHeight;  // layout height (design px)
 
   while (rulerH.firstChild) rulerH.removeChild(rulerH.firstChild);
   while (rulerV.firstChild) rulerV.removeChild(rulerV.firstChild);
 
   const STEP = 10, LABEL_STEP = 50;
-  // Horizontal ruler
+  // Horizontal ruler — positions are in design-px, visually scaled
   for (let x = 0; x <= cw; x += STEP) {
+    const vx = Math.round(x * scale); // visual pixel position
     const tick = document.createElement('div');
     tick.className = 'rtick-h ' + (x % LABEL_STEP === 0 ? 'major' : 'minor');
-    tick.style.left = x + 'px';
+    tick.style.left = vx + 'px';
     rulerH.appendChild(tick);
     if (x > 0 && x % LABEL_STEP === 0) {
       const lbl = document.createElement('div');
       lbl.className = 'rlabel rlabel-h';
-      lbl.style.left = (x + 2) + 'px';
+      lbl.style.left = (vx + 2) + 'px';
       lbl.textContent = x;
       rulerH.appendChild(lbl);
     }
   }
   // Vertical ruler
   for (let y = 0; y <= ch; y += STEP) {
+    const vy = Math.round(y * scale);
     const tick = document.createElement('div');
     tick.className = 'rtick-v ' + (y % LABEL_STEP === 0 ? 'major' : 'minor');
-    tick.style.top = y + 'px';
+    tick.style.top = vy + 'px';
     rulerV.appendChild(tick);
     if (y > 0 && y % LABEL_STEP === 0) {
       const lbl = document.createElement('div');
       lbl.className = 'rlabel rlabel-v';
-      lbl.style.top = (y + 2) + 'px';
+      lbl.style.top = (vy + 2) + 'px';
       lbl.textContent = y;
       rulerV.appendChild(lbl);
     }
@@ -5097,29 +5205,53 @@ function updateDimensions() {
  * @returns {number} Scale ratio in the range (0, 1].
  */
 function getCanvasScale() {
-  if (state.devicePreview !== 'desktop') return 1;
+  if (state.devicePreview !== 'desktop') return state.userZoom || 1;
   const cwrap = document.querySelector('.canvas-with-rulers');
-  if (!cwrap) return 1;
+  if (!cwrap) return state.userZoom || 1;
   const rulerW = cwrap.classList.contains('rulers-hidden') ? 0 : 20;
   const availW = cwrap.clientWidth - rulerW - 2;
-  return Math.min(1, availW / DESKTOP_CANVAS_W);
+  const fitScale = Math.min(1, availW / DESKTOP_CANVAS_W);
+  return fitScale * (state.userZoom || 1);
 }
 /**
- * Applies a CSS scale transform to the canvas element when the design width
- * (DESKTOP_CANVAS_W) is wider than the available wrapper. Clears the transform
- * when the scale equals 1 (canvas fits without shrinking).
+ * Applies a CSS scale transform to the canvas element. Accounts for both
+ * the auto-fit scale and the user's manual zoom level.
  */
 function applyCanvasScale() {
   const canvas = document.getElementById('canvas');
   if (!canvas) return;
   const scale = getCanvasScale();
-  if (scale < 1) {
+  if (scale !== 1) {
     canvas.style.transformOrigin = 'top left';
     canvas.style.transform = 'scale(' + scale + ')';
   } else {
     canvas.style.transform = '';
     canvas.style.transformOrigin = '';
   }
+  // Update zoom label
+  const lbl = document.getElementById('zoom-label');
+  if (lbl) lbl.textContent = Math.round(scale * 100) + '%';
+  setTimeout(renderRulers, 0);
+}
+/** Adjust user zoom by delta, clamp 0.25–3.0, reapply scale */
+function adjustUserZoom(delta) {
+  state.userZoom = Math.max(0.25, Math.min(3.0, (state.userZoom || 1) + delta));
+  applyCanvasScale();
+}
+/** Reset user zoom to true 1:1 (combined scale = 100%) */
+function resetUserZoom() {
+  // Calculate the auto-fit scale so we can set userZoom to counteract it
+  const cwrap = document.querySelector('.canvas-with-rulers');
+  if (state.devicePreview === 'desktop' && cwrap) {
+    const rulerW = cwrap.classList.contains('rulers-hidden') ? 0 : 20;
+    const availW = cwrap.clientWidth - rulerW - 2;
+    const fitScale = Math.min(1, availW / DESKTOP_CANVAS_W);
+    // userZoom = 1/fitScale makes getCanvasScale() return exactly 1.0 (100%)
+    state.userZoom = fitScale > 0 ? 1 / fitScale : 1;
+  } else {
+    state.userZoom = 1;
+  }
+  applyCanvasScale();
 }
 /**
  * Toggles the visibility of the grid-line guide overlay on the canvas.
@@ -5132,6 +5264,21 @@ function toggleGuides() {
   if (btn) btn.classList.toggle('btn-secondary', state.showGuides);
   if (btn) btn.classList.toggle('btn-outline-secondary', !state.showGuides);
   renderCanvas();
+}
+/** Toggle pixel-grid snap in free mode. Updates toolbar button state. */
+function toggleSnapGrid() {
+  state.snapGrid = !state.snapGrid;
+  const btn = document.getElementById('snap-btn');
+  if (btn) {
+    btn.classList.toggle('btn-primary', state.snapGrid);
+    btn.classList.toggle('btn-outline-secondary', !state.snapGrid);
+    btn.title = state.snapGrid ? `Grid snap ON (${state.snapSize}px) — press S to toggle` : 'Grid snap OFF — press S to toggle';
+  }
+}
+/** Snap a value to the nearest snapSize grid increment (free-mode only). */
+function snapToGrid(v) {
+  if (!state.snapGrid || state.positionMode !== 'free') return v;
+  return Math.round(v / state.snapSize) * state.snapSize;
 }
 /**
  * Toggles the pixel rulers along the canvas edges by toggling the
