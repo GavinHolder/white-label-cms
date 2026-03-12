@@ -34,7 +34,12 @@ export default function ScrollStageWrapper({
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 767px)');
     setIsMobile(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    // Signal -1 to parent so it shows all zones in stacked layout on mobile
+    if (mq.matches) onActiveZoneChange?.(-1);
+    const handler = (e: MediaQueryListEvent) => {
+      setIsMobile(e.matches);
+      if (e.matches) onActiveZoneChange?.(-1);
+    };
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
@@ -102,12 +107,15 @@ export default function ScrollStageWrapper({
   // column then scroll normally against #snap-container.
   const zoneH = `${multiLimit * 100}vh`;
 
+  // Navbar height — sticky content starts below it so text never enters the nav area
+  const NAV_H = 76;
+
   const contentCol = (
     <div style={{ flex: '0 0 60%', minWidth: 0, position: 'relative' }}>
       <div style={{
         position: 'sticky',
-        top: 0,
-        height: '100vh',
+        top: NAV_H,
+        height: `calc(100vh - ${NAV_H}px)`,
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',

@@ -153,7 +153,7 @@ export default function FlexibleSectionRenderer({ section }: FlexibleSectionRend
     footerGraphic,
   } = content;
   // Designer data (mockup format) — used when elements array is empty
-  const designerData = (content as any).designerData as string | null | undefined;
+  const designerData = (content as any).designerData as string | Record<string, unknown> | null | undefined;
 
   // Scroll Stage config — only active when contentMode === "multi" and enabled
   const scrollStage = (content as any).scrollStage as import("./scroll-stage/types").ScrollStageConfig | undefined;
@@ -255,7 +255,7 @@ export default function FlexibleSectionRenderer({ section }: FlexibleSectionRend
             contentPaddingBottom={paddingBottom ?? 100}
             onActiveZoneChange={setScrollStageZone}
           >
-            <div className="container-fluid px-0">
+            <div className="container-fluid px-0" style={{ overflow: 'hidden', height: '100%' }}>
               {designerData
                 ? <DesignerBlocksRenderer designerData={designerData} darkBg={darkBg} scrollStageZone={scrollStageZone} />
                 : <>
@@ -350,7 +350,7 @@ function canvasRefW(block: { pixelPos?: PixelPos; tabletPos?: PixelPos; mobilePo
  * Tracks window width via state so blocks re-position correctly across breakpoints.
  * Renders a graceful error message if designerData fails to parse.
  */
-function DesignerBlocksRenderer({ designerData, darkBg, scrollStageZone }: { designerData: string; darkBg: boolean; scrollStageZone?: number }) {
+function DesignerBlocksRenderer({ designerData, darkBg, scrollStageZone }: { designerData: string | Record<string, unknown>; darkBg: boolean; scrollStageZone?: number }) {
   // Hooks must be called before any conditional returns
   const [screenW, setScreenW] = useState(typeof window !== "undefined" ? window.innerWidth : 1440);
   // Update screen width on resize so responsive positions re-calculate
@@ -361,7 +361,7 @@ function DesignerBlocksRenderer({ designerData, darkBg, scrollStageZone }: { des
   }, []);
 
   try {
-    const data = JSON.parse(designerData);
+    const data = typeof designerData === 'string' ? JSON.parse(designerData) : designerData;
     const blocks: Array<{
       id: number; type: string;
       position?: { row: number; col: number; colSpan?: number; rowSpan?: number; section?: number };
@@ -381,10 +381,12 @@ function DesignerBlocksRenderer({ designerData, darkBg, scrollStageZone }: { des
     const isMulti    = data.contentMode === "multi";
     // multiLimit defines how many 100vh screens the section spans in multi mode
     const multiLimit = isMulti ? (data.multiLimit || 1) : 1;
-    // In scroll stage mode, content column is sticky (100vh) — show only active zone's blocks
-    const isScrollStage = scrollStageZone !== undefined;
-    const containerH = (isMulti && !isScrollStage) ? `${multiLimit * 100}vh` : "100vh";
-    // Filter blocks to active zone when in scroll stage mode
+    // -1 = mobile signal: show all zones stacked, normal multi layout
+    const isMobileScrollStage = scrollStageZone === -1;
+    // In scroll stage desktop mode use 100% so content fills the sticky column (prevents internal scroll)
+    const isScrollStage = scrollStageZone !== undefined && !isMobileScrollStage;
+    const containerH = isScrollStage ? "100%" : (isMulti ? `${multiLimit * 100}vh` : "100vh");
+    // Filter blocks to active zone when in scroll stage desktop mode
     const filteredBlocks = isScrollStage
       ? blocks.filter(b => (b.position?.section ?? 0) === scrollStageZone)
       : blocks;
