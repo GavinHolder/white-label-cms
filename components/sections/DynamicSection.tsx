@@ -76,7 +76,9 @@ function wrapSection(section: SectionConfig, el: React.ReactElement): React.Reac
 
   return (
     <div style={{ position: "relative" }}>
-      {el}
+      {/* z-index 10: section content sits above "behind" motion layer (z:5) but below
+          "above-lower-third" (z:15) and "above-content" (z:25) motion layers */}
+      <div style={{ position: "relative", zIndex: 10 }}>{el}</div>
       {hasLt && <LowerThirdRenderer config={section.lowerThird!} />}
       {hasMotion && (
         <MotionElementRenderer elements={section.motionElements!} sectionId={section.id} />

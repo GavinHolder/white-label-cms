@@ -223,7 +223,7 @@ export default function FlexibleSectionEditorModal({
       bgImageRepeat,
       bgImageOpacity,
       bgParallax,
-      motionElements: motionElements.length > 0 ? motionElements : null,
+      motionElements: motionElements,
       lowerThird,
       content: {
         ...section.content,
