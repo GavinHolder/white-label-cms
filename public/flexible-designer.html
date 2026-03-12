@@ -615,6 +615,14 @@
       transition: all 0.1s; width: 100%; text-align: left;
     }
     .se-add-menu-item:hover { background: #f0f4ff; border-color: #0d6efd; color: #0d6efd; }
+    /* Quick preset chips inside the sub-element add menu */
+    .se-preset-section { margin-bottom: 4px; }
+    .se-preset-label { font-size: 9px; font-weight: 700; color: #0d6efd; text-transform: uppercase; letter-spacing: 0.5px; padding: 0 2px; margin-bottom: 4px; }
+    .se-preset-chips { display: flex; flex-direction: column; gap: 3px; }
+    .se-preset-chip { display: flex; align-items: center; gap: 7px; padding: 6px 10px; border-radius: 7px; border: 1.5px solid #c7d7ff; background: #f0f4ff; cursor: pointer; font-size: 11px; font-weight: 600; color: #1e40af; transition: all 0.1s; }
+    .se-preset-chip:hover { border-color: #0d6efd; background: #dbe8ff; }
+    .se-preset-chip i { font-size: 12px; color: #0d6efd; flex-shrink: 0; }
+    .se-menu-sep { height: 1px; background: #e9ecef; margin: 4px 0; }
 
     /* Media upload picker */
     .media-picker { display:flex; flex-direction:column; gap:6px; }
@@ -1017,12 +1025,16 @@
     #canvas-empty-hint small { font-size:11px;color:#dee2e6; }
 
     /* ── BLOCK MINI-TOOLBAR ─────────────────── */
-    #block-mini-toolbar { position:absolute;z-index:500;background:white;border:1px solid #dee2e6;border-radius:8px;box-shadow:0 3px 14px rgba(0,0,0,0.13);padding:3px;gap:1px;display:none;align-items:center;transform:translateX(-50%);white-space:nowrap; }
+    #block-mini-toolbar { position:absolute;z-index:500;background:white;border:1px solid #dee2e6;border-radius:8px;box-shadow:0 3px 14px rgba(0,0,0,0.13);padding:3px;gap:1px;display:none;flex-direction:column;align-items:center; }
     #block-mini-toolbar.mtt-visible { display:flex; }
-    .mtt-btn { display:flex;align-items:center;justify-content:center;width:30px;height:26px;border:none;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#495057;transition:all 0.1s; }
+    .mtt-btn { display:flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;border-radius:5px;background:white;cursor:pointer;font-size:13px;color:#495057;transition:all 0.1s; }
     .mtt-btn:hover { background:#f0f4ff;color:#0d6efd; }
+    .mtt-btn.mtt-add { color:#198754;font-size:15px; }
+    .mtt-btn.mtt-snap-active { background:#e8f4fd;color:#0d6efd; }
+    .mtt-btn.mtt-snap-active:hover { background:#cfe2ff;color:#0a58ca; }
+    .mtt-btn.mtt-add:hover { background:#d1e7dd;color:#0a3622; }
     .mtt-btn.mtt-danger:hover { background:#fff0f0;color:#dc3545; }
-    .mtt-sep { width:1px;height:16px;background:#e9ecef;margin:0 1px;flex-shrink:0; }
+    .mtt-sep { height:1px;width:16px;background:#e9ecef;margin:1px 0;flex-shrink:0; }
     /* ── Volt Studio Modal ─────────────────────────────────────────── */
     #volt-modal { position:fixed;inset:0;z-index:9999;display:none;flex-direction:column; }
     #volt-modal.vm-open { display:flex; }
@@ -1343,8 +1355,11 @@
           <small>Use the Block Library on the left &nbsp;&middot;&nbsp; Drag blocks onto the canvas</small>
         </div>
         <div id="block-mini-toolbar">
-          <button class="mtt-btn" title="Edit Sub-Elements" onclick="mttEdit()"><i class="bi bi-pencil"></i></button>
+          <button class="mtt-btn mtt-add" id="mtt-add-btn" title="Add Sub-Element" onclick="mttAdd()" style="display:none"><i class="bi bi-plus-lg"></i></button>
+          <div class="mtt-sep mtt-add-sep" id="mtt-add-sep" style="display:none"></div>
+          <button class="mtt-btn" title="Edit Content" onclick="mttEdit()"><i class="bi bi-pencil"></i></button>
           <button class="mtt-btn" title="Duplicate Block" onclick="mttDuplicate()"><i class="bi bi-copy"></i></button>
+          <button class="mtt-btn" id="mtt-snap-btn" title="Snap sub-elements to 8px grid" onclick="mttToggleSubSnap()" style="display:none"><i class="bi bi-magnet"></i></button>
           <div class="mtt-sep"></div>
           <button class="mtt-btn mtt-danger" title="Delete Block" onclick="mttDelete()"><i class="bi bi-trash3"></i></button>
         </div>
@@ -1440,8 +1455,9 @@ const state = {
   editingBlockId: null,
   dragSource: null,
   showGuides: true,
-  snapGrid: false,   // pixel-grid snap in free mode (S key or toolbar button)
-  snapSize: 10,      // snap increment in px
+  snapGrid: false,      // pixel-grid snap in free mode (S key or toolbar button)
+  snapSize: 10,         // snap increment in px
+  subElementSnap: false, // snap sub-elements to 8px grid when dragging inside parent
   isResizing: false,
   nextId: 1,
   navOptions: [],
@@ -1821,9 +1837,11 @@ function renderCanvas() {
       b.gridCol  = Math.max(1, Math.min(b.gridCol  || 1, state.gridCols));
       b.colSpan  = Math.max(1, Math.min(b.colSpan  || 1, state.gridCols - b.gridCol + 1));
       b.rowSpan  = Math.max(1, Math.min(b.rowSpan  || 1, state.gridRows - b.gridRow + 1));
-      // Recalculate pixel position from the clamped grid coordinates
+      // Recalculate pixel position from the clamped grid coordinates.
+      // Preserve w/h if the user manually resized the block via drag handles.
       const { cx, cy, cw, ch } = getCellRect(b.gridRow, b.gridCol, b.colSpan, b.rowSpan, b.section);
-      b.x = cx; b.y = cy; b.w = cw; b.h = ch;
+      b.x = cx; b.y = cy;
+      if (!b.manualSize) { b.w = cw; b.h = ch; }
     });
   }
 
@@ -1972,16 +1990,7 @@ function createBlockElement(block) {
     badge.textContent = _behavior === 'hide' ? 'HIDDEN' : '↔ STRETCH';
     hdr.appendChild(badge);
   }
-  // "+" add sub-element button — for blocks that support sub-elements
-  if (['card','text-block','banner','stats'].includes(block.type)) {
-    const addSubBtn = document.createElement('button');
-    addSubBtn.className = 'cb-add-sub';
-    addSubBtn.textContent = '+ add';
-    addSubBtn.title = 'Add sub-element';
-    addSubBtn.addEventListener('click', e => { e.stopPropagation(); showSubAddMenu(block.id, addSubBtn); });
-    addSubBtn.addEventListener('mousedown', e => e.stopPropagation());
-    hdr.appendChild(addSubBtn);
-  }
+  // "+" add button moved to side mini-toolbar
   const rmBtn = document.createElement('button');
   rmBtn.className = 'cb-remove';
   rmBtn.textContent = '✕';
@@ -2436,8 +2445,15 @@ function startSubElementMove(e, blockId, seId) {
     }
     moved = true;
     // Clamp to non-negative coordinates so elements cannot be dragged above/left of the block
-    se.x = Math.round(Math.max(0, origX + dx));
-    se.y = Math.round(Math.max(0, origY + dy));
+    let newX = Math.round(Math.max(0, origX + dx));
+    let newY = Math.round(Math.max(0, origY + dy));
+    if (state.subElementSnap) {
+      const sg = 8;
+      newX = Math.round(newX / sg) * sg;
+      newY = Math.round(newY / sg) * sg;
+    }
+    se.x = newX;
+    se.y = newY;
     seEl.style.left = se.x + 'px';
     seEl.style.top  = se.y + 'px';
     // Live-resize parent block (grows AND shrinks) in all directions while dragging
@@ -2479,7 +2495,8 @@ function startSubElementWidthResize(e, blockId, seId) {
 
   const onMove = ev => {
     // Minimum width of 60px prevents the element from becoming unclickable
-    const newW = Math.max(60, Math.round(origW + (ev.clientX - startMX) / getCanvasScale()));
+    let newW = Math.max(60, Math.round(origW + (ev.clientX - startMX) / getCanvasScale()));
+    if (state.subElementSnap) { const sg = 8; newW = Math.round(newW / sg) * sg; if (newW < 60) newW = 64; }
     se.w = newW;
     seEl.style.width = newW + 'px';
     fitBlockToSubElementsDOM(blockId);
@@ -2607,8 +2624,16 @@ function fitBlockToSubElements(blockId) {
   });
   // bottom padding (16) + header reserve so nothing is clipped
   const bottomPad = block.type === 'text-block' ? (block.props?.paddingBottom ?? 16) : 16;
-  block.h = Math.max(56, maxBottom + bottomPad + HEADER_H);
-  if (maxRight > 0) block.w = Math.max(200, maxRight + 20);
+  const contentH = Math.max(56, maxBottom + bottomPad + HEADER_H);
+  const contentW = maxRight > 0 ? Math.max(200, maxRight + 20) : 0;
+  // If manually resized, only grow (never shrink below user-set size)
+  if (block.manualSize) {
+    block.h = Math.max(block.h, contentH);
+    if (contentW > 0) block.w = Math.max(block.w, contentW);
+  } else {
+    block.h = contentH;
+    if (contentW > 0) block.w = contentW;
+  }
 }
 
 /**
@@ -2641,13 +2666,21 @@ function fitBlockToSubElementsDOM(blockId) {
     }
   });
   const bottomPad = block.type === 'text-block' ? (block.props?.paddingBottom ?? 16) : 16;
-  block.h = Math.max(56, maxBottom + bottomPad + HEADER_H);
-  if (maxRight > 0) block.w = Math.max(200, maxRight + 20);
+  const contentH = Math.max(56, maxBottom + bottomPad + HEADER_H);
+  const contentW = maxRight > 0 ? Math.max(200, maxRight + 20) : 0;
+  // If manually resized, only grow (never shrink below user-set size)
+  if (block.manualSize) {
+    block.h = Math.max(block.h, contentH);
+    if (contentW > 0) block.w = Math.max(block.w, contentW);
+  } else {
+    block.h = contentH;
+    if (contentW > 0) block.w = contentW;
+  }
   // Update DOM immediately to avoid a full re-render on every drag tick
   const blockEl = document.querySelector(`.container-block[data-block-id="${blockId}"]`);
   if (blockEl) {
     blockEl.style.height = block.h + 'px';
-    if (maxRight > 0) blockEl.style.width = block.w + 'px';
+    if (maxRight > 0 || block.manualSize) blockEl.style.width = block.w + 'px';
   }
 }
 
@@ -2676,14 +2709,139 @@ function showSubAddMenu(blockId, anchorEl) {
   menu.className = 'se-add-menu';
   menu.dataset.blockId = blockId;
 
-  const title = document.createElement('div');
-  title.className = 'se-add-menu-title';
-  title.textContent = 'Add element';
-  menu.appendChild(title);
-
   const block = state.blocks.find(b => b.id === blockId);
   const isTextBlock = block && block.type === 'text-block';
-  const items = isTextBlock ? [
+
+  // Quick preset layouts — shown at top of text-block menu when block is empty
+  if (isTextBlock && block && (!block.subElements || block.subElements.length === 0)) {
+    const TEXT_PRESETS = [
+      // ── Single-column layouts ───────────────────────────────────────────────
+      { label:'Heading + Body',            icon:'bi-layout-text-window', section:'Single Column',
+        items:[{type:'heading',extra:{level:'h2',fontSize:28,text:'Your Heading'}},{type:'paragraph',extra:{fontSize:15,text:'Your body text goes here.'}}] },
+      { label:'Heading + Body + Button',   icon:'bi-card-text', section:'Single Column',
+        items:[{type:'heading',extra:{level:'h2',fontSize:28,text:'Your Heading'}},{type:'paragraph',extra:{fontSize:15,text:'Your body text goes here.'}},{type:'button',extra:{text:'Get Started'}}] },
+      { label:'Title + Subhead',           icon:'bi-type-h1', section:'Single Column',
+        items:[{type:'heading',extra:{level:'h1',fontSize:36,text:'Big Title'}},{type:'heading',extra:{level:'h4',fontSize:16,text:'Supporting subtitle text'}}] },
+      { label:'Badge + Heading + Body',    icon:'bi-award', section:'Single Column',
+        items:[{type:'badge',extra:{text:'NEW',bgColor:'#0d6efd'}},{type:'heading',extra:{level:'h2',fontSize:28,text:'Featured Item'}},{type:'paragraph',extra:{fontSize:15,text:'Description text here.'}}] },
+      { label:'Heading + Body + Image',    icon:'bi-image', section:'Single Column',
+        items:[{type:'heading',extra:{level:'h2',fontSize:28,text:'Your Heading'}},{type:'paragraph',extra:{fontSize:15,text:'Your body text goes here.'}},{type:'image',extra:{}}] },
+      // ── Two-column layouts (x/w set explicitly for side-by-side) ────────────
+      // Column A at x=0, w=140  |  Column B at x=152, w=140  (total ~300px)
+      { label:'2-Col: Title | Body',       icon:'bi-layout-split', section:'Two Column',
+        items:[{type:'heading',extra:{level:'h2',fontSize:22,text:'Title'},   col:{x:0,  w:140}},
+               {type:'paragraph',extra:{fontSize:14,text:'Your text here.'}, col:{x:152,w:140}}] },
+      { label:'2-Col: Heading + Body each',icon:'bi-columns', section:'Two Column',
+        items:[{type:'heading',  extra:{level:'h3',fontSize:18,text:'Left Head'},  col:{x:0,  w:140}},
+               {type:'paragraph',extra:{fontSize:13,text:'Left copy.'},           col:{x:0,  w:140,dy:42}},
+               {type:'heading',  extra:{level:'h3',fontSize:18,text:'Right Head'}, col:{x:152,w:140}},
+               {type:'paragraph',extra:{fontSize:13,text:'Right copy.'},           col:{x:152,w:140,dy:42}}] },
+      { label:'2-Col: Text | Image',       icon:'bi-layout-text-sidebar', section:'Two Column',
+        items:[{type:'heading',  extra:{level:'h2',fontSize:22,text:'Your Heading'}, col:{x:0,  w:140}},
+               {type:'paragraph',extra:{fontSize:14,text:'Your description.'},      col:{x:0,  w:140,dy:50}},
+               {type:'button',   extra:{text:'Learn More'},                          col:{x:0,  w:140,dy:118}},
+               {type:'image',    extra:{},                                           col:{x:152,w:140}}] },
+      // ── Three-column layouts ─────────────────────────────────────────────────
+      // Column A x=0,w=88  |  Column B x=96,w=88  |  Column C x=192,w=88  (total ~288px)
+      { label:'3-Col: Heading + Body each',icon:'bi-layout-three-columns', section:'Three Column',
+        items:[{type:'heading',  extra:{level:'h4',fontSize:15,text:'Col 1'},  col:{x:0,  w:88}},
+               {type:'paragraph',extra:{fontSize:12,text:'Text 1.'},           col:{x:0,  w:88,dy:36}},
+               {type:'heading',  extra:{level:'h4',fontSize:15,text:'Col 2'},  col:{x:96, w:88}},
+               {type:'paragraph',extra:{fontSize:12,text:'Text 2.'},           col:{x:96, w:88,dy:36}},
+               {type:'heading',  extra:{level:'h4',fontSize:15,text:'Col 3'},  col:{x:192,w:88}},
+               {type:'paragraph',extra:{fontSize:12,text:'Text 3.'},           col:{x:192,w:88,dy:36}}] },
+      { label:'3-Col: Icon + Heading + Body',icon:'bi-grid-3x2', section:'Three Column',
+        items:[{type:'icon',    extra:{},                                     col:{x:0,  w:88}},
+               {type:'heading',extra:{level:'h5',fontSize:14,text:'Feature 1'}, col:{x:0,  w:88,dy:40}},
+               {type:'paragraph',extra:{fontSize:12,text:'Description 1.'},   col:{x:0,  w:88,dy:72}},
+               {type:'icon',   extra:{},                                      col:{x:96, w:88}},
+               {type:'heading',extra:{level:'h5',fontSize:14,text:'Feature 2'}, col:{x:96, w:88,dy:40}},
+               {type:'paragraph',extra:{fontSize:12,text:'Description 2.'},   col:{x:96, w:88,dy:72}},
+               {type:'icon',   extra:{},                                      col:{x:192,w:88}},
+               {type:'heading',extra:{level:'h5',fontSize:14,text:'Feature 3'}, col:{x:192,w:88,dy:40}},
+               {type:'paragraph',extra:{fontSize:12,text:'Description 3.'},   col:{x:192,w:88,dy:72}}] },
+    ];
+    const psec = document.createElement('div');
+    psec.className = 'se-preset-section';
+    const plbl = document.createElement('div');
+    plbl.className = 'se-preset-label';
+    plbl.textContent = '⚡ Quick Presets';
+    psec.appendChild(plbl);
+    const pchips = document.createElement('div');
+    pchips.className = 'se-preset-chips';
+    let _lastSection = null;
+    TEXT_PRESETS.forEach(function(preset) {
+      if (preset.section !== _lastSection) {
+        _lastSection = preset.section;
+        const slbl = document.createElement('div');
+        slbl.style.cssText = 'font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;padding:4px 2px 2px;';
+        slbl.textContent = preset.section;
+        pchips.appendChild(slbl);
+      }
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'se-preset-chip';
+      const ic = document.createElement('i');
+      ic.className = 'bi ' + preset.icon;
+      chip.appendChild(ic);
+      chip.appendChild(document.createTextNode(' ' + preset.label));
+      chip.addEventListener('click', function(e) {
+        e.stopPropagation();
+        pushHistory();
+        // Track per-column Y offsets for multi-column layouts
+        const colY = {};
+        preset.items.forEach(function(item) {
+          const existingBlock = state.blocks.find(b => b.id === blockId);
+          if (!existingBlock) return;
+          const col = item.col; // optional {x, w, dy}
+          let x = 0, w = null;
+          let y = 0;
+          if (col) {
+            // Column layout: use explicit x/w, track y per column
+            x = col.x;
+            w = col.w;
+            const colKey = col.x;
+            if (colY[colKey] === undefined) colY[colKey] = 0;
+            y = colY[colKey] + (col.dy || 0);
+            // Estimate height for next item in same column
+            if (col.dy === undefined || col.dy === 0) {
+              colY[colKey] += estimateSubElementHeight(item.type) + 8;
+            }
+          } else {
+            // Single-column: stack from bottom of last sub-element
+            if (existingBlock.subElements && existingBlock.subElements.length > 0) {
+              y = Math.max.apply(null, existingBlock.subElements.map(s => (s.y || 0) + estimateSubElementHeight(s.type))) + 8;
+            }
+          }
+          const se = { id:`se-${state.nextId++}`, type:item.type, props:Object.assign({}, SUB_DEFAULTS[item.type], item.extra||{}), x:x, y:y, w:w };
+          existingBlock.subElements.push(se);
+        });
+        fitBlockToSubElements(blockId);
+        renderCanvas();
+        autoSave();
+        menu.remove();
+      });
+      pchips.appendChild(chip);
+    });
+    psec.appendChild(pchips);
+    menu.appendChild(psec);
+    const sep = document.createElement('div');
+    sep.className = 'se-menu-sep';
+    menu.appendChild(sep);
+    // Update height estimate to include presets
+    const title2 = document.createElement('div');
+    title2.className = 'se-add-menu-title';
+    title2.textContent = 'Or add individually';
+    menu.appendChild(title2);
+  } else {
+    const titleEl = document.createElement('div');
+    titleEl.className = 'se-add-menu-title';
+    titleEl.textContent = 'Add element';
+    menu.appendChild(titleEl);
+  }
+
+  const isTextBlock2 = isTextBlock; // alias for items list below
+  const items = isTextBlock2 ? [
     { type:'heading',   icon:'bi-type-h1',   label:'H1 — Largest title',  extra:{level:'h1', fontSize:36} },
     { type:'heading',   icon:'bi-type-h2',   label:'H2 — Section title',  extra:{level:'h2', fontSize:28} },
     { type:'heading',   icon:'bi-type-h3',   label:'H3 — Sub-title',      extra:{level:'h3', fontSize:22} },
@@ -2719,14 +2877,33 @@ function showSubAddMenu(blockId, anchorEl) {
 
   document.body.appendChild(menu);
 
-  // Position near anchor
+  // Position to the side of the mini-toolbar (never overlapping it).
+  // The toolbar sits LEFT of the block when the block is in the right half of
+  // the canvas, and RIGHT when the block is in the left half.  The menu opens
+  // in the same direction the toolbar faces away from the block.
   const rect = anchorEl.getBoundingClientRect();
   const mw = 230;
-  let left = rect.left;
-  let top = rect.bottom + 4;
-  if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
   const _menuEstH = items.length * 38 + 44;
-  if (top + _menuEstH > window.innerHeight) top = Math.max(8, rect.top - _menuEstH - 4);
+
+  let openRight = true;
+  const _mb = state.blocks.find(b => b.id === blockId);
+  if (_mb) {
+    const _canvas = document.getElementById('canvas');
+    const _canvasW = _canvas ? _canvas.offsetWidth : 1440;
+    const _dp = getDisplayPos(_mb);
+    openRight = (_dp.x + _dp.w / 2) <= _canvasW / 2; // toolbar is RIGHT → menu opens RIGHT
+  }
+
+  let left, top;
+  if (openRight) {
+    left = rect.right + 4;
+    if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+  } else {
+    left = rect.left - mw - 4;
+    if (left < 8) left = 8;
+  }
+  top = rect.top;
+  if (top + _menuEstH > window.innerHeight) top = Math.max(8, window.innerHeight - _menuEstH - 8);
   menu.style.left = left + 'px';
   menu.style.top  = top  + 'px';
 
@@ -3214,76 +3391,45 @@ function startResize(e, blockId, dir) {
   const canvasArea = canvas.closest('.canvas-area');
   const rect = canvas.getBoundingClientRect();
 
-  if (state.positionMode === 'free') {
-    // Free mode: pixel-delta resize from mousedown origin
-    const startX = e.clientX, startY = e.clientY;
-    const _resDP = getDisplayPos(block);
-    const origX = _resDP.x, origY = _resDP.y, origW = _resDP.w, origH = _resDP.h;
-    const MIN_W = 60, MIN_H = 40;
-    const ghost = document.createElement('div');
-    ghost.className = 'span-ghost';
-    canvas.appendChild(ghost);
+  // Always use free pixel resize regardless of mode.
+  // In grid mode, block.manualSize = true tells renderCanvas to preserve these pixel dims.
+  const startX = e.clientX, startY = e.clientY;
+  const _resDP = getDisplayPos(block);
+  const origX = _resDP.x, origY = _resDP.y, origW = _resDP.w, origH = _resDP.h;
+  const MIN_W = 60, MIN_H = 40;
+  const ghost = document.createElement('div');
+  ghost.className = 'span-ghost';
+  canvas.appendChild(ghost);
 
-    function onMove(e) {
-      const _res_scale = getCanvasScale();
-      const dx = (e.clientX - startX) / _res_scale;
-      const dy = (e.clientY - startY) / _res_scale;
-      let nx=origX, ny=origY, nw=origW, nh=origH;
-      if (dir==='right' ||dir==='tr'||dir==='br') nw = Math.max(MIN_W, snapToGrid(origW + dx));
-      if (dir==='bottom'||dir==='bl'||dir==='br') nh = Math.max(MIN_H, snapToGrid(origH + dy));
-      if (dir==='left'  ||dir==='tl'||dir==='bl') { nx = Math.max(0, snapToGrid(origX + dx)); nw = Math.max(MIN_W, origW - (nx - origX)); }
-      if (dir==='top'   ||dir==='tl'||dir==='tr') { ny = Math.max(0, snapToGrid(origY + dy)); nh = Math.max(MIN_H, origH - (ny - origY)); }
-      // Clamp to canvas bounds
-      nw = Math.min(nw, canvas.offsetWidth  - nx);
-      nh = Math.min(nh, canvas.offsetHeight - ny);
-      setDisplayPos(block, nx, ny, nw, nh);
-      ghost.style.cssText=`left:${nx}px;top:${ny}px;width:${nw}px;height:${nh}px;`;
-      // Live update DOM element
-      const el = document.querySelector(`[data-block-id="${blockId}"]`);
-      if (el) { el.style.left=`${nx}px`; el.style.top=`${ny}px`; el.style.width=`${nw}px`; el.style.height=`${nh}px`; }
-    }
-    function onUp() {
-      state.isResizing=false; ghost.remove();
-      document.removeEventListener('mousemove',onMove);
-      document.removeEventListener('mouseup',onUp);
-      renderCanvas(); renderPropsPanel();
-      autoSave();
-    }
-    document.addEventListener('mousemove',onMove);
-    document.addEventListener('mouseup',onUp);
-
-  } else {
-    // Grid mode: resize by cell span
-    const origCol=block.gridCol, origRow=block.gridRow;
-    const origCS=block.colSpan||1, origRS=block.rowSpan||1;
-    const origSection = block.section || 0;
-    const ghost = document.createElement('div');
-    ghost.className = 'span-ghost';
-    canvas.appendChild(ghost);
-    function onMove(e) {
-      const cell = findCell(e.clientX-rect.left, e.clientY-rect.top);
-      let nCol=origCol, nRow=origRow, nCS=origCS, nRS=origRS;
-      const rE=origCol+origCS-1, bE=origRow+origRS-1;
-      if (dir==='right'||dir==='tr'||dir==='br') nCS=Math.max(1,Math.min(state.gridCols-origCol+1,cell.col-origCol+1));
-      if (dir==='left' ||dir==='tl'||dir==='bl') { nCol=Math.max(1,Math.min(rE,cell.col)); nCS=rE-nCol+1; }
-      if (dir==='bottom'||dir==='bl'||dir==='br') nRS=Math.max(1,Math.min(state.gridRows-origRow+1,cell.row-origRow+1));
-      if (dir==='top'  ||dir==='tl'||dir==='tr') { nRow=Math.max(1,Math.min(bE,cell.row)); nRS=bE-nRow+1; }
-      block.gridCol=nCol; block.gridRow=nRow; block.colSpan=nCS; block.rowSpan=nRS;
-      const {cx,cy,cw,ch}=getCellRect(nRow,nCol,nCS,nRS,origSection);
-      block.x=cx;block.y=cy;block.w=cw;block.h=ch;
-      ghost.style.cssText=`left:${cx}px;top:${cy}px;width:${cw}px;height:${ch}px;`;
-    }
-    function onUp() {
-      state.isResizing=false; ghost.remove();
-      document.removeEventListener('mousemove',onMove);
-      document.removeEventListener('mouseup',onUp);
-      absorbOverlappingBlocks(blockId);
-      renderCanvas(); renderPropsPanel();
-      autoSave();
-    }
-    document.addEventListener('mousemove',onMove);
-    document.addEventListener('mouseup',onUp);
+  function onMove(e) {
+    const _res_scale = getCanvasScale();
+    const dx = (e.clientX - startX) / _res_scale;
+    const dy = (e.clientY - startY) / _res_scale;
+    let nx=origX, ny=origY, nw=origW, nh=origH;
+    if (dir==='right' ||dir==='tr'||dir==='br') nw = Math.max(MIN_W, snapToGrid(origW + dx));
+    if (dir==='bottom'||dir==='bl'||dir==='br') nh = Math.max(MIN_H, snapToGrid(origH + dy));
+    if (dir==='left'  ||dir==='tl'||dir==='bl') { nx = Math.max(0, snapToGrid(origX + dx)); nw = Math.max(MIN_W, origW - (nx - origX)); }
+    if (dir==='top'   ||dir==='tl'||dir==='tr') { ny = Math.max(0, snapToGrid(origY + dy)); nh = Math.max(MIN_H, origH - (ny - origY)); }
+    // Clamp to canvas bounds
+    nw = Math.min(nw, canvas.offsetWidth  - nx);
+    nh = Math.min(nh, canvas.offsetHeight - ny);
+    setDisplayPos(block, nx, ny, nw, nh);
+    ghost.style.cssText=`left:${nx}px;top:${ny}px;width:${nw}px;height:${nh}px;`;
+    // Live update DOM element
+    const el = document.querySelector(`[data-block-id="${blockId}"]`);
+    if (el) { el.style.left=`${nx}px`; el.style.top=`${ny}px`; el.style.width=`${nw}px`; el.style.height=`${nh}px`; }
   }
+  function onUp() {
+    state.isResizing=false; ghost.remove();
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onUp);
+    // In grid mode mark this block as manually sized so renderCanvas won't reset dimensions
+    if (state.positionMode !== 'free') block.manualSize = true;
+    renderCanvas(); renderPropsPanel();
+    autoSave();
+  }
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -4161,6 +4307,8 @@ function snapBlock(bId) {
   b.gridCol=Math.max(1,Math.min(b.gridCol,state.gridCols));
   b.colSpan=Math.max(1,Math.min(b.colSpan||1,state.gridCols-b.gridCol+1));
   b.rowSpan=Math.max(1,Math.min(b.rowSpan||1,state.gridRows-b.gridRow+1));
+  // User explicitly set a span — clear manual size so cell dims are restored
+  b.manualSize = false;
   // Recalculate pixel position from the clamped grid coordinates
   const {cx,cy,cw,ch}=getCellRect(b.gridRow,b.gridCol,b.colSpan,b.rowSpan,b.section||0);
   b.x=cx;b.y=cy;b.w=cw;b.h=ch;
@@ -5518,11 +5666,49 @@ function updateMiniToolbar() {
   const b = state.blocks.find(b => b.id === state.selectedBlockId);
   if (!b) { tb.classList.remove('mtt-visible'); return; }
   const dp = getDisplayPos(b);
+  const canvas = document.getElementById('canvas');
+  const canvasW = canvas ? canvas.offsetWidth : 1440;
   const MARGIN = 6;
-  const topY = dp.y - 36 - MARGIN;
-  tb.style.left = (dp.x + dp.w / 2) + 'px';
-  tb.style.top = Math.max(4, topY) + 'px';
+  const tbH = 92; // approx: 3×26px buttons + 1px sep + padding
+  const tbW = 32;
+  // Place on RIGHT if block is in left half, LEFT if block is in right half
+  const blockCenterX = dp.x + dp.w / 2;
+  let leftX, topY;
+  if (blockCenterX > canvasW / 2) {
+    // Block is in right half → toolbar on the LEFT of block
+    leftX = dp.x - tbW - MARGIN;
+  } else {
+    // Block is in left half → toolbar on the RIGHT of block
+    leftX = dp.x + dp.w + MARGIN;
+  }
+  // Vertically centre on block, clamped to canvas bounds
+  topY = Math.max(4, dp.y + dp.h / 2 - tbH / 2);
+  tb.style.left = leftX + 'px';
+  tb.style.top = topY + 'px';
   tb.classList.add('mtt-visible');
+  // Show + add button only for blocks that support sub-elements
+  const supportsAdd = ['card','text-block','banner','stats'].includes(b.type);
+  const addBtn = document.getElementById('mtt-add-btn');
+  const addSep = document.getElementById('mtt-add-sep');
+  if (addBtn) addBtn.style.display = supportsAdd ? '' : 'none';
+  if (addSep) addSep.style.display = supportsAdd ? '' : 'none';
+  const snapBtn = document.getElementById('mtt-snap-btn');
+  if (snapBtn) {
+    snapBtn.style.display = supportsAdd ? '' : 'none';
+    snapBtn.classList.toggle('mtt-snap-active', !!state.subElementSnap);
+    snapBtn.title = state.subElementSnap ? 'Sub-element snap ON (8px grid) — click to disable' : 'Snap sub-elements to 8px grid';
+  }
+}
+
+function mttAdd() {
+  if (!state.selectedBlockId) return;
+  const btn = document.getElementById('mtt-add-btn');
+  if (btn) showSubAddMenu(state.selectedBlockId, btn);
+}
+
+function mttToggleSubSnap() {
+  state.subElementSnap = !state.subElementSnap;
+  updateMiniToolbar();
 }
 
 function mttEdit() {

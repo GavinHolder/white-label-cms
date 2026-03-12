@@ -848,11 +848,41 @@ The block panel on the left contains 10 element types. **Card, Banner, and Stats
 
 A free-form text container. Unlike other blocks, the **Text Block has no visible border** — sub-elements are fully transparent so the canvas preview looks exactly like the live page. A subtle outline appears only on hover or selection to show element boundaries.
 
+### Quick Presets
+
+When a Text Block is **empty**, clicking **\`+ add\`** shows a **⚡ Quick Presets** section at the top of the picker with ready-made layouts:
+
+**Single Column**
+| Preset | Elements |
+|--------|----------|
+| Heading + Body | H2 + Paragraph |
+| Heading + Body + Button | H2 + Paragraph + Button |
+| Title + Subhead | H1 + H4 |
+| Badge + Heading + Body | Badge + H2 + Paragraph |
+| Heading + Body + Image | H2 + Paragraph + Image |
+
+**Two Column** (side-by-side sub-elements)
+| Preset | Elements |
+|--------|----------|
+| 2-Col: Title \| Body | H2 left + Paragraph right |
+| 2-Col: Heading + Body each | H2+Para left + H2+Para right |
+| 2-Col: Text \| Image | H2+Para left + Image right |
+
+**Three Column**
+| Preset | Elements |
+|--------|----------|
+| 3-Col: Heading + Body each | H3+Para in each of 3 columns |
+| 3-Col: Icon + Heading + Body | Icon+H4+Para in each column |
+
+Column presets use pixel \`x\`/\`w\` positioning on sub-elements — drag the edge handle to resize each column.
+
+---
+
 ### How to use
 
 1. **Drag "Text"** from the block panel onto the canvas — it drops as an empty 600×80 frame
 2. Click the **\`+ add\`** button (top-right of the block header) to open the element picker
-3. Choose a sub-element type:
+3. Choose a preset (for empty blocks) or add individually:
 
 | Element | Level | Default Size |
 |---------|-------|-------------|
@@ -2368,6 +2398,18 @@ const VOLT_TOOLS = `
 | **B** | Pen | Bezier pen tool — place anchor points |
 | **P** | Polygon | Click to place vertices, Enter/dblclick to close |
 | **S** | Slot | Define content slot regions |
+| **SHP** | Shape Presets | Drop a pre-built vector shape onto the canvas |
+
+### SHP — Shape Presets
+
+Click the **⭐ SHP** button in the toolbar to open a grid of 16 pre-built vector shapes. Clicking any shape drops it centred on the canvas at 40% of canvas size. All shapes are fully editable vector layers.
+
+| Shape | Shape | Shape | Shape |
+|-------|-------|-------|-------|
+| Arrow Right | Arrow Left | Arrow ↔ | 5-Point Star |
+| Heart | Diamond | Triangle Up | Triangle Down |
+| Chevron | Plus | Hexagon | Octagon |
+| Pentagon | Shield | Speech Bubble | Tag |
 
 ---
 
