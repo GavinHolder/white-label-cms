@@ -7,7 +7,8 @@ import type { AnimBgConfig } from "@/lib/anim-bg/types";
 import { DEFAULT_ANIM_BG_CONFIG } from "@/lib/anim-bg/defaults";
 import { animate } from "animejs";
 
-const AnimBgRenderer = dynamic(() => import("./AnimBgRenderer"), { ssr: false });
+const AnimBgRenderer    = dynamic(() => import("./AnimBgRenderer"), { ssr: false });
+const ScrollStageWrapper = dynamic(() => import("./scroll-stage/ScrollStageWrapper"), { ssr: false });
 
 interface FlexibleSectionRendererProps {
   section: FlexibleSection;
@@ -154,6 +155,10 @@ export default function FlexibleSectionRenderer({ section }: FlexibleSectionRend
   // Designer data (mockup format) — used when elements array is empty
   const designerData = (content as any).designerData as string | null | undefined;
 
+  // Scroll Stage config — only active when contentMode === "multi" and enabled
+  const scrollStage = (content as any).scrollStage as import("./scroll-stage/types").ScrollStageConfig | undefined;
+  const scrollStageActive = contentMode === "multi" && scrollStage?.enabled === true && (scrollStage.zones?.length ?? 0) > 0;
+
   // Animated background config from content.animBg
   const animBg: AnimBgConfig = (content as any).animBg || DEFAULT_ANIM_BG_CONFIG;
 
@@ -232,17 +237,35 @@ export default function FlexibleSectionRenderer({ section }: FlexibleSectionRend
       )}
 
       <div className="section-content-wrapper" style={{ position: "relative", zIndex: 11 }}>
-        <div className="container-fluid">
-          {/* If we have designer data (mockup block format), render that first */}
-          {designerData
-            ? <DesignerBlocksRenderer designerData={designerData} darkBg={darkBg} />
-            : <>
-                {layout.type === "grid"     && <GridLayout    layout={layout} elements={elements} darkBg={darkBg} />}
-                {layout.type === "absolute" && <AbsoluteLayout elements={elements} darkBg={darkBg} />}
-                {layout.type === "preset"   && <PresetLayout  preset={layout.preset!} elements={elements} darkBg={darkBg} />}
-              </>
-          }
-        </div>
+        {scrollStageActive ? (
+          <ScrollStageWrapper
+            config={scrollStage!}
+            multiLimit={scrollStage!.zones.length}
+          >
+            <div className="container-fluid">
+              {designerData
+                ? <DesignerBlocksRenderer designerData={designerData} darkBg={darkBg} />
+                : <>
+                    {layout.type === "grid"     && <GridLayout    layout={layout} elements={elements} darkBg={darkBg} />}
+                    {layout.type === "absolute" && <AbsoluteLayout elements={elements} darkBg={darkBg} />}
+                    {layout.type === "preset"   && <PresetLayout  preset={layout.preset!} elements={elements} darkBg={darkBg} />}
+                  </>
+              }
+            </div>
+          </ScrollStageWrapper>
+        ) : (
+          <div className="container-fluid">
+            {/* If we have designer data (mockup block format), render that first */}
+            {designerData
+              ? <DesignerBlocksRenderer designerData={designerData} darkBg={darkBg} />
+              : <>
+                  {layout.type === "grid"     && <GridLayout    layout={layout} elements={elements} darkBg={darkBg} />}
+                  {layout.type === "absolute" && <AbsoluteLayout elements={elements} darkBg={darkBg} />}
+                  {layout.type === "preset"   && <PresetLayout  preset={layout.preset!} elements={elements} darkBg={darkBg} />}
+                </>
+            }
+          </div>
+        )}
       </div>
 
       {footerGraphic?.enabled && (

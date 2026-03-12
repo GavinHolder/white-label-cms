@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import type { FlexibleSection, FlexibleElement, FlexibleAnimationType } from "@/types/section";
+import { defaultScrollStage, defaultZone } from "@/components/sections/scroll-stage/types";
+import type { ScrollStageConfig, ScrollStageZoneConfig } from "@/components/sections/scroll-stage/types";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -11,7 +13,7 @@ interface FlexibleSectionEditorProps {
   onChange: (updated: FlexibleSection) => void;
 }
 
-type ActiveTab = "layout" | "content" | "styling" | "advanced";
+type ActiveTab = "layout" | "content" | "styling" | "advanced" | "scroll-stage";
 
 const ELEMENT_TYPES = [
   { type: "text",    label: "Text Block",   icon: "bi-type" },
@@ -155,7 +157,7 @@ export default function FlexibleSectionEditor({ section, onChange }: FlexibleSec
   return (
     <div className="flexible-section-editor">
       {/* Tab Navigation */}
-      <ul className="nav nav-tabs mb-3">
+      <ul className="nav nav-tabs mb-3 flex-wrap">
         {(["layout", "content", "styling", "advanced"] as ActiveTab[]).map((tab) => (
           <li key={tab} className="nav-item">
             <button
@@ -169,6 +171,20 @@ export default function FlexibleSectionEditor({ section, onChange }: FlexibleSec
             </button>
           </li>
         ))}
+        {/* Scroll Stage tab — only visible in multi content mode */}
+        {contentMode === "multi" && (
+          <li className="nav-item">
+            <button
+              className={`nav-link ${activeTab === "scroll-stage" ? "active" : ""} position-relative`}
+              onClick={() => setActiveTab("scroll-stage")}
+            >
+              <i className="bi bi-layers me-1"></i>Scroll Stage
+              {(content as any).scrollStage?.enabled && (
+                <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style={{ fontSize: "9px" }}>ON</span>
+              )}
+            </button>
+          </li>
+        )}
       </ul>
 
       {/* ── TAB: LAYOUT ── */}
@@ -342,6 +358,14 @@ export default function FlexibleSectionEditor({ section, onChange }: FlexibleSec
       {/* ── TAB: ADVANCED ── */}
       {activeTab === "advanced" && (
         <AdvancedTab section={section} contentMode={contentMode} />
+      )}
+
+      {/* ── TAB: SCROLL STAGE ── */}
+      {activeTab === "scroll-stage" && contentMode === "multi" && (
+        <ScrollStageTab
+          scrollStage={(content as any).scrollStage as ScrollStageConfig | undefined}
+          onChange={(ss) => updateContent({ scrollStage: ss } as any)}
+        />
       )}
     </div>
   );
@@ -1051,6 +1075,235 @@ function StylingTab({ section, onChange }: { section: FlexibleSection; onChange:
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Scroll Stage Tab ─────────────────────────────────────────────────────────
+
+function ScrollStageTab({
+  scrollStage,
+  onChange,
+}: {
+  scrollStage: ScrollStageConfig | undefined;
+  onChange: (config: ScrollStageConfig) => void;
+}) {
+  const config: ScrollStageConfig = scrollStage ?? defaultScrollStage(2);
+
+  const updateConfig = (patch: Partial<ScrollStageConfig>) => onChange({ ...config, ...patch });
+
+  const updateZone = (idx: number, patch: Partial<ScrollStageZoneConfig>) => {
+    const zones = config.zones.map((z, i) => (i === idx ? { ...z, ...patch } : z));
+    updateConfig({ zones });
+  };
+
+  const addZone = () => updateConfig({ zones: [...config.zones, defaultZone()] });
+
+  const removeZone = (idx: number) => {
+    if (config.zones.length <= 1) return;
+    updateConfig({ zones: config.zones.filter((_, i) => i !== idx) });
+  };
+
+  return (
+    <div className="row g-3">
+      {/* Enable toggle */}
+      <div className="col-12">
+        <div className="d-flex align-items-center gap-3">
+          <div className="form-check form-switch mb-0">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              id="ss-enabled"
+              checked={config.enabled}
+              onChange={(e) => updateConfig({ enabled: e.target.checked })}
+            />
+            <label className="form-check-label fw-semibold" htmlFor="ss-enabled">
+              Enable Scroll Stage
+            </label>
+          </div>
+          {config.enabled && (
+            <span className="badge bg-success">Active</span>
+          )}
+        </div>
+        <div className="form-text">
+          Adds a sticky visual companion track (images) alongside the multi-section content. Desktop only.
+        </div>
+      </div>
+
+      {config.enabled && (
+        <>
+          {/* Default side */}
+          <div className="col-md-6">
+            <label className="form-label fw-semibold">Default Track Side</label>
+            <div className="d-flex gap-2">
+              {(["left", "right"] as const).map((side) => (
+                <button
+                  key={side}
+                  type="button"
+                  className={`btn btn-sm ${config.side === side ? "btn-primary" : "btn-outline-secondary"}`}
+                  onClick={() => updateConfig({ side })}
+                >
+                  <i className={`bi bi-layout-sidebar${side === "right" ? "-reverse" : ""} me-1`}></i>
+                  {side.charAt(0).toUpperCase() + side.slice(1)}
+                </button>
+              ))}
+            </div>
+            <div className="form-text">Individual zones can override this side setting.</div>
+          </div>
+
+          {/* Zone count info */}
+          <div className="col-md-6 d-flex align-items-end">
+            <div className="text-muted small">
+              <i className="bi bi-info-circle me-1"></i>
+              {config.zones.length} zone{config.zones.length !== 1 ? "s" : ""} configured.
+              Match this to your section&apos;s multi-zone count.
+            </div>
+          </div>
+
+          {/* Zone configs */}
+          {config.zones.map((zone, idx) => (
+            <div key={idx} className="col-12">
+              <div className="card border-secondary">
+                <div className="card-header d-flex justify-content-between align-items-center py-2 bg-secondary bg-opacity-10">
+                  <span className="fw-semibold small">
+                    <i className="bi bi-layers me-1 text-primary"></i>Zone {idx + 1}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-danger"
+                    disabled={config.zones.length <= 1}
+                    onClick={() => removeZone(idx)}
+                  >
+                    <i className="bi bi-trash3"></i>
+                  </button>
+                </div>
+                <div className="card-body">
+                  <div className="row g-3">
+                    {/* Image URL */}
+                    <div className="col-12">
+                      <label className="form-label small fw-semibold">Image URL</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="https://... or /images/..."
+                        value={zone.src}
+                        onChange={(e) => updateZone(idx, { src: e.target.value })}
+                      />
+                    </div>
+
+                    {/* Alt text */}
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Alt Text</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        value={zone.alt ?? ""}
+                        onChange={(e) => updateZone(idx, { alt: e.target.value })}
+                      />
+                    </div>
+
+                    {/* Object Fit */}
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Object Fit</label>
+                      <select
+                        className="form-select form-select-sm"
+                        value={zone.objectFit ?? "cover"}
+                        onChange={(e) => updateZone(idx, { objectFit: e.target.value as "cover" | "contain" })}
+                      >
+                        <option value="cover">Cover</option>
+                        <option value="contain">Contain</option>
+                      </select>
+                    </div>
+
+                    {/* Parallax Factor */}
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">
+                        Parallax Factor <span className="text-muted">(1 = static, 1.3 = default)</span>
+                      </label>
+                      <input
+                        type="number"
+                        min={0} max={3} step={0.1}
+                        className="form-control form-control-sm"
+                        value={zone.parallaxFactor ?? 1.3}
+                        onChange={(e) => updateZone(idx, { parallaxFactor: Number(e.target.value) })}
+                      />
+                    </div>
+
+                    {/* Parallax Direction */}
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Parallax Direction</label>
+                      <div className="d-flex gap-2">
+                        {(["up", "down"] as const).map((dir) => (
+                          <button
+                            key={dir}
+                            type="button"
+                            className={`btn btn-sm ${(zone.parallaxDirection ?? "up") === dir ? "btn-primary" : "btn-outline-secondary"}`}
+                            onClick={() => updateZone(idx, { parallaxDirection: dir })}
+                          >
+                            <i className={`bi bi-arrow-${dir} me-1`}></i>{dir}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Transition Duration */}
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Transition (ms)</label>
+                      <input
+                        type="number"
+                        min={0} max={2000} step={50}
+                        className="form-control form-control-sm"
+                        value={zone.transitionDuration ?? 400}
+                        onChange={(e) => updateZone(idx, { transitionDuration: Number(e.target.value) })}
+                      />
+                    </div>
+
+                    {/* Side Override */}
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Side Override</label>
+                      <select
+                        className="form-select form-select-sm"
+                        value={zone.sideOverride ?? ""}
+                        onChange={(e) => updateZone(idx, { sideOverride: (e.target.value || null) as "left" | "right" | null })}
+                      >
+                        <option value="">Use default</option>
+                        <option value="left">Left</option>
+                        <option value="right">Right</option>
+                      </select>
+                    </div>
+
+                    {/* Preview thumbnail */}
+                    {zone.src && (
+                      <div className="col-12">
+                        <div style={{ height: 80, overflow: "hidden", borderRadius: 6, border: "1px solid #dee2e6" }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={zone.src}
+                            alt={zone.alt ?? ""}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Add zone */}
+          <div className="col-12">
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-primary"
+              onClick={addZone}
+            >
+              <i className="bi bi-plus-lg me-1"></i>Add Zone
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

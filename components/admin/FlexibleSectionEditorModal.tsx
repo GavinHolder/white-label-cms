@@ -14,6 +14,8 @@ import type { AnimBgConfig } from "@/lib/anim-bg/types";
 import { DEFAULT_ANIM_BG_CONFIG } from "@/lib/anim-bg/defaults";
 import LowerThirdTab from "@/components/admin/LowerThirdTab";
 import MotionElementEditor, { createDefaultMotionElement } from "@/components/admin/MotionElementEditor";
+import { defaultScrollStage, defaultZone } from "@/components/sections/scroll-stage/types";
+import type { ScrollStageConfig, ScrollStageZoneConfig } from "@/components/sections/scroll-stage/types";
 import { DEFAULT_LOWER_THIRD } from "@/lib/lower-third-presets";
 import {
   PRESET_COLORS,
@@ -39,7 +41,7 @@ interface FlexibleSectionEditorModalProps {
   allSections?: Array<{ id: string; type: string; title?: string; displayName?: string; order: number }>;
 }
 
-type ActiveTab = "content" | "background" | "animation" | "overlay" | "triangle" | "lower-third" | "motion" | "spacing" | "preview";
+type ActiveTab = "content" | "background" | "animation" | "overlay" | "triangle" | "lower-third" | "motion" | "spacing" | "scroll-stage" | "preview";
 
 export default function FlexibleSectionEditorModal({
   section,
@@ -167,6 +169,11 @@ export default function FlexibleSectionEditorModal({
     (section as any).lowerThird ?? DEFAULT_LOWER_THIRD
   );
 
+  // ── Scroll Stage ──────────────────────────────────────────────
+  const [scrollStage, setScrollStage] = useState<ScrollStageConfig>(
+    (section.content as any)?.scrollStage ?? defaultScrollStage(2)
+  );
+
   // ── Save ──────────────────────────────────────────────────────
   const handleCancel = () => {
     try { localStorage.removeItem(draftKey); } catch {}
@@ -237,6 +244,7 @@ export default function FlexibleSectionEditorModal({
         gradient,
         ...(overlayEnabled ? { overlay: { heading: overlayHeading, subheading: overlaySubheading, animation: overlayAnimation, position: overlayPosition } } : {}),
         animBg,
+        scrollStage,
       } as any,
     };
     onSave(updated, shouldClose);
@@ -454,6 +462,21 @@ export default function FlexibleSectionEditorModal({
                     </li>
                   );
                 })}
+                {/* Scroll Stage tab — only in multi mode */}
+                {contentMode === "multi" && (
+                  <li className="nav-item">
+                    <button
+                      className={`nav-link ${activeTab === "scroll-stage" ? "active" : ""} position-relative`}
+                      onClick={() => setActiveTab("scroll-stage")}
+                    >
+                      <i className="bi bi-layers me-2" />
+                      Scroll Stage
+                      {scrollStage?.enabled && (
+                        <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style={{ fontSize: "9px" }}>ON</span>
+                      )}
+                    </button>
+                  </li>
+                )}
                 <li className="nav-item ms-auto">
                   <button
                     className={`nav-link ${activeTab === "preview" ? "active text-success" : "text-primary"}`}
@@ -1201,6 +1224,11 @@ export default function FlexibleSectionEditorModal({
                     Add Motion Element
                   </button>
                 </div>
+              )}
+
+              {/* ══ SCROLL STAGE TAB ═════════════════════════════════════ */}
+              {activeTab === "scroll-stage" && contentMode === "multi" && (
+                <ModalScrollStageTab config={scrollStage} onChange={setScrollStage} />
               )}
 
               {/* ══ PREVIEW TAB ══════════════════════════════════════════ */}
@@ -2193,6 +2221,204 @@ function DesignerBlockEditor({
             </div>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Scroll Stage Tab (modal variant) ────────────────────────────────────────
+
+function ModalScrollStageTab({
+  config: configProp,
+  onChange,
+}: {
+  config: ScrollStageConfig;
+  onChange: (config: ScrollStageConfig) => void;
+}) {
+  const config = configProp ?? defaultScrollStage(2);
+
+  const updateConfig = (patch: Partial<ScrollStageConfig>) => onChange({ ...config, ...patch });
+
+  const updateZone = (idx: number, patch: Partial<ScrollStageZoneConfig>) => {
+    const zones = config.zones.map((z, i) => (i === idx ? { ...z, ...patch } : z));
+    updateConfig({ zones });
+  };
+
+  const addZone = () => updateConfig({ zones: [...config.zones, defaultZone()] });
+
+  const removeZone = (idx: number) => {
+    if (config.zones.length <= 1) return;
+    updateConfig({ zones: config.zones.filter((_, i) => i !== idx) });
+  };
+
+  return (
+    <div className="row g-3">
+      <div className="col-12">
+        <div className="d-flex align-items-center gap-3">
+          <div className="form-check form-switch mb-0">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              id="modal-ss-enabled"
+              checked={config.enabled}
+              onChange={(e) => updateConfig({ enabled: e.target.checked })}
+            />
+            <label className="form-check-label fw-semibold" htmlFor="modal-ss-enabled">
+              Enable Scroll Stage
+            </label>
+          </div>
+          {config.enabled && <span className="badge bg-success">Active</span>}
+        </div>
+        <p className="form-text mt-1">
+          Adds a sticky visual companion track alongside the scrolling content. Desktop only — hidden on mobile.
+        </p>
+      </div>
+
+      {config.enabled && (
+        <>
+          <div className="col-12">
+            <label className="form-label fw-semibold">Default Track Side</label>
+            <div className="d-flex gap-2">
+              {(["left", "right"] as const).map((side) => (
+                <button
+                  key={side}
+                  type="button"
+                  className={`btn btn-sm ${config.side === side ? "btn-primary" : "btn-outline-secondary"}`}
+                  onClick={() => updateConfig({ side })}
+                >
+                  <i className={`bi bi-layout-sidebar${side === "right" ? "-reverse" : ""} me-1`} />
+                  {side.charAt(0).toUpperCase() + side.slice(1)}
+                </button>
+              ))}
+            </div>
+            <p className="form-text">Each zone can individually override this side.</p>
+          </div>
+
+          <div className="col-12">
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <span className="fw-semibold small">
+                <i className="bi bi-layers me-1 text-primary" />
+                {config.zones.length} Zone{config.zones.length !== 1 ? "s" : ""} — match to multi-section count
+              </span>
+              <button type="button" className="btn btn-sm btn-outline-primary" onClick={addZone}>
+                <i className="bi bi-plus-lg me-1" />Add Zone
+              </button>
+            </div>
+          </div>
+
+          {config.zones.map((zone, idx) => (
+            <div key={idx} className="col-12">
+              <div className="card border-secondary">
+                <div className="card-header d-flex justify-content-between align-items-center py-2 bg-secondary bg-opacity-10">
+                  <span className="fw-semibold small">
+                    <i className="bi bi-layers me-1 text-primary" />Zone {idx + 1}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-danger"
+                    disabled={config.zones.length <= 1}
+                    onClick={() => removeZone(idx)}
+                  >
+                    <i className="bi bi-trash3" />
+                  </button>
+                </div>
+                <div className="card-body">
+                  <div className="row g-2">
+                    <div className="col-12">
+                      <label className="form-label small fw-semibold">Image URL</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="https://... or /images/..."
+                        value={zone.src}
+                        onChange={(e) => updateZone(idx, { src: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Alt Text</label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        value={zone.alt ?? ""}
+                        onChange={(e) => updateZone(idx, { alt: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Object Fit</label>
+                      <select
+                        className="form-select form-select-sm"
+                        value={zone.objectFit ?? "cover"}
+                        onChange={(e) => updateZone(idx, { objectFit: e.target.value as "cover" | "contain" })}
+                      >
+                        <option value="cover">Cover</option>
+                        <option value="contain">Contain</option>
+                      </select>
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label small fw-semibold">Parallax Factor</label>
+                      <input
+                        type="number" min={0} max={3} step={0.1}
+                        className="form-control form-control-sm"
+                        value={zone.parallaxFactor ?? 1.3}
+                        onChange={(e) => updateZone(idx, { parallaxFactor: Number(e.target.value) })}
+                      />
+                      <div className="form-text" style={{ fontSize: "10px" }}>1 = static · 1.3 = default</div>
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label small fw-semibold">Direction</label>
+                      <div className="d-flex gap-1">
+                        {(["up", "down"] as const).map((dir) => (
+                          <button
+                            key={dir}
+                            type="button"
+                            className={`btn btn-sm ${(zone.parallaxDirection ?? "up") === dir ? "btn-primary" : "btn-outline-secondary"}`}
+                            onClick={() => updateZone(idx, { parallaxDirection: dir })}
+                          >
+                            <i className={`bi bi-arrow-${dir}`} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label small fw-semibold">Transition (ms)</label>
+                      <input
+                        type="number" min={0} max={2000} step={50}
+                        className="form-control form-control-sm"
+                        value={zone.transitionDuration ?? 400}
+                        onChange={(e) => updateZone(idx, { transitionDuration: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label small fw-semibold">Side Override</label>
+                      <select
+                        className="form-select form-select-sm"
+                        value={zone.sideOverride ?? ""}
+                        onChange={(e) => updateZone(idx, { sideOverride: (e.target.value || null) as "left" | "right" | null })}
+                      >
+                        <option value="">Use default</option>
+                        <option value="left">Left</option>
+                        <option value="right">Right</option>
+                      </select>
+                    </div>
+                    {zone.src && (
+                      <div className="col-12">
+                        <div style={{ height: 80, overflow: "hidden", borderRadius: 6, border: "1px solid #dee2e6" }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={zone.src}
+                            alt={zone.alt ?? ""}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </>
       )}
     </div>
   );
