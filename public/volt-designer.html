@@ -63,7 +63,7 @@
     .canvas-empty-hint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:6px;z-index:1;}
     .canvas-empty-hint i{font-size:32px;color:#93a8c4;}
     .canvas-empty-hint p{font-size:13px;color:#6b8cae;margin:0;font-weight:600;}
-    .canvas-empty-hint small{font-size:10px;color:#93a8c4;letter-spacing:0.3px;}
+    .canvas-empty-hint small{font-size:10px;color:#4e6a8a;letter-spacing:0.5px;background:rgba(255,255,255,0.85);padding:4px 12px;border-radius:20px;border:1px solid rgba(147,168,196,0.4);font-weight:600;}
     .v3d-modal{position:fixed;inset:0;z-index:9000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);}
     .v3d-modal.open{display:flex;}
     .v3d-modal-inner{width:min(1280px,98vw);height:90vh;background:#fff;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.18);}
@@ -170,7 +170,7 @@
               <span style="font-size:9px;font-weight:800;background:#06b6d4;color:white;padding:2px 5px;border-radius:3px;flex-shrink:0;">② BASE</span>
               <select id="bool-base-picker" class="form-select form-select-sm" style="font-size:11px;flex:1;"></select>
             </div>
-            <div style="font-size:9px;color:#6b7280;padding:0 2px 6px;"><kbd style="font-size:8px;padding:1px 3px;border:1px solid #d1d5db;border-radius:2px;background:#f9fafb;">Shift</kbd>+click a layer to set base</div>
+            <div style="font-size:9px;color:#6b7280;padding:0 2px 6px;"><kbd style="font-size:8px;padding:1px 4px;border:1px solid #6b7280;border-radius:2px;background:#374151;color:#f9fafb;font-weight:700;">Shift</kbd>+click a layer to set base</div>
             <div class="d-flex gap-1">
               <button id="btn-bool-union" class="btn btn-sm btn-outline-secondary flex-fill"><i class="bi bi-union"></i> Union</button>
               <button id="btn-bool-subtract" class="btn btn-sm btn-outline-secondary flex-fill"><i class="bi bi-subtract"></i> Sub</button>
@@ -274,6 +274,11 @@
       multiSelectIds:[],       // layers selected by marquee
       isDirty:false,history:[],historyIndex:-1,zoom:1,gridSize:10
     };
+    // ── Manual dblclick trackers (timer-based; survive DOM rebuilds) ──────────
+    // Canvas shape dblclick → vertex/bool-edit mode
+    var _cvsDblClick = {id:null, time:0};
+    // Layer name dblclick → inline rename
+    var _lyrDblClick = {id:null, time:0};
     // ── 3D Object state ───────────────────────────────────────────────────────
     var _v3dViewerReady = false, _v3dPendingLoad = null;
     var _v3dCurrentAsset = null, _v3dCurrentVersion = null;
@@ -309,17 +314,42 @@
         var cutter=state.element.layers.find(function(l){return l.id===bc.cutterId;});
         if(!cutter||!cutter.vectorData)return;
         if(bc.op==='union'){result=result+' '+cutter.vectorData.pathData;fillRule='nonzero';}
-        else if(bc.op==='subtract'){result=result+' '+reversePath(cutter.vectorData.pathData);fillRule='evenodd';}
+        else if(bc.op==='subtract'){
+          // Use evenodd fill rule — cutter path need not be reversed (direction irrelevant for evenodd)
+          // reversePath used parsePts which strips arc commands, breaking ellipse cutters
+          result=result+' '+cutter.vectorData.pathData;fillRule='evenodd';
+        }
         else if(bc.op==='intersect'){var pA=layerToPoly(layer),pB=layerToPoly(cutter);if(pA&&pB&&pA.length>=3&&pB.length>=3){var cl=shClip(pA,pB);if(cl&&cl.length>=3){result=ptsToPath(cl);fillRule='nonzero';}}}
       });
       return {path:result,fillRule:fillRule};
     }
     // ── Recalc bounding box from actual path points ───────────────────────────
+    // For composite (boolChildren) layers: use the visual bboxes of all
+    // participating layers directly — avoids arc-command parsing failures.
+    function layerBbox(l){return {x:l.x,y:l.y,x2:l.x+l.width,y2:l.y+l.height};}
     function recalcLayerBounds(layer){
-      var dispPath;
-      if(layer.boolChildren&&layer.boolChildren.length){var bd=getBoolDisplayPath(layer);dispPath=bd.path;}
-      else if(layer.vectorData){dispPath=layer.vectorData.pathData;}
-      else return;
+      if(layer.boolChildren&&layer.boolChildren.length){
+        // Start with base layer bbox
+        var bb=layerBbox(layer);
+        layer.boolChildren.forEach(function(bc){
+          var c=state.element.layers.find(function(l){return l.id===bc.cutterId;});
+          if(!c)return;
+          var cb=layerBbox(c);
+          if(bc.op==='union'){
+            // Union expands the bbox
+            bb.x=Math.min(bb.x,cb.x);bb.y=Math.min(bb.y,cb.y);
+            bb.x2=Math.max(bb.x2,cb.x2);bb.y2=Math.max(bb.y2,cb.y2);
+          }
+          // subtract/intersect: keep base bbox (conservative; always clickable)
+        });
+        layer.x=bb.x;layer.y=bb.y;
+        layer.width=Math.max(0.1,bb.x2-bb.x);layer.height=Math.max(0.1,bb.y2-bb.y);
+        return;
+      }
+      if(!layer.vectorData)return;
+      var dispPath=layer.vectorData.pathData;
+      // For arc-based paths (ellipses), x/y/w/h are already correct — skip parsePts
+      if(/\bA\b/.test(dispPath))return;
       var pts=parsePts(dispPath);if(!pts.length)return;
       var xs=pts.map(function(p){return p.x;}),ys=pts.map(function(p){return p.y;});
       var bx=Math.min.apply(null,xs),by=Math.min.apply(null,ys);
@@ -380,8 +410,18 @@
           var fill=layer.vectorData.fills&&layer.vectorData.fills[0];
           if(isCutterEditVis){path.setAttribute('fill','rgba(249,115,22,0.12)');path.setAttribute('stroke','#f97316');path.setAttribute('stroke-width',(2/(CW/100)).toFixed(3));path.setAttribute('stroke-dasharray',(5/(CW/100)).toFixed(3)+' '+(3/(CW/100)).toFixed(3));path.setAttribute('fill-rule','nonzero');}
           else{path.setAttribute('fill',(fill&&fill.type==='solid')?fill.color:'none');path.setAttribute('fill-opacity',fill?fill.opacity:1);path.setAttribute('fill-rule',dispFillRule);
-          if(layer.vectorData.stroke){var s=layer.vectorData.stroke;path.setAttribute('stroke',s.color);path.setAttribute('stroke-width',s.width/(CW/100));path.setAttribute('stroke-opacity',s.opacity);path.setAttribute('stroke-linecap',s.cap||'round');path.setAttribute('stroke-linejoin',s.join||'round');}
-          else path.setAttribute('stroke','none');}
+          if(layer.vectorData.stroke){
+            var s=layer.vectorData.stroke;path.setAttribute('stroke',s.color);path.setAttribute('stroke-opacity',s.opacity);path.setAttribute('stroke-linecap',s.cap||'round');path.setAttribute('stroke-linejoin',s.join||'round');
+            if(layer.boolChildren&&layer.boolChildren.length){
+              // Boolean composite: use paint-order trick so interior intersection lines
+              // are covered by fill — only the outer boundary stroke remains visible.
+              // Double stroke-width so the outer half equals the intended width.
+              path.setAttribute('stroke-width',(s.width*2/(CW/100)).toFixed(3));
+              path.style.paintOrder='stroke fill';
+            }else{
+              path.setAttribute('stroke-width',(s.width/(CW/100)).toFixed(3));
+            }
+          }else path.setAttribute('stroke','none');}
           g.appendChild(path);svgEl.appendChild(g);
         }
         if(layer.type==='slot'){
@@ -570,7 +610,12 @@
             state.boolBaseId=hit.id;renderAll();return;
           }
           dragSt={layerId:hit.id,startPt:pt,startX:hit.x,startY:hit.y,origPath:hit.vectorData?hit.vectorData.pathData:null,moved:false,altDuped:false,isCutter:hit.boolRole==='cutter',cutterParentId:hit.boolParentId||null};
-          if(state.selectedLayerId!==hit.id)selectLayer(hit.id);
+          // When clicking a cutter in bool-edit mode, stay in bool-edit (don't call selectLayer which would clear boolEditParentId)
+          if(hit.boolRole==='cutter'&&state.boolEditParentId===hit.boolParentId){
+            state.selectedLayerId=hit.id;state.multiSelectIds=[hit.id];
+            document.getElementById('btn-delete-layer').disabled=false;
+            renderCanvas();renderLayers();renderProps();
+          }else if(state.selectedLayerId!==hit.id){selectLayer(hit.id);}
         }
         else{
           // Start marquee selection on empty canvas
@@ -689,7 +734,35 @@
       var CW=state.element.canvasWidth,CH=state.element.canvasHeight;
       if(vxDragSt){pushHistory();markDirty();renderAll();vxDragSt=null;return;}
       if(resizeSt){pushHistory();markDirty();renderAll();resizeSt=null;return;}
-      if(dragSt){if(dragSt.moved){pushHistory();markDirty();renderLayers();renderCanvas();}else selectLayer(dragSt.layerId);dragSt=null;return;}
+      if(dragSt){
+        if(dragSt.moved){pushHistory();markDirty();renderLayers();renderCanvas();}
+        else{
+          // Manual dblclick detection: selectLayer rebuilds SVG so browser dblclick is unreliable.
+          // Track by layer ID + timestamp — survives DOM rebuilds.
+          var _cdc_now=Date.now();
+          if(_cvsDblClick.id===dragSt.layerId&&_cdc_now-_cvsDblClick.time<350){
+            // Double-click confirmed → enter vertex edit or bool-edit
+            _cvsDblClick={id:null,time:0};
+            var _dblL=state.element.layers.find(function(l){return l.id===dragSt.layerId;});
+            if(_dblL&&!_dblL.locked&&_dblL.type==='vector'){
+              if(_dblL.boolChildren&&_dblL.boolChildren.length){
+                state.boolEditParentId=_dblL.id;state.selectedLayerId=_dblL.id;state.vertexEditLayerId=null;
+              }else{
+                state.vertexEditLayerId=_dblL.id;state.selectedLayerId=_dblL.id;state.boolEditParentId=null;
+              }
+              document.getElementById('btn-delete-layer').disabled=false;
+              renderCanvas();renderLayers();
+            }
+          }else{
+            _cvsDblClick={id:dragSt.layerId,time:_cdc_now};
+            // In bool-edit mode: single-click on cutter stays in bool-edit; on other layers exits
+            if(dragSt.isCutter&&state.boolEditParentId===dragSt.cutterParentId){
+              state.selectedLayerId=dragSt.layerId;renderCanvas();renderLayers();renderProps();
+            }else{selectLayer(dragSt.layerId);}
+          }
+        }
+        dragSt=null;return;
+      }
       if(marqueeSt){
         if(marqueeSt.active){
           var mx1=Math.min(marqueeSt.startPt.x,marqueeSt.curX),my1=Math.min(marqueeSt.startPt.y,marqueeSt.curY);
@@ -739,7 +812,7 @@
         if(polyState.verts.length>=3){var fp={x:topx(polyState.verts[0].x,CW),y:topx(polyState.verts[0].y,CH)};if(dist2(spt,fp)<12){commitPolygon();return;}}
         polyState.verts.push({x:pct(spt.x,CW),y:pct(spt.y,CH)});renderPolyGhost();return;
       }
-      if(!dragSt&&e.target===svgEl){var chk=hitTest(getSvgPt(e));if(!chk){state.selectedLayerId=null;document.getElementById('btn-delete-layer').disabled=true;renderCanvas();renderProps();}}
+      if(!dragSt&&e.target===svgEl){var chk=hitTest(getSvgPt(e));if(!chk){_cvsDblClick={id:null,time:0};state.selectedLayerId=null;document.getElementById('btn-delete-layer').disabled=true;renderCanvas();renderProps();}}
     });
     svgEl.addEventListener('dblclick',function(e){
       if(state.activeTool==='polygon'){e.preventDefault();if(polyState.verts.length>0)polyState.verts.pop();if(polyState.verts.length>=3)commitPolygon();else cancelPolygon();return;}
@@ -797,9 +870,36 @@
         row.addEventListener('click',function(ev){
           var btn=ev.target.closest('[data-a]');
           if(!btn){
+            var onName=ev.target===nm||nm.contains(ev.target);
             if(ev.shiftKey&&state.selectedLayerId&&layer.id!==state.selectedLayerId){state.boolBaseId=layer.id;renderAll();}
-            else if(layer.id!==state.selectedLayerId){selectLayer(layer.id);}
-            // If already selected: don't re-render — preserves dblclick target for rename
+            else if(layer.id!==state.selectedLayerId){
+              // Track first click for potential rename dblclick (layer will be re-selected & DOM rebuilt)
+              if(onName){_lyrDblClick={id:layer.id,time:Date.now()};}
+              selectLayer(layer.id);
+            }else{
+              // Layer already selected — detect dblclick on name for rename
+              if(onName){
+                var _ldc_now=Date.now();
+                if(_lyrDblClick.id===layer.id&&_ldc_now-_lyrDblClick.time<350){
+                  _lyrDblClick={id:null,time:0};
+                  // Trigger inline rename
+                  var inp=document.createElement('input');inp.type='text';inp.value=layer.name;
+                  inp.className='form-control form-control-sm';
+                  inp.style.cssText='height:22px;padding:0 4px;font-size:11px;flex:1;min-width:0;';
+                  row.replaceChild(inp,nm);inp.select();inp.focus();
+                  function _commitRename(){
+                    var newName=inp.value.trim()||layer.name;
+                    var i=state.element.layers.findIndex(function(l){return l.id===layer.id;});
+                    if(i>=0&&newName!==state.element.layers[i].name){pushHistory();state.element.layers[i].name=newName;markDirty();}
+                    renderLayers();renderProps();
+                  }
+                  inp.addEventListener('blur',_commitRename);
+                  inp.addEventListener('keydown',function(ev2){if(ev2.key==='Enter'){ev2.preventDefault();inp.removeEventListener('blur',_commitRename);_commitRename();}else if(ev2.key==='Escape'){inp.removeEventListener('blur',_commitRename);renderLayers();}});
+                  inp.addEventListener('click',function(ev2){ev2.stopPropagation();});
+                  return;
+                }else{_lyrDblClick={id:layer.id,time:_ldc_now};}
+              }
+            }
             return;
           }
           var id=btn.dataset.id,idx=state.element.layers.findIndex(function(l){return l.id===id;});if(idx<0)return;
@@ -821,24 +921,7 @@
             markDirty();renderAll();document.getElementById('btn-delete-layer').disabled=!state.selectedLayerId;
           }
         });
-        // ── Double-click to rename ──────────────────────────────────────────
-        nm.addEventListener('dblclick',function(ev){
-          ev.stopPropagation();ev.preventDefault();
-          var inp=document.createElement('input');inp.type='text';inp.value=layer.name;
-          inp.className='form-control form-control-sm';
-          inp.style.cssText='height:22px;padding:0 4px;font-size:11px;flex:1;min-width:0;';
-          row.replaceChild(inp,nm);inp.select();inp.focus();
-          function commit(){
-            var newName=inp.value.trim()||layer.name;
-            var i=state.element.layers.findIndex(function(l){return l.id===layer.id;});
-            if(i>=0&&newName!==state.element.layers[i].name){pushHistory();state.element.layers[i].name=newName;markDirty();}
-            renderLayers();renderProps();
-          }
-          inp.addEventListener('blur',commit);
-          inp.addEventListener('keydown',function(ev2){if(ev2.key==='Enter'){ev2.preventDefault();inp.removeEventListener('blur',commit);commit();}else if(ev2.key==='Escape'){inp.removeEventListener('blur',commit);renderLayers();}});
-          inp.addEventListener('click',function(ev2){ev2.stopPropagation();});
-          inp.addEventListener('dblclick',function(ev2){ev2.stopPropagation();});
-        });
+        // (rename handled via timer-based dblclick in row click handler above)
         // ── Drag to reorder ────────────────────────────────────────────────
         row.addEventListener('dragstart',function(ev){
           ev.dataTransfer.setData('text/plain',layer.id);
@@ -1271,8 +1354,41 @@
     document.getElementById('btn-bool-intersect').addEventListener('click',function(){booleanOp('intersect');});
     document.getElementById('bool-base-picker').addEventListener('change',function(e){state.boolBaseId=e.target.value||null;renderCanvas();});
     // ── Canvas size ───────────────────────────────────────────────────────────
+    // Scale SVG path data (percentage coords) by independent x/y factors.
+    // Handles M, L, A (arc), Z commands — covers rect, ellipse, polygon paths.
+    function scalePathData(d,sx,sy){
+      if(!d)return d;
+      var toks=d.trim().split(/\s+/),res=[],i=0;
+      while(i<toks.length){
+        var t=toks[i];
+        if(t==='M'||t==='L'){
+          res.push(t,(parseFloat(toks[i+1])*sx).toFixed(4),(parseFloat(toks[i+2])*sy).toFixed(4));
+          i+=3;
+        }else if(t==='A'){
+          // A rx ry x-rotation large-arc-flag sweep-flag x y
+          res.push('A',(parseFloat(toks[i+1])*sx).toFixed(4),(parseFloat(toks[i+2])*sy).toFixed(4),
+            toks[i+3],toks[i+4],toks[i+5],
+            (parseFloat(toks[i+6])*sx).toFixed(4),(parseFloat(toks[i+7])*sy).toFixed(4));
+          i+=8;
+        }else if(t==='Z'||t==='z'){res.push(t);i++;}
+        else{res.push(t);i++;}
+      }
+      return res.join(' ');
+    }
     function applyCanvasSize(w,h,keepPreset){
       w=Math.max(32,Math.min(4096,w));h=Math.max(32,Math.min(4096,h));
+      var oldW=state.element.canvasWidth,oldH=state.element.canvasHeight;
+      // Preserve absolute pixel positions/sizes: rescale percentages so that
+      // oldPct/100*oldDim == newPct/100*newDim  →  newPct = oldPct*oldDim/newDim
+      var sx=oldW/w, sy=oldH/h;
+      state.element.layers.forEach(function(l){
+        l.x=l.x*sx; l.y=l.y*sy;
+        l.width=l.width*sx; l.height=l.height*sy;
+        // Rescale pathData (M/L/A all in percentage space, all need scaling)
+        if(l.vectorData&&l.vectorData.pathData){
+          l.vectorData.pathData=scalePathData(l.vectorData.pathData,sx,sy);
+        }
+      });
       state.element.canvasWidth=w;state.element.canvasHeight=h;
       artboard.style.width=w+'px';artboard.style.height=h+'px';
       svgEl.setAttribute('viewBox','0 0 '+w+' '+h);svgEl.setAttribute('width',w);svgEl.setAttribute('height',h);
@@ -1317,7 +1433,7 @@
       var t={v:'select',r:'rectangle',e:'ellipse',l:'line',p:'polygon',s:'slot',h:'hand'};
       if(t[e.key.toLowerCase()]){e.preventDefault();var tb=document.querySelector('.tool-btn-h[data-tool="'+t[e.key.toLowerCase()]+'"]');if(tb)tb.click();return;}
       if(e.key==='Enter'&&state.activeTool==='polygon'){e.preventDefault();if(polyState.verts.length>=3)commitPolygon();return;}
-      if(e.key==='Escape'){e.preventDefault();if(state.boolEditParentId){state.boolEditParentId=null;renderCanvas();renderLayers();return;}if(state.vertexEditLayerId){state.vertexEditLayerId=null;renderCanvas();return;}if(marqueeSt){marqueeSt=null;renderCanvas();return;}if(state.activeTool==='polygon')cancelPolygon();return;}
+      if(e.key==='Escape'){e.preventDefault();if(state.boolEditParentId){var _bep=state.element.layers.find(function(l){return l.id===state.boolEditParentId;});if(_bep){recalcLayerBounds(_bep);markDirty();}state.boolEditParentId=null;state.selectedLayerId=_bep?_bep.id:null;renderCanvas();renderLayers();return;}if(state.vertexEditLayerId){state.vertexEditLayerId=null;renderCanvas();return;}if(marqueeSt){marqueeSt=null;renderCanvas();return;}if(state.activeTool==='polygon')cancelPolygon();return;}
       if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key==='z'){e.preventDefault();undo();return;}
       if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){e.preventDefault();redo();return;}
       if((e.key==='Delete'||e.key==='Backspace')&&state.selectedLayerId)document.getElementById('btn-delete-layer').click();
