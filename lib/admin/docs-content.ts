@@ -2295,6 +2295,506 @@ export const FEATURE_FLAGS_DOCS = `
 `;
 
 // ─────────────────────────────────────────────
+// VOLT DESIGNER
+// ─────────────────────────────────────────────
+
+const VOLT_OVERVIEW = `
+# Volt Designer — Overview
+
+Volt Designer is the visual vector-canvas editor for creating **reusable UI elements** (buttons, cards, banners, input skins, widgets) that can be embedded in any CMS section.
+
+Elements are stored as JSON and rendered natively in the browser — no raster images, infinite resolution.
+
+---
+
+## Canvas
+
+The canvas is a fixed-size artboard (default **800×500 px**). All coordinates are stored in **percentage space** (0–100) relative to canvas width/height, making elements resolution-independent.
+
+### Changing Canvas Size
+
+1. Open **Element Properties → Canvas Size**
+2. Pick a **Preset** (Button, Card, Hero Banner, etc.) or enter custom Width/Height
+3. Click **Apply Size** — existing layers are **proportionally rescaled** to maintain their visual positions
+
+### Canvas Presets
+
+| Preset | Size | Typical use |
+|--------|------|-------------|
+| Input Field | 300×44 | Custom text-input skin |
+| Button | 280×44 | CTA button element |
+| Badge | 120×32 | Tag / label |
+| Icon | 64×64 | Icon container |
+| Card | 320×200 | Content card |
+| Widget | 400×300 | Feature widget |
+| Hero Banner | 1200×600 | Full-width banner |
+
+### Zoom Controls
+
+| Action | Result |
+|--------|--------|
+| **+** / **−** buttons | Zoom in / out |
+| **Fit** button (⊡) | Fit canvas to viewport |
+| Mouse wheel | Zoom on canvas |
+
+### Grid Snap
+
+- Grid size is set in the **Grid Size** field (default 10 px)
+- Hold **Ctrl** while drawing or dragging to snap to grid
+
+---
+
+## Saving & Library
+
+- Changes are **auto-tracked** — the toolbar shows **● unsaved** when there are unsaved changes
+- Click **Save** to persist the element
+- Click **← Library** to return to the element library picker
+`;
+
+const VOLT_TOOLS = `
+# Volt Designer — Drawing Tools
+
+## Toolbar
+
+| Key | Tool | Description |
+|-----|------|-------------|
+| **V** | Select | Move, resize, or enter vertex edit |
+| **R** | Rectangle | Draw rectangles |
+| **E** | Ellipse | Draw ellipses / circles |
+| **L** | Line | Draw straight lines |
+| **B** | Pen | Bezier pen tool — place anchor points |
+| **P** | Polygon | Click to place vertices, Enter/dblclick to close |
+| **S** | Slot | Define content slot regions |
+
+---
+
+## Drawing Shapes
+
+**Rectangle / Ellipse / Slot**
+- Click and drag to draw
+- Hold **Shift** to constrain to square / circle
+- Hold **Ctrl** to snap to grid
+- Press **Esc** to cancel
+
+**Line**
+- Click and drag from start to end
+- Hold **Ctrl** to snap to 45° angles / grid
+
+**Polygon**
+- Click to place each vertex
+- Hold **Ctrl** to snap
+- Press **Enter** or **double-click** to close and commit
+- Press **Esc** to cancel
+
+---
+
+## Pen Tool (Bezier)
+
+The pen tool creates smooth curves and complex shapes.
+
+| Action | Result |
+|--------|--------|
+| **Click** | Place a sharp anchor point |
+| **Click + drag** | Place a curved anchor point (drag to pull handles) |
+| **Hover near first point** | Snaps to close the path |
+| **Enter** or **double-click** | Commit as open path |
+| **Ctrl** | Snap while placing |
+| **Esc** | Cancel |
+
+After committing, enter **Vertex Edit** (double-click) to adjust individual handles.
+`;
+
+const VOLT_LAYERS = `
+# Volt Designer — Layers & Selection
+
+## Layer Panel
+
+Every shape, slot, or 3D object is a **layer**. Layers are listed in the **Layers** panel (left sidebar).
+
+- **Drag** to reorder (higher in list = higher z-index)
+- Click a layer row to select it
+- **Double-click** the layer name to rename it
+- Click the **eye icon** to toggle visibility
+- Click the **lock icon** to lock (prevents selection/editing)
+- Click **🗑** to delete
+
+---
+
+## Selecting Layers
+
+| Action | Result |
+|--------|--------|
+| Click shape on canvas | Select that layer |
+| Click layer row | Select that layer |
+| **Del** | Delete selected layer |
+| **Alt + drag** | Duplicate and drag |
+| **Ctrl+Z** | Undo |
+| **Ctrl+Y** | Redo |
+
+### Marquee Select
+
+- Click and drag on **empty canvas** area to draw a marquee rectangle
+- All layers whose bounding boxes overlap the marquee are selected as a multi-selection
+
+---
+
+## Layer Types
+
+| Type | Icon | Description |
+|------|------|-------------|
+| **vector** | STR/ACC/BG | SVG path layer (rect, ellipse, polygon, pen path) |
+| **slot** | SLT | Content slot placeholder |
+| **3d-object** | 3D | Three.js 3D asset |
+
+### Roles
+
+Each layer has a **role** that indicates its semantic purpose:
+
+| Role | Meaning |
+|------|---------|
+| background | Background fill / texture |
+| structure | Main shape / structural element |
+| accent | Decorative / highlight shape |
+| content | Text content area |
+| overlay | Overlaid on top of other content |
+
+---
+
+## Resize Handles
+
+When a layer is selected, 8 white square resize handles appear at the corners and edges.
+Drag any handle to resize. The layer's path data is updated in real-time.
+`;
+
+const VOLT_VERTEX = `
+# Volt Designer — Vertex & Bezier Editing
+
+## Entering Vertex Edit Mode
+
+**Double-click** any vector shape (on canvas or layer panel) to enter **Vertex Edit** mode.
+
+The canvas shows:
+- **Orange circles** at each vertex (anchor point)
+- **Dashed indigo dots** — Bezier handle stubs (one per vertex side, pointing toward adjacent vertex)
+- A **dashed amber bounding box** around the shape
+- A **ROUND slider** at the bottom toolbar
+
+---
+
+## Keyboard & Mouse Reference
+
+| Action | Result |
+|--------|--------|
+| **Drag orange vertex** | Move that anchor point |
+| **Drag dashed indigo dot** | Pull out a Bezier curve handle — creates a smooth curve on that edge |
+| **Shift + drag handle** | Symmetric smooth node — opposite handle mirrors automatically |
+| **Alt + click edge** | Insert a new vertex at that point on the edge |
+| **Alt + double-click vertex** | Delete that vertex (minimum 3 retained) |
+| **Ctrl + drag** | Snap to grid while moving |
+| **Esc** | Exit vertex edit mode |
+
+---
+
+## Bezier Handle Stubs
+
+Every straight-line vertex has **stub handles** — small dashed indigo circles rendered 12 px toward each adjacent vertex.
+
+- When a vertex has no curve yet (zero-distance handles), the stubs show pointing outward
+- **Drag a stub** to pull out a Bezier handle and curve that edge
+- Once a handle has distance, it renders as a solid indigo dot with an arm line
+- **Shift-drag** a handle to keep both sides symmetric (smooth interpolation)
+
+---
+
+## Corner Rounding (ROUND Slider)
+
+The **ROUND** slider (bottom toolbar, only visible in vertex edit mode) rounds all sharp corners simultaneously.
+
+- Slide right to increase rounding (0–100%)
+- Rounding is **non-destructive** — the original path is stored on first slider use
+- Moving the slider back to 0% restores the original sharp path
+- Rounding is **scale-aware**: radius = \`t × min(edge_length) × 0.5\`, so small shapes round proportionally
+- Rounding is skipped for vertices that already have Bezier handles
+- Click **↺** (reset) button to snap back to 0%
+
+> **Note:** Corner rounding uses the cubic Bezier arc approximation (k = 0.5523), producing smooth, circular-looking corners without SVG \`rx\`/\`ry\` attributes.
+
+---
+
+## Exiting Vertex Edit
+
+- Press **Esc** or click outside the shape
+- If editing a **cutter** in Boolean mode, Esc returns to Bool Edit mode
+`;
+
+const VOLT_SLOTS = `
+# Volt Designer — Slot System
+
+Slots define **content regions** within a Volt element. When the Volt is used on a live page, slots are filled with real content (title, image, body text, etc.) without touching the design.
+
+---
+
+## Drawing a Slot
+
+1. Click the **Slot tool** (**S** key) in the toolbar — or click the \`TIT ▼\` split button
+2. Optionally click **▼** to pick the slot **type** first (see below)
+3. Drag on canvas to draw the slot region
+4. The slot appears as a **dashed green outline** in design mode
+
+---
+
+## Slot Types
+
+| Type | Tag | Icon | Use For |
+|------|-----|------|---------|
+| **Title** | TIT | H1 | Heading / title text |
+| **Body** | BOD | ¶ | Paragraph / body copy |
+| **Image** | IMG | 🖼 | Photo or illustration |
+| **Action** | ACT | Cursor | CTA button |
+| **Badge** | BDG | Award | Tag / pill label |
+| **Icon** | ICN | Star | Icon image |
+| **Input** | INP | Input cursor | Text input field skin |
+| **Custom** | CUS | Puzzle | Any other content |
+
+---
+
+## Preview Mode
+
+Click the **Preview** toggle button (top bar, only visible when slots exist) to switch between:
+
+- **Design mode** — dashed green outlines with type labels
+- **Preview mode** — realistic placeholder content per slot type
+
+Preview mode shows:
+- **Title** — heading bar + subtitle bar
+- **Body** — 4–5 lines of placeholder text bars
+- **Image** — grey frame with image icon
+- **Action** — styled button placeholder
+- **Badge** — rounded pill in green
+- **Icon** — large star icon
+- **Input** — styled input field with border and inner text placeholder
+- **Custom** — dashed outline with "CUSTOM" label
+
+---
+
+## Slot Properties
+
+Select a slot layer to edit in **Layer Properties**:
+- **Slot Type** — change the type (updates label automatically)
+- **Slot Label** — custom label shown in design mode
+
+---
+
+## Input Slot (INP)
+
+Use the **Input** slot type to design custom text-input field skins. The slot defines the bounding region; in live use, a real \`<input>\` element is placed inside it.
+
+Preview shows: white rounded rectangle with inner text placeholder bar and a small action button on the right.
+`;
+
+const VOLT_EFFECTS = `
+# Volt Designer — Fill, Stroke & Shadow
+
+All effects are controlled in the **Layer Properties** panel (right sidebar) when a vector or slot layer is selected.
+
+---
+
+## Fill
+
+| Control | Description |
+|---------|-------------|
+| **+ Add** | Add a solid fill to the layer |
+| **Color picker** | Click the swatch to open the native colour picker |
+| **Hex field** | Type a 6-digit hex code (e.g. \`#6366f1\`) |
+| **Opacity slider** | 0 = fully transparent, 1 = fully opaque |
+| **Remove** | Remove the fill (shape becomes transparent) |
+
+---
+
+## Stroke
+
+| Control | Description |
+|---------|-------------|
+| **+ Add** | Add a stroke outline |
+| **Color picker / Hex** | Stroke colour |
+| **Width** | Stroke width in canvas pixels |
+| **Cap** | Line cap: \`butt\`, \`round\`, or \`square\` |
+| **Remove** | Remove the stroke |
+
+> **Boolean shapes:** Stroke width is automatically doubled with \`paint-order: stroke fill\` so only the outer boundary is visible (inner intersection lines are covered by fill).
+
+---
+
+## Drop Shadow
+
+Every vector shape and slot can have a **drop shadow**.
+
+| Control | Description |
+|---------|-------------|
+| **Toggle checkbox** | Enable / disable shadow |
+| **Color picker / Hex** | Shadow colour (default black \`#000000\`) |
+| **α (opacity slider)** | Shadow transparency — 0 = invisible, 1 = fully opaque |
+| **X Offset** | Horizontal shadow offset in canvas pixels (positive = right) |
+| **Y Offset** | Vertical shadow offset in canvas pixels (positive = down) |
+| **Blur** | Blur radius — 0 = hard edge, higher = softer/more spread |
+
+### Direction Handle (☀ on canvas)
+
+When shadow is enabled, a **sun icon ☀** appears on the canvas at the layer centre offset by the current X/Y values.
+
+- **Drag the ☀ handle** to reposition the shadow direction and distance in real-time
+- The X Offset / Y Offset fields in the panel update as you drag
+- Works for both vector shapes and slot elements
+
+### Implementation Detail
+
+- **Vector shapes:** SVG \`<filter><feDropShadow>\` applied to the shape group
+- **Slot overlays:** CSS \`box-shadow\` applied to the slot div
+`;
+
+const VOLT_BOOLEAN = `
+# Volt Designer — Boolean Operations
+
+Boolean ops combine two vector shapes non-destructively into a composite shape.
+
+---
+
+## Workflow
+
+1. **Select the CUTTER shape** (the shape doing the cutting) — it appears in the ① CUTTER field
+2. **Shift-click a BASE shape** on canvas — or pick from the ② BASE dropdown
+3. Click one of the three operation buttons:
+
+| Button | Operation | Result |
+|--------|-----------|--------|
+| **Union** | Merge | Both shapes combined into one outline |
+| **Sub** | Subtract | BASE minus CUTTER — punches a hole |
+| **Isect** | Intersect | Only the overlapping region remains |
+
+---
+
+## Non-Destructive
+
+- The cutter shape is **hidden** (not deleted) — you can edit it later
+- The base shape stores the boolean relationship in \`boolChildren\`
+- The SVG display path is recomputed every render
+
+---
+
+## Bool Edit Mode
+
+Double-click the composite base shape to enter **Bool Edit Mode**:
+
+| Action | Result |
+|--------|--------|
+| **Drag cutter** | Move the cutter to a new position |
+| **Double-click cutter** | Enter vertex edit on the cutter path |
+| **Esc** | Confirm and exit Bool Edit mode |
+
+The cutter is shown with an orange **CUTTER ✂** badge and dashed orange outline.
+The base is shown with a teal **BASE** badge.
+
+---
+
+## Stroke on Boolean Shapes
+
+When a stroke is applied to a boolean shape, the width is **doubled** internally with \`paint-order: stroke fill\`. This ensures only the outer boundary outline is visible — inner intersection lines between the combined paths are painted over by the fill.
+`;
+
+const VOLT_3D = `
+# Volt Designer — 3D Objects
+
+3D objects are Three.js-rendered assets that can be placed as layers in the Volt canvas.
+
+---
+
+## Adding a 3D Object
+
+1. Click **3D Objects** in the left sidebar
+2. Browse or upload a 3D asset (GLB/GLTF supported)
+3. Click an asset to insert it as a layer at the default position
+
+---
+
+## 3D Layer Properties
+
+Select a 3D object layer to access:
+
+| Property | Description |
+|----------|-------------|
+| **Asset** | Name of the linked 3D asset |
+| **Change / Preview** | Opens the 3D asset browser |
+| **Active Clip** | Select which animation clip plays |
+| **Trigger Events** | Fire system events when the animation ends |
+
+---
+
+## Animation Triggers
+
+After a 3D animation completes, you can fire configurable events:
+
+| Event Type | Effect |
+|------------|--------|
+| scroll | Scroll the page to a target section |
+| modal | Open a modal |
+| sound | Play a sound |
+| custom | Custom JavaScript event |
+
+---
+
+## Blender Pipeline (volt-sync.py)
+
+The **volt-sync.py** Blender addon syncs assets directly from Blender to the CMS:
+
+1. Install the addon in Blender (Preferences → Add-ons → Install)
+2. Enter your **API key** (Settings → API Keys in admin)
+3. In Blender, select objects and click **Sync to Volt**
+4. The asset appears in the 3D Objects library automatically
+
+See **Admin → API Keys** for key management.
+`;
+
+const VOLT_ANIMATION = `
+# Volt Designer — Animation
+
+Each layer has an **Animation** configuration that controls how it enters the viewport when the Volt element is revealed.
+
+---
+
+## Animation Properties
+
+| Property | Range | Description |
+|----------|-------|-------------|
+| **Delay** | 0–100 | Stagger delay before this layer starts animating |
+| **Speed** | 0–100 | How fast the animation plays |
+| **Style** | 0–100 | Animation curve / easing style |
+| **Character** | 0–100 | Amount of "personality" in the motion |
+
+---
+
+## Animates Flags
+
+Toggle which CSS/SVG properties are animated on entrance:
+
+| Flag | Property |
+|------|----------|
+| Fill | Colour / fill |
+| Scale | Size scale |
+| Opacity | Fade in |
+| Position | Translate in |
+| Rotation | Spin in |
+
+---
+
+## Notes
+
+- Animation is powered by **Anime.js 4.x** using the named \`animate\` export
+- Animations are triggered when the element scrolls into view
+- Each layer animates independently — use **Delay** to stagger a sequence
+- Use **Speed** = 0 for instant reveal, 100 for very slow
+`;
+
+// ─────────────────────────────────────────────
 // TOPIC TREE
 // ─────────────────────────────────────────────
 
@@ -2431,6 +2931,22 @@ export const DOC_TOPICS: DocTopic[] = [
       { id: "settings", label: "Settings", icon: "bi-gear", content: SETTINGS_PAGE },
       { id: "media", label: "Media Library", icon: "bi-image", content: MEDIA_LIBRARY },
       { id: "users", label: "Users & Roles", icon: "bi-people", content: USERS },
+    ],
+  },
+  {
+    id: "volt-designer",
+    label: "Volt Designer",
+    icon: "bi-vector-pen",
+    children: [
+      { id: "volt-overview", label: "Overview & Canvas", icon: "bi-info-circle", content: VOLT_OVERVIEW },
+      { id: "volt-tools", label: "Drawing Tools", icon: "bi-pencil", content: VOLT_TOOLS },
+      { id: "volt-layers", label: "Layers & Selection", icon: "bi-stack", content: VOLT_LAYERS },
+      { id: "volt-vertex", label: "Vertex & Bezier Editing", icon: "bi-bezier2", content: VOLT_VERTEX },
+      { id: "volt-slots", label: "Slot System", icon: "bi-layout-text-window", content: VOLT_SLOTS },
+      { id: "volt-effects", label: "Fill, Stroke & Shadow", icon: "bi-palette", content: VOLT_EFFECTS },
+      { id: "volt-boolean", label: "Boolean Operations", icon: "bi-intersect", content: VOLT_BOOLEAN },
+      { id: "volt-3d", label: "3D Objects", icon: "bi-box", content: VOLT_3D },
+      { id: "volt-animation", label: "Animation", icon: "bi-play-circle", content: VOLT_ANIMATION },
     ],
   },
 ];
