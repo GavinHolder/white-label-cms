@@ -655,30 +655,56 @@ Optional text that appears on hover.
 const TAB_SPACING = `
 # Section Editor — Spacing Tab
 
-Controls the internal padding of the section.
+Controls the internal padding of the section on desktop and mobile independently.
 
 ---
 
-## Settings
+## Desktop Tab
 
 | Setting | Range | Default | Description |
 |---------|-------|---------|-------------|
-| **Padding Top** | 0–200px | 80px | Space above section content |
-| **Padding Bottom** | 0–200px | 80px | Space below section content |
-
-> 💡 Keep padding symmetric (same top and bottom) for balanced visual rhythm.
-> For sections with Section Into overlays, reduce bottom padding to avoid gaps.
+| **Padding Top** | 0–200px | 100px | Space above content on desktop |
+| **Padding Bottom** | 0–200px | 80px | Space below content on desktop |
 
 ---
 
-## SpacingControls Component
+## Mobile Tab
 
-The Spacing tab uses the **SpacingControls** admin component:
+Each field defaults to **Auto** — the smart default (100px top / 80px bottom) is applied automatically on all mobile screens without any configuration needed.
 
-- Dual slider interface (drag to set value visually)
-- Number input (type exact value)
-- Min: 0px, Max: 200px, Step: 1px
-- Live preview updates as you drag
+The 100px top default always clears the 76px fixed navbar with 24px breathing room.
+
+To override a field, toggle the switch from **Auto** to **Custom** — a slider and number input appear. The Mobile tab shows a **custom** badge whenever any field has a manual override.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| **Padding Top (mobile)** | Auto = 100px | Space above content on phones/tablets. Must be ≥ 76px to clear the fixed navbar. |
+| **Padding Bottom (mobile)** | Auto = 80px | Space below content on phones/tablets. |
+
+> 💡 **Leave both fields on Auto** unless a section needs a very different layout on mobile. The defaults are designed to look correct on all screen sizes without adjustment.
+
+---
+
+## Quick Presets
+
+Both the Desktop and Mobile (when overriding) tabs include quick-preset buttons:
+
+| Preset | Top | Bottom |
+|--------|-----|--------|
+| **Compact** | 40px | 20px |
+| **Normal** | 100px | 80px |
+| **Spacious** | 150px | 120px |
+
+---
+
+## How It Works
+
+Spacing is applied via CSS custom properties on the section element:
+
+- \`--section-pt\` / \`--section-pb\` — desktop padding
+- \`--section-pt-mobile\` / \`--section-pb-mobile\` — mobile override (only emitted when Custom is set)
+
+The \`.section-content-wrapper\` reads these variables. On mobile (≤ 767px) it reads the mobile vars with a 100px/80px fallback, so all sections are safe even without explicit mobile values.
 `;
 
 const TAB_PREVIEW = `
