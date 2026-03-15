@@ -2103,8 +2103,8 @@ function createBlockElement(block) {
   // Content
   const content = document.createElement('div');
   content.className = 'cb-content';
-  // Apply text-block padding props to the content area
-  if (block.type === 'text-block') {
+  // Apply padding props to text/card block content area
+  if (block.type === 'text-block' || block.type === 'text' || block.type === 'card') {
     const p = block.props;
     content.style.paddingTop    = (p.paddingTop    ?? 16) + 'px';
     content.style.paddingBottom = (p.paddingBottom ?? 16) + 'px';
@@ -2510,8 +2510,9 @@ function estimateSubElementHeight(type) {
  */
 function ensureSubElementPositions(block) {
   // Auto-stack sub-elements that have no y position yet.
-  // For text-blocks respect paddingTop so elements visually start inside the padding area.
-  const startY = block.type === 'text-block' ? (block.props?.paddingTop ?? 16) : 8;
+  // For text/card blocks respect paddingTop so elements visually start inside the padding area.
+  const isTextLike = block.type === 'text-block' || block.type === 'text' || block.type === 'card';
+  const startY = isTextLike ? (block.props?.paddingTop ?? 16) : 8;
   let nextY = startY;
   block.subElements.forEach((se, idx) => {
     // Assign a stable ID if missing — required for DOM queries in fitBlockToSubElementsDOM
@@ -2742,7 +2743,7 @@ function fitBlockToSubElements(blockId) {
     }
   });
   // bottom padding (16) + header reserve so nothing is clipped
-  const bottomPad = block.type === 'text-block' ? (block.props?.paddingBottom ?? 16) : 16;
+  const bottomPad = (block.type === 'text-block' || block.type === 'text' || block.type === 'card') ? (block.props?.paddingBottom ?? 16) : 16;
   const contentH = Math.max(56, maxBottom + bottomPad + HEADER_H);
   const contentW = maxRight > 0 ? Math.max(200, maxRight + 20) : 0;
   // If manually resized, only grow (never shrink below user-set size)
@@ -2804,7 +2805,7 @@ function fitBlockToSubElementsDOM(blockId, restack) {
       if (right > maxRight) maxRight = right;
     }
   });
-  const bottomPad = block.type === 'text-block' ? (block.props?.paddingBottom ?? 16) : 16;
+  const bottomPad = (block.type === 'text-block' || block.type === 'text' || block.type === 'card') ? (block.props?.paddingBottom ?? 16) : 16;
   const contentH = Math.max(56, maxBottom + bottomPad + HEADER_H);
   const contentW = maxRight > 0 ? Math.max(200, maxRight + 20) : 0;
   // If manually resized, only grow (never shrink below user-set size)
@@ -2849,7 +2850,7 @@ function showSubAddMenu(blockId, anchorEl) {
   menu.dataset.blockId = blockId;
 
   const block = state.blocks.find(b => b.id === blockId);
-  const isTextBlock = block && block.type === 'text-block';
+  const isTextBlock = block && (block.type === 'text-block' || block.type === 'text');
 
   // Quick preset layouts — shown at top of text-block menu when block is empty
   if (isTextBlock && block && (!block.subElements || block.subElements.length === 0)) {
@@ -3940,18 +3941,21 @@ function renderTypeProps(block) {
       h+=selectRow('Card Style',p.cardStyle||'shadow',[['shadow','Shadow'],['bordered','Bordered'],['flat','Flat'],['elevated','Elevated']],`updateBlockProp('${block.id}','cardStyle',this.value)`);
       h+=colorRow('Background',p.bgColor||'transparent',`updateBlockProp('${block.id}','bgColor',this.value);renderCanvas()`);
       h+=selectRow('Glass Effect',p.glassEffect||'none',[['none','None — transparent'],['light','Light Glass (for dark sections)'],['dark','Dark Glass (for light sections)']],`updateBlockProp('${block.id}','glassEffect',this.value);renderCanvas()`);
-      h+=`<div class="props-row"><label>Pad Top</label><input class="props-input" type="range" min="0" max="80" step="4" value="${p.paddingTop??16}" oninput="updateBlockProp('${block.id}','paddingTop',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.paddingTop??16}px</span></div>`;
-      h+=`<div class="props-row"><label>Pad Bottom</label><input class="props-input" type="range" min="0" max="80" step="4" value="${p.paddingBottom??16}" oninput="updateBlockProp('${block.id}','paddingBottom',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.paddingBottom??16}px</span></div>`;
-      h+=`<div class="props-row"><label>Pad Left/Right</label><input class="props-input" type="range" min="0" max="60" step="4" value="${p.paddingX??20}" oninput="updateBlockProp('${block.id}','paddingX',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.paddingX??20}px</span></div>`;
-      h+=`<div class="props-row"><label>Element Gap</label><input class="props-input" type="range" min="0" max="48" step="4" value="${p.gap??12}" oninput="updateBlockProp('${block.id}','gap',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.gap??12}px</span></div>`;
+      h+=`<div class="props-label" style="margin-top:8px;"><i class="bi bi-border-inner"></i> Inner Padding</div>`;
+      h+=`<div class="props-row"><label>Top</label><input class="props-input" type="range" min="0" max="80" step="4" value="${p.paddingTop??16}" oninput="updateBlockProp('${block.id}','paddingTop',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.paddingTop??16}px</span></div>`;
+      h+=`<div class="props-row"><label>Bottom</label><input class="props-input" type="range" min="0" max="80" step="4" value="${p.paddingBottom??16}" oninput="updateBlockProp('${block.id}','paddingBottom',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.paddingBottom??16}px</span></div>`;
+      h+=`<div class="props-row"><label>Left / Right</label><input class="props-input" type="range" min="0" max="60" step="4" value="${p.paddingX??20}" oninput="updateBlockProp('${block.id}','paddingX',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.paddingX??20}px</span></div>`;
+      h+=`<div class="props-row"><label>Sub-element Gap</label><input class="props-input" type="range" min="0" max="48" step="4" value="${p.gap??12}" oninput="updateBlockProp('${block.id}','gap',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.gap??12}px</span></div>`;
       break;
+    case 'text':
     case 'text-block':
       h+=colorRow('Background',p.bgColor||'transparent',`updateBlockProp('${block.id}','bgColor',this.value);renderCanvas()`);
       h+=selectRow('Glass Effect',p.glassEffect||'none',[['none','None — transparent'],['light','Light Glass (for dark sections)'],['dark','Dark Glass (for light sections)']],`updateBlockProp('${block.id}','glassEffect',this.value);renderCanvas()`);
-      h+=`<div class="props-row"><label>Pad Top</label><input class="props-input" type="range" min="0" max="100" step="4" value="${p.paddingTop??16}" oninput="updateBlockProp('${block.id}','paddingTop',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.paddingTop??16}px</span></div>`;
-      h+=`<div class="props-row"><label>Pad Bottom</label><input class="props-input" type="range" min="0" max="100" step="4" value="${p.paddingBottom??16}" oninput="updateBlockProp('${block.id}','paddingBottom',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.paddingBottom??16}px</span></div>`;
-      h+=`<div class="props-row"><label>Pad Left/Right</label><input class="props-input" type="range" min="0" max="80" step="4" value="${p.paddingX??20}" oninput="updateBlockProp('${block.id}','paddingX',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.paddingX??20}px</span></div>`;
-      h+=`<div class="props-row"><label>Element Gap</label><input class="props-input" type="range" min="0" max="64" step="4" value="${p.gap??12}" oninput="updateBlockProp('${block.id}','gap',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.gap??12}px</span></div>`;
+      h+=`<div class="props-label" style="margin-top:8px;"><i class="bi bi-border-inner"></i> Inner Padding</div>`;
+      h+=`<div class="props-row"><label>Top</label><input class="props-input" type="range" min="0" max="100" step="4" value="${p.paddingTop??16}" oninput="updateBlockProp('${block.id}','paddingTop',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.paddingTop??16}px</span></div>`;
+      h+=`<div class="props-row"><label>Bottom</label><input class="props-input" type="range" min="0" max="100" step="4" value="${p.paddingBottom??16}" oninput="updateBlockProp('${block.id}','paddingBottom',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.paddingBottom??16}px</span></div>`;
+      h+=`<div class="props-row"><label>Left / Right</label><input class="props-input" type="range" min="0" max="80" step="4" value="${p.paddingX??20}" oninput="updateBlockProp('${block.id}','paddingX',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.paddingX??20}px</span></div>`;
+      h+=`<div class="props-row"><label>Sub-element Gap</label><input class="props-input" type="range" min="0" max="64" step="4" value="${p.gap??12}" oninput="updateBlockProp('${block.id}','gap',parseInt(this.value));renderCanvas();this.nextElementSibling.textContent=this.value+'px'"><span class="val">${p.gap??12}px</span></div>`;
       break;
     case 'banner':
       h+=colorRow('Background',p.bgColor||'#1e3a5f',`updateBlockProp('${block.id}','bgColor',this.value);renderCanvas()`);
@@ -5851,7 +5855,7 @@ function updateMiniToolbar() {
   tb.style.top = topY + 'px';
   tb.classList.add('mtt-visible');
   // Show + add button only for blocks that support sub-elements
-  const supportsAdd = ['card','text-block','banner','stats'].includes(b.type);
+  const supportsAdd = ['card','text-block','text','banner','stats'].includes(b.type);
   const addBtn = document.getElementById('mtt-add-btn');
   const addSep = document.getElementById('mtt-add-sep');
   if (addBtn) addBtn.style.display = supportsAdd ? '' : 'none';
