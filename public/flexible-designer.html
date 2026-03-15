@@ -670,6 +670,13 @@
     .resize-handle-tr { top:4px;    right:4px; width:10px; height:10px; border-radius:50%; background:#0d6efd; border:2px solid white; cursor:nesw-resize; }
     .resize-handle-tl { top:4px;    left:4px;  width:10px; height:10px; border-radius:50%; background:#0d6efd; border:2px solid white; cursor:nwse-resize; }
     .resize-handle.disabled { opacity:0.15 !important; cursor:not-allowed; pointer-events:none; }
+    /* Mobile mode: blocks are always full-width, hide left/right/corner handles */
+    .canvas-area.device-mobile .resize-handle-right,
+    .canvas-area.device-mobile .resize-handle-left,
+    .canvas-area.device-mobile .resize-handle-br,
+    .canvas-area.device-mobile .resize-handle-bl,
+    .canvas-area.device-mobile .resize-handle-tr,
+    .canvas-area.device-mobile .resize-handle-tl { display: none; }
 
     /* Span ghost */
     .span-ghost { position:absolute; background:rgba(13,110,253,0.08); border:2px dashed #0d6efd; border-radius:4px; pointer-events:none; z-index:100; }
@@ -1160,6 +1167,12 @@
                   oninput="document.getElementById('gapVal').textContent=this.value+'px'; renderCanvas(); autoSave();">
                 <span class="slider-value" id="gapVal">16px</span>
               </div>
+              <div class="d-flex align-items-center gap-2 mt-2">
+                <label class="form-label mb-0 small" style="min-width:52px;">Edge Pad</label>
+                <input type="range" class="form-range" id="edgePad" min="0" max="60" value="0"
+                  oninput="document.getElementById('edgePadVal').textContent=this.value+'px'; renderCanvas(); autoSave();">
+                <span class="slider-value" id="edgePadVal">0px</span>
+              </div>
             </div>
 
             <!-- Preset Config -->
@@ -1454,6 +1467,7 @@ const state = {
   gridRows: 2,
   gridCols: 3,
   gridGap: 16,
+  edgePad: 0,    // left+right inset padding applied to all blocks (px each side)
   preset: 'full-width',
   positionMode: 'free',   // 'free' | 'grid'  — default: free-form absolute positioning
   devicePreview: 'desktop', // 'mobile'|'tablet'|'desktop'
@@ -1527,6 +1541,7 @@ function snapshotState() {
     gridRows:     state.gridRows,
     gridCols:     state.gridCols,
     gridGap:      state.gridGap,
+    edgePad:      state.edgePad,
     multiLimit:   state.multiLimit,
     preset:       state.preset,
     positionMode: state.positionMode,
@@ -1623,6 +1638,9 @@ function applySnapshot(snap, addToHistory) {
   document.getElementById('colsVal').textContent = s.gridCols;
   document.getElementById('gridGap').value      = s.gridGap;
   document.getElementById('gapVal').textContent  = s.gridGap + 'px';
+  state.edgePad = s.edgePad || 0;
+  document.getElementById('edgePad').value      = state.edgePad;
+  document.getElementById('edgePadVal').textContent = state.edgePad + 'px';
   document.getElementById('multiLimit').value   = s.multiLimit;
   document.getElementById('multiLimitVal').textContent = s.multiLimit;
   updatePositionModeBadge();
@@ -1789,6 +1807,7 @@ function renderCanvas() {
   state.gridRows    = parseInt(document.getElementById('gridRows').value);
   state.gridCols    = parseInt(document.getElementById('gridCols').value);
   state.gridGap     = parseInt(document.getElementById('gridGap').value);
+  state.edgePad     = parseInt(document.getElementById('edgePad').value) || 0;
   state.multiLimit  = parseInt(document.getElementById('multiLimit').value);
 
   const canvas = document.getElementById('canvas');
@@ -1871,6 +1890,7 @@ function renderCanvas() {
     // matching the actual page behaviour at ≤767px (flex-direction: column).
     if (state.devicePreview === 'mobile') {
       const { cw: canvasW, cellH, gap } = getCellMetrics();
+      const _ep = state.edgePad || 0;
       const sorted = [...state.blocks].sort((a, b) =>
         ((a.section||0)*10000 + (a.gridRow||1)*100 + (a.gridCol||1)) -
         ((b.section||0)*10000 + (b.gridRow||1)*100 + (b.gridCol||1))
@@ -1878,7 +1898,7 @@ function renderCanvas() {
       let nextY = 0;
       sorted.forEach(b => {
         const h = b.manualSize ? b.h : (b.h > 0 ? b.h : cellH);
-        b.x = 0; b.y = nextY; b.w = canvasW; b.h = h;
+        b.x = _ep; b.y = nextY; b.w = canvasW - 2 * _ep; b.h = h;
         nextY += h + gap;
       });
       // Expand canvas to fit all stacked blocks so nothing is clipped
@@ -1907,6 +1927,29 @@ function renderCanvas() {
     state.blocks.forEach(b => {
       if (b.subElements && b.subElements.length > 0) fitBlockToSubElementsDOM(b.id, true);
     });
+    // In mobile stacking mode, re-apply vertical positions now that fitBlockToSubElementsDOM
+    // has updated block heights to match actual wrapped text. Without this, blocks overlap
+    // on smaller screens where text wraps more and blocks grow taller than initially measured.
+    if (state.positionMode !== 'free' && state.devicePreview === 'mobile') {
+      const _canvas = document.getElementById('canvas');
+      const _gap = state.gridGap;
+      const _sorted = [...state.blocks].sort((a, b) =>
+        ((a.section||0)*10000 + (a.gridRow||1)*100 + (a.gridCol||1)) -
+        ((b.section||0)*10000 + (b.gridRow||1)*100 + (b.gridCol||1))
+      );
+      let _nextY = 0;
+      _sorted.forEach(b => {
+        b.y = _nextY;
+        const el = _canvas.querySelector(`[data-block-id="${b.id}"]`);
+        if (el) el.style.top = _nextY + 'px';
+        _nextY += b.h + _gap;
+      });
+      const _totalH = _nextY - (_sorted.length ? _gap : 0);
+      if (_totalH > 0) {
+        _canvas.style.height    = `${_totalH}px`;
+        _canvas.style.minHeight = `${_totalH}px`;
+      }
+    }
   });
 }
 
@@ -1927,7 +1970,7 @@ function renderGridOverlay() {
   // In mobile preview the blocks are stacked full-width — grid overlay is meaningless
   if (state.devicePreview === 'mobile') return;
 
-  const { cellW, cellH, sectionH, gap } = getCellMetrics();
+  const { cellW, cellH, sectionH, gap, offsetX } = getCellMetrics();
   const sectionCount = state.contentMode === 'multi' ? state.multiLimit : 1;
 
   for (let s = 0; s < sectionCount; s++) {
@@ -1947,7 +1990,7 @@ function renderGridOverlay() {
       for (let c = 0; c < state.gridCols; c++) {
         const cell = document.createElement('div');
         cell.className = 'grid-cell-guide';
-        cell.style.left   = `${c * (cellW + gap)}px`;
+        cell.style.left   = `${(offsetX || 0) + c * (cellW + gap)}px`;
         cell.style.top    = `${sectionOffset + r * (cellH + gap)}px`;
         cell.style.width  = `${cellW}px`;
         cell.style.height = `${cellH}px`;
@@ -2294,10 +2337,32 @@ function createSubElementDOM(se, blockId) {
         ? `<img src="${p.src}" style="width:100%;border-radius:4px;max-height:60px;object-fit:cover;" alt="${p.alt||''}">`
         : `<div style="background:#e9ecef;border-radius:4px;height:40px;display:flex;align-items:center;justify-content:center;color:#adb5bd;font-size:11px;"><i class="bi bi-image"></i>&nbsp;Image (${p.imageMode})</div>`;
       break;
-    case 'button':
-      const btnStyle = p.variant==='filled' ? `background:${p.bgColor};color:${p.textColor};` : p.variant==='outline' ? `border:2px solid ${p.bgColor};color:${p.bgColor};` : `color:${p.bgColor};`;
-      preview.innerHTML = `<div class="se-button ${p.variant}" style="${btnStyle}">${p.icon?`<i class="bi ${p.icon}"></i>`:''}${p.text}</div>`;
+    case 'button': {
+      // Derive variant: seed data may omit variant but always set bgColor/textColor.
+      // Match FlexibleSectionRenderer: bgColor is always the button background.
+      const _bv = p.variant === 'outline' ? 'outline' : p.variant === 'ghost' ? 'ghost' : 'filled';
+      const _px = p.paddingX    !== undefined ? Number(p.paddingX)    : 20;
+      const _py = p.paddingY    !== undefined ? Number(p.paddingY)    : 8;
+      const _br = p.borderRadius !== undefined ? String(Number(p.borderRadius)) + 'px' : '6px';
+      const _mt = p.marginTop   !== undefined ? String(Number(p.marginTop))   + 'px' : '4px';
+      const _bg = p.bgColor    || '#0d6efd';
+      const _tc = p.textColor  || (_bv === 'filled' ? '#ffffff' : _bg);
+      const _btn = document.createElement('div');
+      _btn.className = 'se-button ' + _bv;
+      if (_bv === 'outline') { _btn.style.border = '2px solid ' + _bg; _btn.style.background = 'transparent'; }
+      else if (_bv === 'ghost') { _btn.style.background = 'transparent'; }
+      else { _btn.style.background = _bg; }
+      _btn.style.color = _tc;
+      _btn.style.padding = _py + 'px ' + _px + 'px';
+      _btn.style.borderRadius = _br;
+      _btn.style.marginTop = _mt;
+      _btn.style.display = 'block';
+      _btn.style.textAlign = 'center';
+      if (p.icon) { const _ic = document.createElement('i'); _ic.className = 'bi ' + p.icon; _btn.appendChild(_ic); _btn.appendChild(document.createTextNode(' ')); }
+      _btn.appendChild(document.createTextNode(p.text || 'Button'));
+      preview.appendChild(_btn);
       break;
+    }
     case 'badge':
       preview.innerHTML = `<span class="se-badge" style="background:${p.bgColor};color:${p.textColor};">${p.text}</span>`;
       break;
@@ -3227,7 +3292,10 @@ function onSubDrop(e, blockId) {
  */
 function getCellMetrics() {
   const canvas = document.getElementById('canvas');
-  const cw = canvas.offsetWidth;
+  const rawCw = canvas.offsetWidth;
+  const ep = state.edgePad || 0;
+  // edgePad insets the usable grid area on both sides
+  const cw = rawCw - 2 * ep;
   // Section height = available canvas area height for both single and multi modes.
   // Single: canvas.offsetHeight (naturally fills available space).
   // Multi: canvas.offsetHeight / multiLimit (each stacked section = same available height).
@@ -3237,7 +3305,8 @@ function getCellMetrics() {
   const gap = state.gridGap;
   return { cw, sectionH, gap,
     cellW: (cw - gap*(state.gridCols-1)) / state.gridCols,
-    cellH: (sectionH - gap*(state.gridRows-1)) / state.gridRows
+    cellH: (sectionH - gap*(state.gridRows-1)) / state.gridRows,
+    offsetX: ep    // left offset applied to all cell x positions
   };
 }
 
@@ -3252,9 +3321,9 @@ function getCellMetrics() {
  * @returns {{ cx:number, cy:number, cw:number, ch:number }}
  */
 function getCellRect(row, col, colSpan=1, rowSpan=1, section=0) {
-  const { gap, cellW, cellH, sectionH } = getCellMetrics();
+  const { gap, cellW, cellH, sectionH, offsetX } = getCellMetrics();
   return {
-    cx: (col-1)*(cellW+gap),
+    cx: (offsetX || 0) + (col-1)*(cellW+gap),
     // Section offset stacks sections vertically; rows are relative within the section
     cy: section * sectionH + (row-1)*(cellH+gap),
     cw: cellW*colSpan + gap*(colSpan-1),
