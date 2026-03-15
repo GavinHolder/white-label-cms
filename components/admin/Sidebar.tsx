@@ -205,7 +205,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       {/* Logo */}
       <Link
         href="/admin/dashboard"
-        className="d-flex align-items-center p-3 mb-0 text-decoration-none border-bottom"
+        className="d-flex align-items-center px-3 mb-0 text-decoration-none border-bottom"
+        style={{ minHeight: "72px" }}
       >
         <img src="/images/logo-placeholder.svg" alt="CMS" style={{ height: "36px" }} />
       </Link>

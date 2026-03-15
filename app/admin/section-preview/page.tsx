@@ -53,7 +53,9 @@ export default function SectionPreviewPage() {
   }
 
   return (
-    <div style={{ margin: 0, padding: 0, overflow: "hidden" }}>
+    // #snap-container is required so all mobile/responsive CSS rules in globals.css apply
+    // (those rules are scoped to #snap-container section.flexible-section)
+    <div id="snap-container" style={{ margin: 0, padding: 0 }}>
       <FlexibleSectionRenderer section={sectionData} />
     </div>
   );

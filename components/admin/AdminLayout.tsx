@@ -50,8 +50,7 @@ export default function AdminLayout({ children, title, subtitle, actions }: Admi
         >
           {/* Header */}
           <div className="bg-white border-bottom">
-            <div className="container-fluid py-3 px-3 px-md-4">
-              <div className="d-flex align-items-center justify-content-between gap-2">
+            <div className="container-fluid px-3 px-md-4 d-flex align-items-center justify-content-between gap-2" style={{ minHeight: "72px" }}>
                 {/* Mobile hamburger */}
                 <button
                   className="btn btn-sm btn-outline-secondary d-md-none flex-shrink-0"
@@ -68,7 +67,6 @@ export default function AdminLayout({ children, title, subtitle, actions }: Admi
                 </div>
 
                 {actions && <div className="flex-shrink-0">{actions}</div>}
-              </div>
             </div>
           </div>
 

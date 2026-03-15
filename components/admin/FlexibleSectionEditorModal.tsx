@@ -2617,7 +2617,10 @@ function PreviewTabPane({
   const vw = PREVIEW_VIEWPORTS[viewport];
   const panelW = 640;
   const scale = Math.min(1, panelW / vw);
-  const scaledH = Math.round(scale * 500);
+  // Mobile sections stack vertically and can be much taller than one viewport height.
+  // Use 1500px for mobile so all stacked blocks are visible without scrolling inside the iframe.
+  const viewportH = viewport === "mobile" ? 1500 : 812;
+  const scaledH = Math.round(scale * viewportH);
 
   return (
     <div>
@@ -2643,14 +2646,19 @@ function PreviewTabPane({
         </span>
       </div>
 
-      {/* Iframe container — outer clips the scaled iframe to the panel */}
+      {/* Iframe container — at scale=1 (mobile) allow scrolling; at scale<1 clip to fit */}
       <div
         className="border rounded"
-        style={{ overflow: "hidden", height: scaledH, position: "relative", background: "#f8f9fa" }}
+        style={{
+          overflow: scale >= 1 ? "auto" : "hidden",
+          height: scale >= 1 ? Math.min(scaledH, 700) : scaledH,
+          position: "relative",
+          background: "#f8f9fa",
+        }}
       >
         <div style={{
           width: vw,
-          height: Math.round(500 / scale),
+          height: viewportH,
           transformOrigin: "top left",
           transform: `scale(${scale})`,
         }}>
@@ -2658,7 +2666,7 @@ function PreviewTabPane({
             key={viewport}              /* remount on viewport change so media queries re-evaluate */
             ref={iframeRef}
             src="/admin/section-preview"
-            style={{ width: vw, height: Math.round(500 / scale), border: "none", display: "block" }}
+            style={{ width: vw, height: viewportH, border: "none", display: "block" }}
             title={`Section preview at ${vw}px`}
             onLoad={() => {
               // iframe loaded — if PREVIEW_READY already came, send now
