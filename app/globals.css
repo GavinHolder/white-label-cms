@@ -343,12 +343,11 @@ main {
   z-index: 0;
 }
 
-/* Section content wrapper - scrolls internally when content exceeds 100vh */
+/* Section content wrapper - clips content to 100vh, no internal scroll */
 .section-content-wrapper {
   flex: 1;
-  min-height: 0; /* CRITICAL: overrides flex min-height:auto so content can scroll */
-  overflow-y: auto;
-  overflow-x: hidden;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   /* CMS-controlled padding — desktop values */
@@ -363,6 +362,59 @@ main {
   .section-content-wrapper {
     padding-top: var(--section-pt-mobile, 100px);
     padding-bottom: var(--section-pb-mobile, 80px);
+  }
+}
+
+/* ── FLEXIBLE section mobile responsiveness ────────────────────────────────
+   On small screens all FLEXIBLE sections must:
+   1. Release their fixed 100vh height so content can grow naturally
+   2. Stack all grid blocks in a single column (full width)
+   3. Show no internal scroll — content is visible by expanding the section
+   Multi sections already grow via their own data-content-mode="multi" rules.
+   ────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* Release fixed height so content stacks vertically without clipping */
+  #snap-container section.flexible-section:not([data-content-mode="multi"]) {
+    height: auto !important;
+    min-height: 100vh;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #snap-container section.flexible-section .section-content-wrapper {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: unset !important;
+    padding-top: 80px;
+    padding-bottom: 40px;
+  }
+
+  #snap-container section.flexible-section .container-fluid {
+    overflow: visible !important;
+  }
+
+  /* Stack the CSS grid into a single column — !important beats inline styles */
+  .flexible-section .flexible-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: unset !important;
+    gap: 16px !important;
+  }
+
+  /* Each grid cell goes full width and uses natural content height */
+  .flexible-section .flexible-grid > div {
+    grid-column: unset !important;
+    grid-row: unset !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 180px;
+  }
+
+  /* Stats blocks need enough room to show icon + number + label */
+  .flexible-section .flexible-grid > div .flex-designer-block {
+    min-height: 120px !important;
+    height: auto !important;
   }
 }
 
@@ -413,10 +465,18 @@ section:has(.triangle-overlay-wrapper) {
   }
 }
 
-/* Container max-width constraints */
+/* Container max-width constraints.
+   overflow: hidden (not just overflow-x) prevents the browser from auto-setting
+   overflow-y:auto when overflow-x is set — which was causing internal scroll
+   inside single snap sections. Multi sections override this below. */
 .container-fluid {
   max-width: 100%;
-  overflow-x: hidden;
+  overflow: hidden;
+}
+
+/* Multi-section container-fluid must not clip its 200vh+ content */
+section[data-content-mode="multi"] .container-fluid {
+  overflow: visible !important;
 }
 
 /* Hide Next.js error overlay in production */

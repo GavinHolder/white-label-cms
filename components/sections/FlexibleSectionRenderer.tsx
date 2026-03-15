@@ -389,7 +389,11 @@ function DesignerBlocksRenderer({ designerData, darkBg, scrollStageZone }: { des
     const isMobileScrollStage = scrollStageZone === -1;
     // In scroll stage desktop mode use 100% so content fills the sticky column (prevents internal scroll)
     const isScrollStage = scrollStageZone !== undefined && !isMobileScrollStage;
-    const containerH = isScrollStage ? "100%" : (isMulti ? `${multiLimit * 100}vh` : "100vh");
+    // Single sections: use calc to fill the padding-adjusted content area so the grid
+    // doesn't overflow .section-content-wrapper and get clipped by overflow:hidden.
+    // The CSS vars --section-pt / --section-pb are set as inline styles on the <section> element
+    // and cascade down here, so they resolve correctly at every viewport.
+    const containerH = isScrollStage ? "100%" : (isMulti ? `${multiLimit * 100}vh` : "calc(100vh - var(--section-pt, 80px) - var(--section-pb, 80px))");
     // Filter blocks to active zone when in scroll stage desktop mode
     const filteredBlocks = isScrollStage
       ? blocks.filter(b => (b.position?.section ?? 0) === scrollStageZone)
@@ -442,14 +446,17 @@ function DesignerBlocksRenderer({ designerData, darkBg, scrollStageZone }: { des
 
     if (isGrid) {
       return (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${cols}, 1fr)`,
-          gridTemplateRows: `repeat(${totalRows}, 1fr)`,
-          gap: `${gap}px`,
-          height: gridH,
-          minHeight: gridH,
-        }}>
+        <div
+          className="flexible-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${cols}, 1fr)`,
+            gridTemplateRows: `repeat(${totalRows}, 1fr)`,
+            gap: `${gap}px`,
+            height: gridH,
+            minHeight: gridH,
+          }}
+        >
           {filteredBlocks.map((block) => {
             const pos           = block.position || { row: 1, col: 1, colSpan: 1, rowSpan: 1, section: 0 };
             // In scroll stage mode blocks are already filtered to active zone — no section offset needed
@@ -527,11 +534,53 @@ function DesignerBlock({ block, darkBg }: {
   block: { type: string; props?: Record<string, unknown>; subElements?: SubEl[] };
   darkBg: boolean;
 }) {
-  const blockRef = useRef<HTMLDivElement>(null);
+  const blockRef    = useRef<HTMLDivElement>(null);
+  // Stats countUp: ref to the number display element
+  const statsNumRef = useRef<HTMLDivElement>(null);
+  const statsAnimDone = useRef(false);
   const p = block.props || {};
   // Default text colour based on the section's background luminance
   const tc = darkBg ? "#fff" : "#212529";
   const subs = block.subElements || [];
+
+  // ── Stats countUp animation ──────────────────────────────────────────────
+  // Triggered once when the stats block first enters the viewport.
+  // Extracts the leading numeric part from p.number (e.g. "20+" → 20, "15" → 15)
+  // and animates 0 → target using ease-out cubic via rAF.
+  // Skipped when p.animateCount === false (designer toggle) or the value is non-numeric.
+  useEffect(() => {
+    if (block.type !== "stats" || subs.length > 0) return; // only for inline stats
+    if (p.animateCount === false) return;                   // designer-disabled
+    const numStr = String(p.number || "");
+    const match  = numStr.match(/^([^0-9]*)(\d[\d,.]*)(.*)$/);
+    if (!match) return; // non-numeric label like "SANS 878" — skip automatically
+    const prefix = match[1];
+    const target = parseFloat(match[2].replace(/,/g, ""));
+    const suffix = match[3];
+    if (isNaN(target) || !statsNumRef.current) return;
+    const el = statsNumRef.current;
+    const duration = Number(p.animationDuration) > 0 ? Number(p.animationDuration) : 1600;
+    statsAnimDone.current = false;
+    el.textContent = prefix + "0" + suffix;
+
+    const obs = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || statsAnimDone.current) return;
+      statsAnimDone.current = true;
+      obs.disconnect();
+      const start = performance.now();
+      function step(now: number) {
+        const t = Math.min((now - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+        el.textContent = prefix + Math.round(eased * target).toLocaleString() + suffix;
+        if (t < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }, { threshold: 0.3 });
+
+    if (blockRef.current) obs.observe(blockRef.current);
+    return () => obs.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [block.type, p.number, p.animateCount, p.animationDuration]);
 
   // Padding / gap helpers
   /** Build padding CSS from block props, falling back to the provided defaults. */
@@ -703,25 +752,40 @@ function DesignerBlock({ block, darkBg }: {
           </div>
         );
 
-      // ── stats: centred metric display — number, label, optional icon ─────
+      // ── stats: centred metric display — number (animated countUp), label, icon ─
       case "stats": {
         // Apply bgOpacity (0-100) to produce transparent rgba background when needed
         const statsBgRaw  = (p.bgColor as string) || "transparent";
         const statsBgOpac = p.bgOpacity !== undefined ? Number(p.bgOpacity) : 100;
         const statsBg     = hasExtBg ? "transparent" : applyBgOpacity(statsBgRaw, statsBgOpac);
+        const statsColor  = (p.textColor as string) || tc;
         return (
           <div style={{
             background: statsBg,
-            color: (p.textColor as string) || tc,
+            color: statsColor,
             padding: "24px", height: "100%",
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center",
           }}>
             {subs.length > 0
               ? subs.map((sub, i) => <DesignerSubElement key={i} sub={sub} />)
               : <>
-                  {!!p.icon && <i className={`bi ${p.icon as string}`} style={{ fontSize: "2rem", marginBottom: "8px", color: "#0d6efd" }} />}
-                  {!!p.number && <div style={{ fontSize: "2.5rem", fontWeight: 800, lineHeight: 1 }}>{p.number as string}</div>}
-                  {!!p.statLabel && <div style={{ fontSize: "13px", opacity: 0.7, marginTop: "4px" }}>{p.statLabel as string}</div>}
+                  {!!p.icon && (
+                    <i
+                      className={`bi ${p.icon as string}`}
+                      style={{ fontSize: "2.2rem", marginBottom: "10px", color: statsColor, opacity: 0.8 }}
+                    />
+                  )}
+                  {/* statsNumRef drives countUp animation — set in useEffect above */}
+                  {!!p.number && (
+                    <div ref={statsNumRef} style={{ fontSize: "2.6rem", fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em" }}>
+                      {p.number as string}
+                    </div>
+                  )}
+                  {!!p.statLabel && (
+                    <div style={{ fontSize: "13px", opacity: 0.65, marginTop: "6px", fontWeight: 500, letterSpacing: "0.02em" }}>
+                      {p.statLabel as string}
+                    </div>
+                  )}
                 </>
             }
           </div>

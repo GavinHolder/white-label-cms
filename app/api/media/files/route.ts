@@ -12,8 +12,10 @@ import { existsSync } from "fs";
 import { join } from "path";
 
 const UPLOAD_DIRS = [
-  { dir: join(process.cwd(), "public", "images", "uploads"), urlPrefix: "/images/uploads" },
-  { dir: join(process.cwd(), "public", "uploads"), urlPrefix: "/uploads" },
+  { dir: join(process.cwd(), "public", "images", "uploads"), urlPrefix: "/images/uploads", excludePrefix: null },
+  // Exclude thumb-* files from the /uploads dir — those are auto-generated thumbnails
+  // created by the DB-backed upload route and should not appear as standalone library items.
+  { dir: join(process.cwd(), "public", "uploads"), urlPrefix: "/uploads", excludePrefix: "thumb-" },
 ];
 
 // Allowed extensions for serving
@@ -59,13 +61,16 @@ export async function GET() {
       modifiedAt: string;
     }> = [];
 
-    for (const { dir, urlPrefix } of UPLOAD_DIRS) {
+    for (const { dir, urlPrefix, excludePrefix } of UPLOAD_DIRS) {
       if (!existsSync(dir)) continue;
 
       const entries = await readdir(dir);
       const files = await Promise.all(
         entries.map(async (name) => {
           try {
+            // Skip thumbnail files (internal, not user-facing)
+            if (excludePrefix && name.startsWith(excludePrefix)) return null;
+
             const filePath = join(dir, name);
             const info = await stat(filePath);
             if (!info.isFile()) return null;

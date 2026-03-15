@@ -127,48 +127,52 @@ export async function POST(request: NextRequest) {
       ? tags.split(",").map((t) => t.trim()).filter((t) => t.length > 0)
       : [];
 
-    // Create media asset record
-    const mediaAsset = await prisma.mediaAsset.create({
-      data: {
-        filename,
-        originalName: file.name,
-        mimeType: file.type,
-        fileSize: file.size,
-        width,
-        height,
-        url: `${MEDIA_URL}/${filename}`,
-        thumbnailUrl,
-        altText: altText || null,
-        caption: caption || null,
-        tags: tagArray,
-        uploadedBy: user.userId,
-      },
-      include: {
-        uploadedByUser: {
-          select: {
-            username: true,
-          },
+    const fileUrl = `${MEDIA_URL}/${filename}`;
+
+    // Attempt to create a media asset record — non-fatal if it fails
+    // (file is already saved; DB record is optional for tracking purposes)
+    let mediaAsset = null;
+    try {
+      mediaAsset = await prisma.mediaAsset.create({
+        data: {
+          filename,
+          originalName: file.name,
+          mimeType: file.type,
+          fileSize: file.size,
+          width,
+          height,
+          url: fileUrl,
+          thumbnailUrl,
+          altText: altText || null,
+          caption: caption || null,
+          tags: tagArray,
+          uploadedBy: user.userId,
         },
-      },
-    });
+        include: {
+          uploadedByUser: { select: { username: true } },
+        },
+      });
+    } catch {
+      // DB record creation failed — file is still accessible via URL
+    }
 
     return successResponse(
       {
         media: {
-          id: mediaAsset.id,
-          filename: mediaAsset.filename,
-          originalName: mediaAsset.originalName,
-          mimeType: mediaAsset.mimeType,
-          fileSize: mediaAsset.fileSize,
-          width: mediaAsset.width,
-          height: mediaAsset.height,
-          url: mediaAsset.url,
-          thumbnailUrl: mediaAsset.thumbnailUrl,
-          altText: mediaAsset.altText,
-          caption: mediaAsset.caption,
-          tags: mediaAsset.tags,
-          uploadedBy: mediaAsset.uploadedByUser.username,
-          createdAt: mediaAsset.createdAt,
+          id: mediaAsset?.id ?? null,
+          filename,
+          originalName: file.name,
+          mimeType: file.type,
+          fileSize: file.size,
+          width,
+          height,
+          url: fileUrl,
+          thumbnailUrl,
+          altText: altText || null,
+          caption: caption || null,
+          tags: tagArray,
+          uploadedBy: mediaAsset?.uploadedByUser?.username ?? user.username,
+          createdAt: mediaAsset?.createdAt ?? new Date(),
         },
       },
       201

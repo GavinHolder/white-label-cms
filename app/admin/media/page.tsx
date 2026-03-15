@@ -15,6 +15,7 @@ interface MediaFile {
   size: number;
   type: string;
   modifiedAt: string;
+  usageCount?: number;
 }
 
 type FilterType = "all" | "images" | "videos" | "documents";
@@ -66,10 +67,19 @@ function MediaLibraryContent() {
   const loadFiles = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/media/files");
-      if (!res.ok) throw new Error("Failed to load files");
-      const data = await res.json();
-      setFiles(data.files ?? []);
+      const [filesRes, usageRes] = await Promise.all([
+        fetch("/api/media/files"),
+        fetch("/api/media/usage"),
+      ]);
+      if (!filesRes.ok) throw new Error("Failed to load files");
+      const filesData = await filesRes.json();
+      const usageData = usageRes.ok ? await usageRes.json() : { usages: {} };
+      const usages: Record<string, number> = usageData.usages ?? {};
+      const filesWithUsage = (filesData.files ?? []).map((f: MediaFile) => ({
+        ...f,
+        usageCount: usages[f.name] ?? 0,
+      }));
+      setFiles(filesWithUsage);
     } catch {
       toast.error("Failed to load media files");
     } finally {
@@ -137,6 +147,11 @@ function MediaLibraryContent() {
   // ============================================
 
   const handleDelete = async (file: MediaFile) => {
+    if ((file.usageCount ?? 0) > 0) {
+      toast.warning(`"${file.name}" is used in ${file.usageCount} section(s) and cannot be deleted.`);
+      setConfirmDelete(null);
+      return;
+    }
     try {
       const res = await fetch(`/api/media/files?name=${encodeURIComponent(file.name)}`, {
         method: "DELETE",
@@ -388,8 +403,12 @@ function MediaLibraryContent() {
         <ConfirmDialog
           isOpen={true}
           title="Delete File"
-          message={`Are you sure you want to delete "${confirmDelete.name}"? This action cannot be undone.`}
-          confirmText="Delete"
+          message={
+            (confirmDelete.usageCount ?? 0) > 0
+              ? `"${confirmDelete.name}" is currently used in ${confirmDelete.usageCount} section(s). Remove it from all sections before deleting.`
+              : `Are you sure you want to delete "${confirmDelete.name}"? This action cannot be undone.`
+          }
+          confirmText={(confirmDelete.usageCount ?? 0) > 0 ? "Cannot Delete" : "Delete"}
           variant="danger"
           onConfirm={() => handleDelete(confirmDelete)}
           onCancel={() => setConfirmDelete(null)}
@@ -427,6 +446,7 @@ interface MediaCardProps {
 
 function MediaCard({ file, isCopied, onCopy, onDelete, onPreview }: MediaCardProps) {
   const type = getFileType(file.name);
+  const inUse = (file.usageCount ?? 0) > 0;
 
   return (
     <div
@@ -456,6 +476,18 @@ function MediaCard({ file, isCopied, onCopy, onDelete, onPreview }: MediaCardPro
         ) : (
           <i className="bi bi-file-earmark text-muted" style={{ fontSize: "2.5rem" }} />
         )}
+
+        {/* In-use badge */}
+        {inUse && (
+          <span
+            className="position-absolute top-0 start-0 m-1 badge bg-success"
+            style={{ fontSize: "0.6rem" }}
+            title={`Used in ${file.usageCount} section(s)`}
+          >
+            <i className="bi bi-link me-1" />
+            In use
+          </span>
+        )}
       </div>
 
       {/* Info */}
@@ -467,11 +499,16 @@ function MediaCard({ file, isCopied, onCopy, onDelete, onPreview }: MediaCardPro
         >
           {file.name}
         </p>
-        <p className="mb-2 text-muted" style={{ fontSize: "0.65rem" }}>
+        <p className="mb-0 text-muted" style={{ fontSize: "0.65rem" }}>
           {formatFileSize(file.size)}
         </p>
+        {inUse && (
+          <p className="mb-1 text-success" style={{ fontSize: "0.6rem" }}>
+            Used in {file.usageCount} section{file.usageCount !== 1 ? "s" : ""}
+          </p>
+        )}
         {/* Actions */}
-        <div className="d-flex gap-1">
+        <div className="d-flex gap-1 mt-1">
           <button
             className={`btn btn-sm flex-fill ${isCopied ? "btn-success" : "btn-outline-secondary"}`}
             onClick={onCopy}
@@ -481,12 +518,13 @@ function MediaCard({ file, isCopied, onCopy, onDelete, onPreview }: MediaCardPro
             <i className={`bi ${isCopied ? "bi-check-lg" : "bi-link-45deg"}`} />
           </button>
           <button
-            className="btn btn-sm btn-outline-danger"
+            className={`btn btn-sm ${inUse ? "btn-outline-secondary" : "btn-outline-danger"}`}
             onClick={onDelete}
-            title="Delete"
+            title={inUse ? "Cannot delete — file is in use" : "Delete"}
+            disabled={inUse}
             style={{ fontSize: "0.65rem", padding: "2px 6px" }}
           >
-            <i className="bi bi-trash" />
+            <i className={`bi ${inUse ? "bi-lock" : "bi-trash"}`} />
           </button>
         </div>
       </div>

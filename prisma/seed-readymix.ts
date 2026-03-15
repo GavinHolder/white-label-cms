@@ -1,18 +1,26 @@
 // @ts-nocheck
 /**
- * OVERBERG READYMIX SEED — v3 (client-ready)
+ * OVERBERG READYMIX SEED — v4 (correct designerData format)
  *
  * Professional landing page for SA ready-mix concrete company.
  * Sections:
  *   1. HERO          — 3 slides with real construction photography
- *   2. ABOUT US      — Clean stats layout, NO scroll-stage
- *   3. SERVICES      — Dark card grid, 6 service types
+ *   2. ABOUT US      — 2-col: company story (left) + stats (right)
+ *   3. SERVICES      — Dark 3-col card grid, 6 service types
  *   4. PROJECTS      — Projects gallery
  *   5. COVERAGE MAP  — Delivery area embed
- *   6. CTA           — Quote request form
+ *   6. CTA           — Quote request form (style: contact-form)
  *   7. FOOTER
  *
  * Run: npx tsx prisma/seed-readymix.ts
+ *
+ * designerData format:
+ *   - layoutType: 'grid'  (NOT positionMode: 'grid')
+ *   - grid: { cols, rows, gap }
+ *   - block positions are 1-BASED (col: 1 = first column)
+ *   - 'text' blocks render subElements, not inline props.text
+ *   - 'card' blocks render p.label + subElements
+ *   - 'stats' blocks render p.number + p.statLabel + p.icon directly
  */
 
 import { PrismaClient, Prisma } from '@prisma/client';
@@ -23,7 +31,7 @@ function j(obj: object): Prisma.InputJsonValue { return obj as Prisma.InputJsonV
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting Overberg ReadyMix seed v3...');
+  console.log('🌱 Starting Overberg ReadyMix seed v4...');
 
   // ── Full wipe ──────────────────────────────────────────────────────────────
   console.log('🗑  Wiping existing data...');
@@ -341,7 +349,7 @@ async function main() {
               },
               buttons: [
                 { text: 'View Projects', href: '#projects', backgroundColor: '#4a7c59', textColor: '#ffffff', variant: 'filled', animation: 'fade', animationDelay: 400 },
-                { text: 'Check Coverage', href: '#coverage', backgroundColor: 'transparent', textColor: '#ffffff', variant: 'outline', animation: 'fade', animationDelay: 520 },
+                { text: 'Check Coverage', href: '/coverage', backgroundColor: 'transparent', textColor: '#ffffff', variant: 'outline', animation: 'fade', animationDelay: 520 },
               ],
               position: 'center',
               spacing: { betweenHeadingSubheading: 24, betweenSubheadingButtons: 48, betweenButtons: 16 },
@@ -369,6 +377,7 @@ async function main() {
               },
               buttons: [
                 { text: 'About Us', href: '#about', backgroundColor: '#4a7c59', textColor: '#ffffff', variant: 'filled', animation: 'slideUp', animationDelay: 500 },
+                { text: 'Concrete Calculator', href: '/calculator', backgroundColor: 'transparent', textColor: '#ffffff', variant: 'outline', animation: 'slideUp', animationDelay: 620 },
               ],
               position: 'center',
               spacing: { betweenHeadingSubheading: 24, betweenSubheadingButtons: 48, betweenButtons: 16 },
@@ -385,8 +394,11 @@ async function main() {
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // 2. ABOUT US — Clean FLEXIBLE layout, no scroll-stage
-  //    Left col: company story | Right col: 4 key stats
+  // 2. ABOUT US — 2-col grid: company story (left) + 5 stat blocks (right)
+  //
+  //  Grid: 2 cols × 5 rows
+  //  Col 1 spans all 5 rows — company story, body text, CTA button
+  //  Col 2 rows 1–5 — stats: years, trucks, mix range, team, certification
   // ══════════════════════════════════════════════════════════════════════════
   await prisma.section.create({
     data: {
@@ -398,69 +410,119 @@ async function main() {
       displayName: 'About Us',
       background: '#ffffff',
       content: j({
-        contentMode: 'single',
         designerData: {
-          positionMode: 'grid',
-          contentMode: 'single',
+          layoutType: 'grid',
+          grid: { cols: 2, rows: 5, gap: 20 },
           blocks: [
-            // ── LEFT COLUMN: company story ──────────────────────────────────
+            // ── LEFT COLUMN: full-height story block ────────────────────────
             {
-              id: 1, type: 'text',
-              position: { row: 0, col: 0, colSpan: 6 },
+              id: 1,
+              type: 'text',
+              position: { row: 1, col: 1, colSpan: 1, rowSpan: 5 },
+              props: { paddingTop: 48, paddingBottom: 48, paddingX: 48 },
+              subElements: [
+                {
+                  type: 'heading',
+                  props: {
+                    text: 'ABOUT OVERBERG READYMIX',
+                    fontSize: 11, fontWeight: '700', color: '#4a7c59',
+                    letterSpacing: 2, textTransform: 'uppercase',
+                    textAlign: 'left', marginBottom: 16,
+                  },
+                },
+                {
+                  type: 'heading',
+                  props: {
+                    text: 'Family-owned. Quality-driven. Overberg-rooted.',
+                    fontSize: 34, fontWeight: '800', color: '#1f2937',
+                    lineHeight: 1.2, textAlign: 'left', marginBottom: 24,
+                  },
+                },
+                {
+                  type: 'paragraph',
+                  props: {
+                    text: 'Since 2005, Overberg ReadyMix has supplied ready-mix concrete to builders, developers, and contractors across the Overberg. What started as a single transit mixer has grown into a modern operation — 8 GPS-tracked trucks, a fully automated batching plant, and a team of 24 dedicated to delivering concrete that\'s consistent, on-spec, and on time.',
+                    fontSize: 16, color: '#4b5563', lineHeight: 1.75, marginBottom: 16,
+                  },
+                },
+                {
+                  type: 'paragraph',
+                  props: {
+                    text: 'Every batch begins with SANS-certified raw materials and a mix design matched to your project requirements. Our automated plant controls water-cement ratios to ±2%. You receive exactly what was batched — every time.',
+                    fontSize: 16, color: '#4b5563', lineHeight: 1.75, marginBottom: 32,
+                  },
+                },
+                {
+                  type: 'button',
+                  props: {
+                    text: 'Get a Quote',
+                    navTarget: '#contact',
+                    bgColor: '#4a7c59', textColor: '#ffffff',
+                    paddingX: 28, paddingY: 12, borderRadius: 6,
+                  },
+                },
+                {
+                  type: 'button',
+                  props: {
+                    text: 'Concrete Calculator',
+                    navTarget: '/calculator',
+                    bgColor: '#f0fdf4', textColor: '#4a7c59',
+                    paddingX: 28, paddingY: 12, borderRadius: 6,
+                    marginTop: 8,
+                  },
+                },
+              ],
+            },
+            // ── RIGHT COLUMN: 5 stat cards ───────────────────────────────────
+            {
+              id: 2, type: 'stats',
+              position: { row: 1, col: 2 },
               props: {
-                text: 'About Overberg ReadyMix',
-                fontSize: 12, fontWeight: 700, color: '#4a7c59',
-                letterSpacing: '0.12em', textTransform: 'uppercase',
-                textAlign: 'left', marginBottom: 16,
+                icon: 'bi-calendar2-heart',
+                number: '20+',
+                statLabel: 'Years in the Overberg',
+                bgColor: '#f0fdf4', textColor: '#4a7c59', bgOpacity: 100,
               },
             },
             {
-              id: 2, type: 'text',
-              position: { row: 1, col: 0, colSpan: 6 },
+              id: 3, type: 'stats',
+              position: { row: 2, col: 2 },
               props: {
-                text: 'Family-owned.\nQuality-driven.\nOverberg-rooted.',
-                fontSize: 38, fontWeight: 800, color: '#1f2937',
-                lineHeight: 1.15, textAlign: 'left', marginBottom: 24,
+                icon: 'bi-truck',
+                number: '8',
+                statLabel: 'GPS-tracked trucks',
+                bgColor: '#f8fafc', textColor: '#1f2937', bgOpacity: 100,
               },
             },
             {
-              id: 3, type: 'text',
-              position: { row: 2, col: 0, colSpan: 6 },
+              id: 4, type: 'stats',
+              position: { row: 3, col: 2 },
               props: {
-                text: 'Since 2005, Overberg ReadyMix has supplied ready-mix concrete to builders, developers, and contractors across the Overberg. What started as a single transit mixer has grown into a modern operation — 8 GPS-tracked trucks, a fully automated batching plant, and a team of 24 dedicated to delivering concrete that\'s consistent, on-spec, and on time.\n\nEvery batch begins with SANS-certified raw materials and a mix design matched to your project requirements. Our automated plant controls water-cement ratios to ±2%. You receive exactly what was batched — every time.',
-                fontSize: 17, fontWeight: 400, color: '#4b5563',
-                lineHeight: 1.8, textAlign: 'left',
-              },
-            },
-            // ── RIGHT COLUMN: 4 stat cards ──────────────────────────────────
-            {
-              id: 4, type: 'card',
-              position: { row: 0, col: 7, colSpan: 5 },
-              props: {
-                bgColor: '#f0fdf4', borderRadius: 12, padding: 28,
-                textAlign: 'center',
-                heading: '20+', headingColor: '#4a7c59',
-                subheading: 'Years in the Overberg', subheadingColor: '#374151',
+                icon: 'bi-speedometer2',
+                number: '15–40MPa',
+                statLabel: 'Full mix range',
+                bgColor: '#f0fdf4', textColor: '#4a7c59', bgOpacity: 100,
               },
             },
             {
-              id: 5, type: 'card',
-              position: { row: 1, col: 7, colSpan: 5 },
+              id: 5, type: 'stats',
+              position: { row: 4, col: 2 },
               props: {
-                bgColor: '#f8fafc', borderRadius: 12, padding: 28,
-                textAlign: 'center',
-                heading: '8 Trucks', headingColor: '#1f2937',
-                subheading: 'GPS-tracked fleet', subheadingColor: '#374151',
+                icon: 'bi-people',
+                number: '24',
+                statLabel: 'Team members',
+                bgColor: '#f8fafc', textColor: '#1f2937', bgOpacity: 100,
               },
             },
             {
-              id: 6, type: 'card',
-              position: { row: 2, col: 7, colSpan: 5 },
+              id: 6, type: 'stats',
+              position: { row: 5, col: 2 },
               props: {
-                bgColor: '#f0fdf4', borderRadius: 12, padding: 28,
-                textAlign: 'center',
-                heading: '15–40MPa', headingColor: '#4a7c59',
-                subheading: 'Full mix range', subheadingColor: '#374151',
+                icon: 'bi-patch-check',
+                number: 'SANS 878',
+                statLabel: 'Certified mix designs',
+                bgColor: '#f0fdf4', textColor: '#4a7c59', bgOpacity: 100,
+                animateCount: false, // text value — no count-up animation
               },
             },
           ],
@@ -470,7 +532,17 @@ async function main() {
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // 3. SERVICES — Dark card grid, 6 service types, no scroll-stage
+  // 3. SERVICES — Dark 3-col multi-section grid: header (snap 1) + 6 cards (snap 2)
+  //
+  //  contentMode: 'multi', multiLimit: 2 → 200vh total (2 snap stops)
+  //  Grid: 3 cols × 1 row, section-based:
+  //    section:0 → header text spanning all 3 cols (100vh)
+  //    section:1 → 3 cols of 2 cards each stacked (100vh, using rows within section 1)
+  //
+  //  NOTE: Using simple grid rows approach:
+  //    - grid: { cols: 3, rows: 2 }, multiLimit: 2 → totalRows = 4
+  //    - section:0 header at row 1 (sectionOffset=0, absoluteRow=1)
+  //    - section:1 cards row 1 = absoluteRow 3, row 2 = absoluteRow 4
   // ══════════════════════════════════════════════════════════════════════════
   await prisma.section.create({
     data: {
@@ -482,98 +554,240 @@ async function main() {
       displayName: 'Services',
       background: '#1f2937',
       content: j({
-        contentMode: 'single',
+        contentMode: 'multi',
         designerData: {
-          positionMode: 'grid',
-          contentMode: 'single',
+          contentMode: 'multi',
+          multiLimit: 2,
+          layoutType: 'grid',
+          grid: { cols: 3, rows: 2, gap: 20 },
           blocks: [
-            // Section header
+            // ── Snap stop 0 (100vh): section header ──────────────────────────
             {
-              id: 10, type: 'text',
-              position: { row: 0, col: 2, colSpan: 8 },
-              props: {
-                text: 'What We Supply',
-                fontSize: 12, fontWeight: 700, color: '#4a7c59',
-                letterSpacing: '0.12em', textTransform: 'uppercase',
-                textAlign: 'center', marginBottom: 12,
-              },
+              id: 10,
+              type: 'text',
+              // section:0, row:1 → absoluteRow = 0×2+1 = 1 (first 100vh, full 3-col width)
+              position: { row: 1, col: 1, colSpan: 3, section: 0 },
+              props: { textAlign: 'center', paddingTop: 40, paddingBottom: 8 },
+              subElements: [
+                {
+                  type: 'heading',
+                  props: {
+                    text: 'WHAT WE SUPPLY',
+                    fontSize: 11, fontWeight: '700', color: '#4a7c59',
+                    letterSpacing: 2, textTransform: 'uppercase',
+                    textAlign: 'center', marginBottom: 14,
+                  },
+                },
+                {
+                  type: 'heading',
+                  props: {
+                    text: 'Six concrete solutions. One reliable supplier.',
+                    fontSize: 32, fontWeight: '800', color: '#ffffff',
+                    textAlign: 'center', lineHeight: 1.2, marginBottom: 12,
+                  },
+                },
+                {
+                  type: 'paragraph',
+                  props: {
+                    text: 'Every mix is plant-batched to SANS 878 and delivered to your site by our GPS-tracked fleet.',
+                    fontSize: 15, color: '#9ca3af', textAlign: 'center', lineHeight: 1.6,
+                  },
+                },
+              ],
             },
-            {
-              id: 11, type: 'text',
-              position: { row: 1, col: 1, colSpan: 10 },
-              props: {
-                text: 'Six concrete solutions. One reliable supplier.',
-                fontSize: 36, fontWeight: 800, color: '#ffffff',
-                textAlign: 'center', marginBottom: 48,
-              },
-            },
-            // Row 1 of service cards
+            // ── Snap stop 1 (100vh): service cards ──────────────────────────
+            // section:1, rows:1+2 → absoluteRow = 1×2+1=3, 1×2+2=4
             {
               id: 12, type: 'card',
-              position: { row: 2, col: 0, colSpan: 4 },
-              props: {
-                bgColor: '#374151', borderRadius: 10, padding: 28, textAlign: 'left',
-                heading: 'Standard Mixes', headingColor: '#ffffff',
-                subheading: '15MPa – 40MPa', subheadingColor: '#4a7c59',
-                body: 'SANS 878-compliant mixes for domestic to heavy industrial. Cube-test certificates available on request.',
-                bodyColor: '#9ca3af',
-              },
+              position: { row: 1, col: 1, section: 1 },
+              props: { bgColor: '#374151', borderRadius: 10 },
+              subElements: [
+                {
+                  type: 'heading',
+                  props: { text: 'Standard Mixes', fontSize: 17, fontWeight: '700', color: '#ffffff', marginBottom: 6 },
+                },
+                {
+                  type: 'heading',
+                  props: { text: '15MPa – 40MPa', fontSize: 13, fontWeight: '600', color: '#4a7c59', marginBottom: 12 },
+                },
+                {
+                  type: 'paragraph',
+                  props: {
+                    text: 'SANS 878-compliant mixes for domestic to heavy industrial. Cube-test certificates available on request.',
+                    fontSize: 14, color: '#9ca3af', lineHeight: 1.6,
+                  },
+                },
+                {
+                  type: 'button',
+                  props: {
+                    text: 'Get a Quote',
+                    navTarget: '#contact',
+                    bgColor: 'transparent', textColor: '#4a7c59',
+                    paddingX: 0, paddingY: 4, borderRadius: 0,
+                    marginTop: 12,
+                  },
+                },
+              ],
             },
             {
               id: 13, type: 'card',
-              position: { row: 2, col: 4, colSpan: 4 },
-              props: {
-                bgColor: '#374151', borderRadius: 10, padding: 28, textAlign: 'left',
-                heading: 'Pumpable Concrete', headingColor: '#ffffff',
-                subheading: '100–180mm slump', subheadingColor: '#4a7c59',
-                body: 'High-workability mix for pump application. Ideal for elevated slabs, columns and restricted-access sites.',
-                bodyColor: '#9ca3af',
-              },
+              position: { row: 1, col: 2, section: 1 },
+              props: { bgColor: '#374151', borderRadius: 10 },
+              subElements: [
+                {
+                  type: 'heading',
+                  props: { text: 'Pumpable Concrete', fontSize: 17, fontWeight: '700', color: '#ffffff', marginBottom: 6 },
+                },
+                {
+                  type: 'heading',
+                  props: { text: '100–180mm slump', fontSize: 13, fontWeight: '600', color: '#4a7c59', marginBottom: 12 },
+                },
+                {
+                  type: 'paragraph',
+                  props: {
+                    text: 'High-workability mix for pump application. Ideal for elevated slabs, columns and restricted-access sites.',
+                    fontSize: 14, color: '#9ca3af', lineHeight: 1.6,
+                  },
+                },
+                {
+                  type: 'button',
+                  props: {
+                    text: 'Get a Quote',
+                    navTarget: '#contact',
+                    bgColor: 'transparent', textColor: '#4a7c59',
+                    paddingX: 0, paddingY: 4, borderRadius: 0,
+                    marginTop: 12,
+                  },
+                },
+              ],
             },
             {
               id: 14, type: 'card',
-              position: { row: 2, col: 8, colSpan: 4 },
-              props: {
-                bgColor: '#374151', borderRadius: 10, padding: 28, textAlign: 'left',
-                heading: 'Fibre Reinforced', headingColor: '#ffffff',
-                subheading: 'Steel or polypropylene', subheadingColor: '#4a7c59',
-                body: 'Dosed at the plant — no on-site mixing errors. Polypropylene reduces plastic cracking; steel adds post-crack load capacity.',
-                bodyColor: '#9ca3af',
-              },
+              position: { row: 1, col: 3, section: 1 },
+              props: { bgColor: '#374151', borderRadius: 10 },
+              subElements: [
+                {
+                  type: 'heading',
+                  props: { text: 'Fibre Reinforced', fontSize: 17, fontWeight: '700', color: '#ffffff', marginBottom: 6 },
+                },
+                {
+                  type: 'heading',
+                  props: { text: 'Steel or polypropylene', fontSize: 13, fontWeight: '600', color: '#4a7c59', marginBottom: 12 },
+                },
+                {
+                  type: 'paragraph',
+                  props: {
+                    text: 'Dosed at the plant — no on-site mixing errors. Polypropylene reduces plastic cracking; steel adds post-crack load capacity.',
+                    fontSize: 14, color: '#9ca3af', lineHeight: 1.6,
+                  },
+                },
+                {
+                  type: 'button',
+                  props: {
+                    text: 'Get a Quote',
+                    navTarget: '#contact',
+                    bgColor: 'transparent', textColor: '#4a7c59',
+                    paddingX: 0, paddingY: 4, borderRadius: 0,
+                    marginTop: 12,
+                  },
+                },
+              ],
             },
-            // Row 2 of service cards
             {
               id: 15, type: 'card',
-              position: { row: 3, col: 0, colSpan: 4 },
-              props: {
-                bgColor: '#374151', borderRadius: 10, padding: 28, textAlign: 'left',
-                heading: 'Marine Grade', headingColor: '#ffffff',
-                subheading: 'Sulphate-resistant', subheadingColor: '#4a7c59',
-                body: 'Low w/c ratio, blast-furnace slag additions. Purpose-built for coastal environments and sea-spray exposure.',
-                bodyColor: '#9ca3af',
-              },
+              position: { row: 2, col: 1, section: 1 },
+              props: { bgColor: '#374151', borderRadius: 10 },
+              subElements: [
+                {
+                  type: 'heading',
+                  props: { text: 'Marine Grade', fontSize: 17, fontWeight: '700', color: '#ffffff', marginBottom: 6 },
+                },
+                {
+                  type: 'heading',
+                  props: { text: 'Sulphate-resistant', fontSize: 13, fontWeight: '600', color: '#4a7c59', marginBottom: 12 },
+                },
+                {
+                  type: 'paragraph',
+                  props: {
+                    text: 'Low w/c ratio, blast-furnace slag additions. Purpose-built for coastal environments and sea-spray exposure.',
+                    fontSize: 14, color: '#9ca3af', lineHeight: 1.6,
+                  },
+                },
+                {
+                  type: 'button',
+                  props: {
+                    text: 'Get a Quote',
+                    navTarget: '#contact',
+                    bgColor: 'transparent', textColor: '#4a7c59',
+                    paddingX: 0, paddingY: 4, borderRadius: 0,
+                    marginTop: 12,
+                  },
+                },
+              ],
             },
             {
               id: 16, type: 'card',
-              position: { row: 3, col: 4, colSpan: 4 },
-              props: {
-                bgColor: '#374151', borderRadius: 10, padding: 28, textAlign: 'left',
-                heading: 'Mass-Pour Mixes', headingColor: '#ffffff',
-                subheading: 'Retaining walls & footings', subheadingColor: '#4a7c59',
-                body: 'Optimised workability window for large-volume pours. Retarder packages available for hot-weather pouring.',
-                bodyColor: '#9ca3af',
-              },
+              position: { row: 2, col: 2, section: 1 },
+              props: { bgColor: '#374151', borderRadius: 10 },
+              subElements: [
+                {
+                  type: 'heading',
+                  props: { text: 'Mass-Pour Mixes', fontSize: 17, fontWeight: '700', color: '#ffffff', marginBottom: 6 },
+                },
+                {
+                  type: 'heading',
+                  props: { text: 'Retaining walls & footings', fontSize: 13, fontWeight: '600', color: '#4a7c59', marginBottom: 12 },
+                },
+                {
+                  type: 'paragraph',
+                  props: {
+                    text: 'Optimised workability window for large-volume pours. Retarder packages available for hot-weather pouring.',
+                    fontSize: 14, color: '#9ca3af', lineHeight: 1.6,
+                  },
+                },
+                {
+                  type: 'button',
+                  props: {
+                    text: 'Get a Quote',
+                    navTarget: '#contact',
+                    bgColor: 'transparent', textColor: '#4a7c59',
+                    paddingX: 0, paddingY: 4, borderRadius: 0,
+                    marginTop: 12,
+                  },
+                },
+              ],
             },
             {
               id: 17, type: 'card',
-              position: { row: 3, col: 8, colSpan: 4 },
-              props: {
-                bgColor: '#374151', borderRadius: 10, padding: 28, textAlign: 'left',
-                heading: 'Delivery Service', headingColor: '#ffffff',
-                subheading: '6 m³ and 8 m³ loads', subheadingColor: '#4a7c59',
-                body: 'GPS-tracked transit mixers. On-site within 1 hour of pour. Same-day orders accepted before 10:00 AM.',
-                bodyColor: '#9ca3af',
-              },
+              position: { row: 2, col: 3, section: 1 },
+              props: { bgColor: '#374151', borderRadius: 10 },
+              subElements: [
+                {
+                  type: 'heading',
+                  props: { text: 'Delivery Service', fontSize: 17, fontWeight: '700', color: '#ffffff', marginBottom: 6 },
+                },
+                {
+                  type: 'heading',
+                  props: { text: '6 m³ and 8 m³ loads', fontSize: 13, fontWeight: '600', color: '#4a7c59', marginBottom: 12 },
+                },
+                {
+                  type: 'paragraph',
+                  props: {
+                    text: 'GPS-tracked transit mixers. On-site within 1 hour of pour. Same-day orders accepted before 10:00 AM.',
+                    fontSize: 14, color: '#9ca3af', lineHeight: 1.6,
+                  },
+                },
+                {
+                  type: 'button',
+                  props: {
+                    text: 'Check Delivery Area',
+                    navTarget: '/coverage',
+                    bgColor: 'transparent', textColor: '#4a7c59',
+                    paddingX: 0, paddingY: 4, borderRadius: 0,
+                    marginTop: 12,
+                  },
+                },
+              ],
             },
           ],
         },
@@ -583,6 +797,10 @@ async function main() {
 
   // ══════════════════════════════════════════════════════════════════════════
   // 4. PROJECTS GALLERY
+  //
+  //  Grid: 1 col × 1 row — gallery fills the full 100vh.
+  //  Heading and subtext are passed via projects-gallery props so there is
+  //  no separate header row creating a dead-space gap.
   // ══════════════════════════════════════════════════════════════════════════
   await prisma.section.create({
     data: {
@@ -594,38 +812,19 @@ async function main() {
       displayName: 'Projects',
       background: '#111827',
       content: j({
-        contentMode: 'single',
         designerData: {
-          positionMode: 'grid',
-          contentMode: 'single',
+          layoutType: 'grid',
+          grid: { cols: 1, rows: 1, gap: 0 },
           blocks: [
             {
-              id: 30, type: 'text',
-              position: { row: 0, col: 2, colSpan: 8 },
+              id: 31,
+              type: 'projects-gallery',
+              position: { row: 1, col: 1 },
               props: {
-                text: 'Our Work',
-                fontSize: 12, fontWeight: 700, color: '#4a7c59',
-                letterSpacing: '0.12em', textTransform: 'uppercase',
-                textAlign: 'center', marginBottom: 12,
-              },
-            },
-            {
-              id: 31, type: 'text',
-              position: { row: 1, col: 1, colSpan: 10 },
-              props: {
-                text: 'Completed Projects',
-                fontSize: 36, fontWeight: 800, color: '#ffffff',
-                textAlign: 'center', marginBottom: 40,
-              },
-            },
-            {
-              id: 32, type: 'projects-gallery',
-              position: { row: 2, col: 0, colSpan: 12 },
-              props: {
-                heading: '',
-                subtext: '',
+                heading: 'Completed Projects',
+                subtext: 'From residential foundations to industrial floor slabs — concrete that performs.',
                 textColor: '#ffffff',
-                columns: 3,
+                columns: 4,
               },
             },
           ],
@@ -635,7 +834,18 @@ async function main() {
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // 5. COVERAGE MAP
+  // 5. COVERAGE MAP  (multi-section: 2 × 100vh snap stops)
+  //
+  //  contentMode: 'multi' (outer) → section grows to 200vh, no height cap.
+  //  designerData: contentMode:'multi', multiLimit:2, grid:{rows:1} →
+  //    totalRows = 1×2 = 2 rows × 100vh each.
+  //
+  //  Block positions use `section` field:
+  //    section:0, row:1 → absoluteRow = 0×1+1 = 1 (first 100vh)
+  //    section:1, row:1 → absoluteRow = 1×1+1 = 2 (second 100vh)
+  //
+  //  Snap stop 1 (100vh): heading, description, CTA button
+  //  Snap stop 2 (100vh): interactive Leaflet coverage map
   // ══════════════════════════════════════════════════════════════════════════
   await prisma.section.create({
     data: {
@@ -647,43 +857,62 @@ async function main() {
       displayName: 'Coverage Map',
       background: '#f3f4f6',
       content: j({
-        contentMode: 'single',
+        contentMode: 'multi',
         designerData: {
-          positionMode: 'grid',
-          contentMode: 'single',
+          contentMode: 'multi',
+          multiLimit: 2,
+          layoutType: 'grid',
+          grid: { cols: 1, rows: 1, gap: 0 },
           blocks: [
+            // ── Snap stop 1: heading + description + button ──────────────
             {
-              id: 50, type: 'text',
-              position: { row: 0, col: 2, colSpan: 8 },
-              props: {
-                text: 'Delivery Coverage',
-                fontSize: 12, fontWeight: 700, color: '#4a7c59',
-                letterSpacing: '0.12em', textTransform: 'uppercase',
-                textAlign: 'center', marginBottom: 12,
-              },
+              id: 50,
+              type: 'text',
+              position: { row: 1, col: 1, section: 0 },
+              props: { textAlign: 'center', paddingTop: 0, paddingBottom: 0 },
+              subElements: [
+                {
+                  type: 'heading',
+                  props: {
+                    text: 'DELIVERY COVERAGE',
+                    fontSize: 11, fontWeight: '700', color: '#4a7c59',
+                    letterSpacing: 2, textTransform: 'uppercase',
+                    textAlign: 'center', marginBottom: 16,
+                  },
+                },
+                {
+                  type: 'heading',
+                  props: {
+                    text: 'Do We Deliver to You?',
+                    fontSize: 44, fontWeight: '800', color: '#1f2937',
+                    textAlign: 'center', lineHeight: 1.15, marginBottom: 20,
+                  },
+                },
+                {
+                  type: 'paragraph',
+                  props: {
+                    text: 'Search your town or suburb to check your delivery zone. We cover Hermanus, Stanford, Caledon, Gansbaai and surrounding areas.',
+                    fontSize: 18, color: '#6b7280', textAlign: 'center', lineHeight: 1.65,
+                    maxWidth: 640, marginBottom: 32,
+                  },
+                },
+                {
+                  type: 'button',
+                  props: {
+                    text: 'View Full Coverage Map',
+                    navTarget: '/coverage',
+                    bgColor: '#4a7c59', textColor: '#ffffff',
+                    paddingX: 32, paddingY: 14, borderRadius: 6,
+                  },
+                },
+              ],
             },
+            // ── Snap stop 2: interactive Leaflet map ─────────────────────
             {
-              id: 51, type: 'text',
-              position: { row: 1, col: 1, colSpan: 10 },
-              props: {
-                text: 'Do We Deliver to You?',
-                fontSize: 36, fontWeight: 800, color: '#1f2937',
-                textAlign: 'center', marginBottom: 12,
-              },
-            },
-            {
-              id: 52, type: 'text',
-              position: { row: 2, col: 2, colSpan: 8 },
-              props: {
-                text: 'Search your town or suburb to check your delivery zone, or browse the map below.',
-                fontSize: 17, fontWeight: 400, color: '#6b7280',
-                textAlign: 'center', marginBottom: 32,
-              },
-            },
-            {
-              id: 53, type: 'coverage-map',
-              position: { row: 3, col: 0, colSpan: 12 },
-              props: { mapSlug: 'overberg', mapHeight: 500, showSearch: true, showGeolocation: true },
+              id: 51,
+              type: 'coverage-map',
+              position: { row: 1, col: 1, section: 1 },
+              props: { mapSlug: 'overberg', mapHeight: 600, showSearch: true, showGeolocation: true },
             },
           ],
         },
@@ -692,7 +921,7 @@ async function main() {
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // 6. CTA — quote request form
+  // 6. CTA — Contact form (style: contact-form triggers CTAFooter renderer)
   // ══════════════════════════════════════════════════════════════════════════
   await prisma.section.create({
     data: {
@@ -704,26 +933,22 @@ async function main() {
       displayName: 'Contact',
       background: '#1f2937',
       content: j({
+        style: 'contact-form',
         heading: 'Get a Quote Today',
-        subtext: 'Tell us about your project and we\'ll be in touch within 2 hours.',
-        headingColor: '#ffffff',
-        subtextColor: '#9ca3af',
-        showForm: true,
+        subheading: 'Tell us about your project and we\'ll be in touch within 2 hours.',
+        formTitle: 'Request a Quote',
         formFields: [
           { id: 'name',          label: 'Full Name',              type: 'text',     required: true,  placeholder: 'e.g. John Smith' },
           { id: 'email',         label: 'Email Address',          type: 'email',    required: true,  placeholder: 'you@example.com' },
           { id: 'phone',         label: 'Phone Number',           type: 'tel',      required: false, placeholder: '+27 82 000 0000' },
-          { id: 'concrete_type', label: 'Concrete Type',          type: 'select',   required: false, placeholder: '', options: ['15MPa', '20MPa', '25MPa', '30MPa', '35MPa', '40MPa', 'Fibre reinforced', 'Marine grade', 'Other / Not sure'] },
+          { id: 'concrete_type', label: 'Concrete Type',          type: 'select',   required: false, placeholder: 'Select type...', options: ['15MPa', '20MPa', '25MPa', '30MPa', '35MPa', '40MPa', 'Fibre reinforced', 'Marine grade', 'Other / Not sure'] },
           { id: 'volume',        label: 'Estimated Volume (m³)',  type: 'text',     required: false, placeholder: 'e.g. 12 m³' },
           { id: 'message',       label: 'Project Details',        type: 'textarea', required: true,  placeholder: 'Site address, pour date, access notes...' },
         ],
-        submitLabel: 'Request Quote',
-        submitColor: '#4a7c59',
-        submitTextColor: '#ffffff',
+        formSuccessMessage: 'Thank you! We\'ll be in touch within 2 hours.',
         requireEmail: true,
         emailTo: 'info@overbergreadymix.co.za',
         emailSubject: 'Quote Request — Overberg ReadyMix',
-        successMessage: 'Thank you! We\'ll be in touch within 2 hours.',
       }),
     },
   });
@@ -771,10 +996,10 @@ async function main() {
           {
             heading: 'Coverage',
             links: [
-              { text: 'Hermanus',       href: '#coverage' },
-              { text: 'Stanford',       href: '#coverage' },
-              { text: 'Caledon',        href: '#coverage' },
-              { text: 'Gansbaai',       href: '#coverage' },
+              { text: 'Hermanus',        href: '#coverage' },
+              { text: 'Stanford',        href: '#coverage' },
+              { text: 'Caledon',         href: '#coverage' },
+              { text: 'Gansbaai',        href: '#coverage' },
               { text: 'Check Your Area', href: '/coverage' },
             ],
           },
@@ -787,14 +1012,14 @@ async function main() {
     },
   });
 
-  console.log(`✅ Landing page: 7 sections created`);
+  console.log('✅ Landing page: 7 sections created');
   console.log('');
-  console.log('🎉 Overberg ReadyMix seed v3 complete!');
+  console.log('🎉 Overberg ReadyMix seed v4 complete!');
   console.log('');
   console.log('  Admin: http://localhost:3000/admin/login  (admin / admin2026)');
   console.log('  Home:  http://localhost:3000/');
   console.log('');
-  console.log('  Sections: Hero (3 image slides) → About Us → Services → Projects → Coverage → CTA → Footer');
+  console.log('  Sections: Hero (3 slides) → About Us → Services → Projects → Coverage Map → CTA form → Footer');
   console.log('  ⚠️  Coverage Map feature is DISABLED — enable in Admin → Settings → Client Features');
 }
 

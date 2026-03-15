@@ -62,6 +62,9 @@ export default function CoverageMapViewer({
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [userLocated, setUserLocated] = useState(false);
+  // On touch devices, map starts locked — tap "Tap to interact" overlay to enable drag
+  const [mapActive, setMapActive] = useState(false);
+  const isTouchDevice = typeof window !== "undefined" && "ontouchstart" in window;
 
   useEffect(() => {
     if (!mapRef.current || leafletMapRef.current) return;
@@ -80,7 +83,10 @@ export default function CoverageMapViewer({
         center: [mapData.centerLat, mapData.centerLng],
         zoom: mapData.defaultZoom,
         zoomControl: true,
-        scrollWheelZoom: true,
+        // Disable scroll-wheel zoom and touch drag by default so the map
+        // doesn't hijack page scrolling. User taps/clicks the map to activate.
+        scrollWheelZoom: false,
+        dragging: !("ontouchstart" in window),
       });
 
       // OpenStreetMap tile layer
@@ -269,17 +275,39 @@ export default function CoverageMapViewer({
         </form>
       )}
 
-      {/* Map container */}
-      <div
-        ref={mapRef}
-        style={{
-          height,
-          width: "100%",
-          borderRadius: 12,
-          overflow: "hidden",
-          border: "1px solid #e5e7eb",
-        }}
-      />
+      {/* Map container + touch activation overlay */}
+      <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+        <div
+          ref={mapRef}
+          style={{ height, width: "100%" }}
+        />
+        {/* On touch devices, show "tap to interact" overlay until user taps.
+            This prevents the map from hijacking the page scroll gesture. */}
+        {isTouchDevice && !mapActive && (
+          <div
+            onClick={() => {
+              setMapActive(true);
+              leafletMapRef.current?.dragging?.enable();
+              leafletMapRef.current?.scrollWheelZoom?.enable();
+            }}
+            style={{
+              position: "absolute", inset: 0, zIndex: 800,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "rgba(0,0,0,0.25)", cursor: "pointer",
+              backdropFilter: "blur(1px)",
+            }}
+          >
+            <div style={{
+              background: "#fff", borderRadius: 8, padding: "10px 20px",
+              fontWeight: 600, fontSize: 14, color: "#1f2937",
+              display: "flex", alignItems: "center", gap: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            }}>
+              <i className="bi bi-hand-index-thumb" style={{ fontSize: 18 }} />
+              Tap to interact with map
+            </div>
+          </div>
+        )}
+      </div>
 
       {userLocated && (
         <div style={{

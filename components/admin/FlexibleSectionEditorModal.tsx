@@ -54,6 +54,8 @@ export default function FlexibleSectionEditorModal({
   const [activeTab, setActiveTab] = useState<ActiveTab>("content");
   const [showDesigner, setShowDesigner] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  // Preview viewport toggle: "desktop" | "tablet" | "mobile"
+  const [previewViewport, setPreviewViewport] = useState<"desktop" | "tablet" | "mobile">("desktop");
   // Store raw designer JSON (mockup format) — sent to iframe on open, received on save
   const [designerData, setDesignerData] = useState<string | null>(
     (section.content as any)?.designerData || null
@@ -1231,13 +1233,43 @@ export default function FlexibleSectionEditorModal({
               {/* ══ PREVIEW TAB ══════════════════════════════════════════ */}
               {activeTab === "preview" && (
                 <div>
-                  <p className="text-muted small mb-3">
-                    <i className="bi bi-info-circle me-1" />
-                    Live preview of the section as it will appear on the page.
-                  </p>
-                  <div className="border rounded overflow-hidden" style={{ maxHeight: "60vh", overflowY: "auto" }}>
-                    <FlexibleSectionRenderer section={designerSection} />
+                  {/* Viewport toggle */}
+                  <div className="d-flex align-items-center gap-2 mb-3">
+                    <span className="text-muted small me-1">Preview as:</span>
+                    {(["desktop", "tablet", "mobile"] as const).map((vp) => (
+                      <button
+                        key={vp}
+                        type="button"
+                        className={`btn btn-sm ${previewViewport === vp ? "btn-primary" : "btn-outline-secondary"}`}
+                        onClick={() => setPreviewViewport(vp)}
+                      >
+                        <i className={`bi me-1 ${vp === "desktop" ? "bi-laptop" : vp === "tablet" ? "bi-tablet" : "bi-phone"}`} />
+                        {vp.charAt(0).toUpperCase() + vp.slice(1)}
+                        <span className="ms-1 text-opacity-75" style={{ fontSize: 11 }}>
+                          {vp === "desktop" ? "1440px" : vp === "tablet" ? "768px" : "375px"}
+                        </span>
+                      </button>
+                    ))}
                   </div>
+                  {/* Scaled preview container */}
+                  {(() => {
+                    const vw = previewViewport === "desktop" ? 1440 : previewViewport === "tablet" ? 768 : 375;
+                    // The preview panel is roughly 600px wide — scale the simulated viewport to fit
+                    const panelW = 600;
+                    const scale = Math.min(1, panelW / vw);
+                    return (
+                      <div className="border rounded" style={{ overflow: "hidden", height: `calc(${scale} * 500px)`, position: "relative" }}>
+                        <div style={{
+                          width: vw,
+                          transformOrigin: "top left",
+                          transform: `scale(${scale})`,
+                          pointerEvents: "none",
+                        }}>
+                          <FlexibleSectionRenderer section={designerSection} />
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -1425,12 +1457,15 @@ const BLOCK_SCHEMAS: Record<string, FieldDef[]> = {
   ],
 
   stats: [
-    { key: "number",    label: "Value",        type: "text",        hint: "Displayed number or text e.g. '99%' or '1,500+'" },
-    { key: "statLabel", label: "Label",        type: "text",        hint: "Description below the value e.g. 'Uptime'" },
-    { key: "icon",      label: "Icon",         type: "iconInput",   hint: "Bootstrap icon class e.g. bi-wifi or bi-people" },
-    { key: "bgColor",   label: "Accent Color", type: "colorPicker", hint: "Icon or highlight accent color" },
-    { key: "textColor", label: "Text Color",   type: "colorPicker", hint: "Color applied to value and label text" },
-    { key: "customCss", label: "Custom CSS",   type: "textarea",    hint: "Advanced — raw CSS applied to the stat block" },
+    { key: "number",             label: "Value",            type: "text",        hint: "Displayed number or text e.g. '99%' or '1,500+'" },
+    { key: "statLabel",          label: "Label",            type: "text",        hint: "Description below the value e.g. 'Uptime'" },
+    { key: "icon",               label: "Icon",             type: "iconInput",   hint: "Bootstrap icon class e.g. bi-wifi or bi-people" },
+    { key: "bgColor",            label: "Accent Color",     type: "colorPicker", hint: "Icon or highlight accent color" },
+    { key: "textColor",          label: "Text Color",       type: "colorPicker", hint: "Color applied to value and label text" },
+    { key: "animateCount",       label: "Animate Number",   type: "toggle",      hint: "Count from 0 to the value when scrolled into view — disable for text values like 'SANS 878'" },
+    { key: "animationDuration",  label: "Count Duration",   type: "slider",      min: 300, max: 4000, step: 100, unit: "ms", hint: "How long the count-up animation takes (ms)", tab: "anim",
+      showWhen: { key: "animateCount", value: true } },
+    { key: "customCss",          label: "Custom CSS",       type: "textarea",    hint: "Advanced — raw CSS applied to the stat block" },
     ...BLOCK_STYLE_FIELDS,
     ...BLOCK_ANIM_FIELDS,
   ],
