@@ -39,6 +39,12 @@ async function main() {
   await prisma.coverageLabel.deleteMany();
   await prisma.coverageMap.deleteMany();
   await prisma.project.deleteMany();
+  await prisma.volt3DVersion.deleteMany();
+  await prisma.volt3DAsset.deleteMany();
+  await prisma.voltElement.deleteMany();
+  await prisma.voltAsset.deleteMany();
+  await prisma.apiKey.deleteMany();
+  await prisma.siteConfig.deleteMany();
   await prisma.user.deleteMany();
   console.log('✅ Wipe complete');
 
@@ -272,6 +278,7 @@ async function main() {
   await prisma.section.create({
     data: {
       pageId: landingPage.id,
+      createdBy: admin.id,
       type: 'HERO',
       enabled: true,
       order: order++,
@@ -352,6 +359,7 @@ async function main() {
   await prisma.section.create({
     data: {
       pageId: landingPage.id,
+      createdBy: admin.id,
       type: 'FLEXIBLE',
       enabled: true,
       order: order++,
@@ -506,6 +514,7 @@ async function main() {
   await prisma.section.create({
     data: {
       pageId: landingPage.id,
+      createdBy: admin.id,
       type: 'FLEXIBLE',
       enabled: true,
       order: order++,
@@ -565,6 +574,7 @@ async function main() {
   await prisma.section.create({
     data: {
       pageId: landingPage.id,
+      createdBy: admin.id,
       type: 'FLEXIBLE',
       enabled: true,
       order: order++,
@@ -619,6 +629,7 @@ async function main() {
   await prisma.section.create({
     data: {
       pageId: landingPage.id,
+      createdBy: admin.id,
       type: 'FLEXIBLE',
       enabled: true,
       order: order++,
@@ -711,6 +722,7 @@ async function main() {
   await prisma.section.create({
     data: {
       pageId: landingPage.id,
+      createdBy: admin.id,
       type: 'FLEXIBLE',
       enabled: true,
       order: order++,
@@ -756,6 +768,7 @@ async function main() {
   await prisma.section.create({
     data: {
       pageId: landingPage.id,
+      createdBy: admin.id,
       type: 'CTA',
       enabled: true,
       order: order++,
@@ -794,6 +807,7 @@ async function main() {
   await prisma.section.create({
     data: {
       pageId: landingPage.id,
+      createdBy: admin.id,
       type: 'FOOTER',
       enabled: true,
       order: order++,

@@ -18,7 +18,8 @@ import {
 } from "@/lib/api-middleware";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./public/uploads";
-const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE || "10485760"); // 10MB
+const MAX_IMAGE_SIZE = parseInt(process.env.MAX_IMAGE_SIZE || "10485760");   // 10MB images
+const MAX_VIDEO_SIZE = parseInt(process.env.MAX_VIDEO_SIZE || "209715200");  // 200MB videos
 const MEDIA_URL = process.env.MEDIA_URL || "http://localhost:3000/uploads";
 
 // Allowed mime types
@@ -59,11 +60,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size
-    if (file.size > MAX_FILE_SIZE) {
+    // Validate file size — separate limits for images and videos
+    const isVideo = file.type.startsWith("video/");
+    const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+    if (file.size > maxSize) {
       return errorResponse(
         "FILE_TOO_LARGE",
-        `File size exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit`,
+        `File too large: ${(file.size / 1024 / 1024).toFixed(1)} MB. ` +
+          `${isVideo ? "Videos" : "Images"} must be under ${maxSize / 1024 / 1024} MB.`,
         400,
         "file"
       );

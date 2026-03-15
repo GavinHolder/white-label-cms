@@ -16,6 +16,8 @@ const MAX_IMAGE_WIDTH = 1920;
 const MAX_IMAGE_HEIGHT = 1080;
 const WEBP_QUALITY = 85;
 const JPEG_QUALITY = 85;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;   // 10 MB
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024;  // 200 MB
 
 async function ensureUploadDir() {
   if (!existsSync(UPLOAD_DIR)) {
@@ -39,6 +41,17 @@ export async function POST(request: NextRequest) {
     if (!isImage && !isVideo && !isPdf) {
       return NextResponse.json(
         { error: "Only images, videos, and PDFs allowed" },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size before reading into memory
+    const maxBytes = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    if (file.size > maxBytes) {
+      const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+      const limitMB = maxBytes / 1024 / 1024;
+      return NextResponse.json(
+        { error: `File too large: ${sizeMB} MB. ${isVideo ? "Videos" : "Images"} must be under ${limitMB} MB.` },
         { status: 400 }
       );
     }

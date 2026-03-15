@@ -12,9 +12,11 @@ interface MediaUploaderProps {
 export default function MediaUploader({
   accept = "image/*,video/*",
   onUploadComplete,
-  maxSizeMB = 10,
+  maxSizeMB,
   label = "Upload Media",
 }: MediaUploaderProps) {
+  // Default limits: 200MB for video-only, 10MB for images/mixed
+  const effectiveMaxMB = maxSizeMB ?? (accept === "video/*" ? 200 : 10);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -28,8 +30,8 @@ export default function MediaUploader({
 
     // Validate file size
     const fileSizeMB = file.size / (1024 * 1024);
-    if (fileSizeMB > maxSizeMB) {
-      setError(`File size exceeds ${maxSizeMB}MB limit`);
+    if (fileSizeMB > effectiveMaxMB) {
+      setError(`File too large: ${fileSizeMB.toFixed(1)} MB. Maximum is ${effectiveMaxMB} MB.`);
       return;
     }
 
@@ -60,7 +62,12 @@ export default function MediaUploader({
       setProgress(80);
 
       if (!response.ok) {
-        throw new Error("Upload failed");
+        let serverMsg = "Upload failed";
+        try {
+          const errData = await response.json();
+          serverMsg = errData.error || errData.message || serverMsg;
+        } catch { /* ignore parse errors */ }
+        throw new Error(serverMsg);
       }
 
       const data = await response.json();

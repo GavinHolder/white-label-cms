@@ -25,9 +25,18 @@ export default function MediaUploadModal({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [sizeError, setSizeError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (file: File) => {
+    setSizeError(null);
+    const isVideo = file.type.startsWith("video/");
+    const limitMB = isVideo ? 200 : 10;
+    const sizeMB = file.size / 1024 / 1024;
+    if (sizeMB > limitMB) {
+      setSizeError(`File too large: ${sizeMB.toFixed(1)} MB. ${isVideo ? "Videos" : "Images"} must be under ${limitMB} MB.`);
+      return;
+    }
     setSelectedFile(file);
 
     // Create preview URL
@@ -158,6 +167,13 @@ export default function MediaUploadModal({
 
             {/* Body */}
             <div className="modal-body">
+              {sizeError && (
+                <div className="alert alert-danger mb-3 py-2 small">
+                  <i className="bi bi-exclamation-triangle-fill me-2" />
+                  {sizeError}
+                </div>
+              )}
+
               {!selectedFile ? (
                 <>
                   {/* File Input Area */}
@@ -196,7 +212,7 @@ export default function MediaUploadModal({
                     <p className="text-muted small mt-3 mb-0">
                       Accepted formats: Images (JPG, PNG, WebP), Videos (MP4, WebM)
                       <br />
-                      Max file size: 10MB
+                      Max size: Images 10 MB · Videos 200 MB
                     </p>
                   </div>
                 </>
