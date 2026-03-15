@@ -75,3 +75,5 @@ deploy/portainer/.env
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+public/images/uploads/
+public/uploads/

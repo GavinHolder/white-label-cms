@@ -4,7 +4,7 @@
   "logoHeight": 44,
   "logoWidth": 0,
   "cta": {
-    "show": true,
+    "show": false,
     "text": "Client Login",
     "style": "solid",
     "href": "/client-login",
@@ -14,5 +14,5 @@
     "color": "#ffffff",
     "opacity": 100
   },
-  "updatedAt": "2026-02-20T13:32:03.427Z"
+  "updatedAt": "2026-03-12T19:16:55.117Z"
 }

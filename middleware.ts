@@ -79,6 +79,7 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public files (images, etc.)
      */
-    "/((?!_next/static|_next/image|favicon.ico|images|uploads).*)",
+    "/((?!_next/static|_next/image|favicon.ico|images|uploads|api/media/upload).*)",
+    // Upload routes bypass middleware to preserve the multipart body stream
   ],
 };

@@ -101,7 +101,7 @@ Sections are ordered by the **order** field (a float, which allows fractional or
 const SECTION_TYPES = `
 # Section Types
 
-There are **4 core section types** in the database, plus the **Flexible** variant:
+There are **5 section types** in the CMS:
 
 ---
 
@@ -124,15 +124,21 @@ A structured layout section. Supports a variety of preset layouts combining text
 
 ---
 
-## 3. FOOTER — CTA Footer
+## 3. CTA — Call to Action
 
-The bottom section of the page. Contains contact info, navigation columns, social links, and branding.
+A dedicated call-to-action section. Supports a contact form with human verification, hero-style heading + subheading, and multiple CTA buttons.
 
-> **Contact Form Style:** The CTA Footer supports a **Contact Form** mode in addition to its standard button layouts. When selected, the footer renders a custom contact form with **human verification via a shuffled keypad**. See **Human Verification** docs for details.
+> **Contact Form:** When form mode is enabled, CTA renders a custom contact form with **human verification via a shuffled keypad** and emails submissions to the configured recipient address.
 
 ---
 
-## 4. FLEXIBLE — Visual Designer Section
+## 4. FOOTER — Page Footer
+
+The bottom section of the page. Contains logo, contact info, navigation columns, social links, certifications, and copyright text.
+
+---
+
+## 5. FLEXIBLE — Visual Designer Section
 
 A free-form canvas section designed using the drag-and-drop **Flexible Section Designer**. Supports 10 element types, animated backgrounds, glass/glow effects, and custom gradients.
 
@@ -946,7 +952,7 @@ Each zone boundary is a CSS scroll-snap point — scrolling snaps cleanly to eac
 const FLEXIBLE_ELEMENTS = `
 # Flexible Sections — Element Types
 
-The block panel on the left contains 10 element types. **Card, Banner, and Stats** now use the same free-positioning sub-element system as Text Block — all content is draggable, dblclick editable, and the block auto-resizes in all directions.
+The block panel on the left contains **12 element types**. **Card, Banner, and Stats** now use the same free-positioning sub-element system as Text Block — all content is draggable, dblclick editable, and the block auto-resizes in all directions.
 
 ---
 
@@ -1229,6 +1235,46 @@ A full-height hero banner element within a flexible section — stretches to fil
 | Overlay | Color overlay opacity |
 
 **Sub-element positioning:** Each sub-element (heading, paragraph, each button) has its own **X / Y offset sliders** in the Properties panel for precise placement within the hero block. The parent block auto-resizes to fit all sub-elements.
+
+---
+
+## 11. Coverage Map
+
+Embeds a live interactive delivery coverage map directly inside any Flexible section. Powered by **Leaflet.js + OpenStreetMap** — no API key required.
+
+| Property | Description |
+|----------|-------------|
+| **Map Slug** | The slug of the coverage map to display (created in Admin → Features → Coverage Maps) |
+| **Height** | Map height in pixels (default 480 px) |
+
+**What it shows:**
+- Coloured polygons for each delivery region (colours set in admin)
+- Floating text labels positioned anywhere on the map
+- **Search bar** — visitor types a town/city name to jump to that area
+- **Auto-geolocation** — browser detects visitor location and zooms to their region, highlighting the polygon they fall inside
+
+> **Requires** the \`coverage-map\` feature to be enabled: Admin → Settings → Client Features → Coverage Map → toggle ON.
+
+---
+
+## 12. Projects Gallery
+
+Displays a responsive card grid of completed projects with a **lightbox viewer**. Data is pulled from Admin → Features → Projects.
+
+| Property | Description |
+|----------|-------------|
+| **Heading** | Optional heading above the grid (e.g. "Our Projects") |
+| **Subtext** | Optional supporting text below the heading |
+| **Text Color** | Hex color for heading and subtext |
+| **Columns** | Number of columns in the grid (default 3) |
+
+**What visitors see:**
+- Card grid with cover image, title, location, and description
+- Click any card → full-screen lightbox with left/right navigation
+- Gallery images shown as thumbnails below the main lightbox image
+- Completed date shown where available
+
+> **Admin:** Manage project entries at Admin → Features → Projects. Each project supports a cover image, gallery images (multiple URLs), description, location, and completed date.
 
 ---
 
@@ -1749,13 +1795,17 @@ Manage all images and files used across the site.
 
 ---
 
-## Supported File Types
+## Supported File Types & Limits
 
-| Type | Extensions |
-|------|-----------|
-| Images | .jpg, .jpeg, .png, .gif, .webp, .svg |
-| Videos | .mp4, .webm, .mov |
-| Documents | .pdf |
+| Type | Extensions | Max Size |
+|------|-----------|----------|
+| Images | .jpg, .jpeg, .png, .gif, .webp | 10 MB (auto-optimised to WebP) |
+| Videos | .mp4, .webm, .mov | 200 MB (streamed directly to disk) |
+| Documents | .pdf | 10 MB |
+
+> **Images** are automatically resized to max 1920×1080 and converted to WebP (85% quality) on upload. A JPEG fallback is also generated.
+>
+> **Videos** are stored as-is — no server-side transcoding. Compress before uploading for best performance. Recommended: H.264 MP4, under 50 MB for hero backgrounds.
 
 ---
 
@@ -2426,9 +2476,208 @@ export const FEATURE_FLAGS_DOCS = `
         </ul>
       </td>
     </tr>
+    <tr>
+      <td><code>coverage-map</code></td>
+      <td>Coverage Map</td>
+      <td><span class="badge bg-secondary">OFF</span></td>
+      <td>
+        Interactive delivery coverage map powered by <strong>Leaflet.js + OpenStreetMap</strong> — no API key required.
+        <ul class="mb-0 mt-1">
+          <li>Public page at <code>/coverage</code> — gated by this feature flag</li>
+          <li>Admin management at <strong>Admin → Features → Coverage Maps</strong></li>
+          <li>Multiple named maps (e.g. "Western Cape", "Overberg") each with their own polygon regions and text labels</li>
+          <li>Draw/edit delivery region polygons using the built-in polygon editor (Leaflet.Draw)</li>
+          <li>Each region: custom name, fill colour, stroke colour, opacity</li>
+          <li>Text labels: position anywhere on the map, custom text and font size</li>
+          <li><strong>Embeddable</strong> — use the <code>coverage-map</code> block type in any FLEXIBLE section</li>
+          <li>Auto-geolocation — zooms to visitor's area and highlights their region</li>
+          <li>Search bar — visitor types a town/city name to navigate the map</li>
+        </ul>
+      </td>
+    </tr>
   </tbody>
 </table>
 <p>New features are added here as they are developed. Toggle <strong>Enabled</strong> to activate for the client's deployment.</p>
+`;
+
+// ─────────────────────────────────────────────
+// COVERAGE MAP
+// ─────────────────────────────────────────────
+
+const COVERAGE_MAP_OVERVIEW = `
+# Coverage Map — Overview
+
+The Coverage Map feature lets you display interactive delivery/service coverage areas on your website using coloured polygons. Powered entirely by **Leaflet.js + OpenStreetMap** — no Google Maps API key needed, no usage costs.
+
+---
+
+## How It Works
+
+1. **Enable the feature** — Admin → Settings → Client Features → Coverage Map → toggle ON
+2. **Create a map** — Admin → Features → Coverage Maps → New Map
+3. **Draw regions** — click "Draw Polygon" on any region to open the interactive polygon editor
+4. **Add text labels** — position floating labels anywhere on the map
+5. **Embed or link** — place a \`coverage-map\` block in any FLEXIBLE section, or link visitors to \`/coverage\`
+
+---
+
+## Feature Flag
+
+The \`/coverage\` public page returns **404 Not Found** when the feature is disabled. Enables instantly — no restart required.
+
+---
+
+## Technology Stack
+
+| Component | Library | Notes |
+|-----------|---------|-------|
+| Map tiles | OpenStreetMap | Free, no API key |
+| Map rendering | Leaflet.js v1.9 | Loaded dynamically (SSR-safe) |
+| Polygon editor | Leaflet.Draw | Built-in toolbar: draw, edit, delete |
+| Geocoding (search) | Nominatim | Free OpenStreetMap geocoder, SA-biased results |
+| Geolocation | Browser \`navigator.geolocation\` | User prompted for permission |
+
+---
+
+## Embeddable Block
+
+Add a \`coverage-map\` block inside any FLEXIBLE section to embed the map on your landing page:
+
+| Prop | Description |
+|------|-------------|
+| **Map Slug** | The URL slug of the map (set when creating the map) |
+| **Height** | Map height in pixels (default 480 px) |
+
+The embedded map shows the full search bar, geolocation button, and clickable regions.
+`;
+
+const COVERAGE_MAP_ADMIN = `
+# Coverage Map — Admin Management
+
+Access: **Admin → Features → Coverage Maps**
+
+---
+
+## Maps
+
+Each map groups a set of regions and labels. You can have multiple maps (e.g. one per province or service area). On the public \`/coverage\` page, if more than one map is active, tabs appear at the top to switch between them.
+
+| Field | Description |
+|-------|-------------|
+| **Name** | Map display name (shown as tab label on /coverage) |
+| **Slug** | URL-safe identifier — used in the \`coverage-map\` FLEXIBLE block |
+| **Default Zoom** | Initial zoom level when the page loads (1–18; towns ≈12, cities ≈10) |
+| **Centre Lat / Lng** | Map centre coordinates on first load |
+| **Active** | Toggle to show/hide from the public page |
+
+---
+
+## Regions
+
+Each map has multiple regions — each region is a coloured polygon on the map.
+
+| Field | Description |
+|-------|-------------|
+| **Name** | Region name shown in the sidebar (e.g. "Hermanus") |
+| **Color** | Fill colour of the polygon (hex or colour picker) |
+| **Stroke Color** | Outline colour of the polygon |
+| **Opacity** | Fill opacity 0–100 % |
+| **Order** | Display order in the sidebar list |
+| **Active** | Show/hide this region |
+| **Polygon** | The drawn polygon coordinates — click **Draw / Edit Polygon** |
+
+### Drawing a Polygon
+
+1. Click **Draw / Edit Polygon** on any region
+2. A full-screen map modal opens
+3. Click the **pentagon toolbar icon** (top-left) to start drawing
+4. Click points on the map to define the region boundary
+5. **Double-click** the last point to close the polygon
+6. Use **Edit layers** in the toolbar to adjust existing points
+7. Click **Save Polygon** — the region coordinates are stored immediately
+
+> The polygon editor shows a live point count. You need at least 3 points to save.
+
+---
+
+## Labels
+
+Text labels float above the map at specified coordinates. Use them to name towns, add callouts, or mark key locations.
+
+| Field | Description |
+|-------|-------------|
+| **Text** | Label text (e.g. "Hermanus", "Next-day delivery") |
+| **Lat / Lng** | Map position — you can copy coordinates from Google Maps |
+| **Font Size** | Label text size in pixels |
+| **Active** | Show/hide this label |
+
+---
+
+## Region Sidebar (Public View)
+
+On the \`/coverage\` page, a sidebar lists all active regions. Clicking a region:
+1. Highlights the polygon on the map (bolder stroke, opaque fill)
+2. Pans and zooms the map to fit the polygon
+
+The visitor's detected location (via geolocation) also auto-highlights the matching region.
+`;
+
+const PROJECTS_GALLERY_DOCS = `
+# Projects Gallery
+
+The Projects Gallery displays completed work in a responsive card grid with a full-screen lightbox viewer.
+
+---
+
+## Admin — Managing Projects
+
+Access: **Admin → Features → Projects**
+
+| Field | Description |
+|-------|-------------|
+| **Title** | Project name (shown on card and lightbox) |
+| **Location** | Where the project was completed (shown on card) |
+| **Description** | One-paragraph summary (shown on card and lightbox) |
+| **Cover Image URL** | Main card image — paste a URL or upload via media manager |
+| **Gallery Images** | Additional photos shown in the lightbox viewer (one URL per line) |
+| **Completed Date** | Date shown on the card (optional) |
+| **Order** | Display order in the grid |
+| **Active** | Show/hide from the public gallery |
+
+---
+
+## Embedding on the Landing Page
+
+Add a \`projects-gallery\` block inside any FLEXIBLE section:
+
+| Prop | Description |
+|------|-------------|
+| **Heading** | Optional heading above the grid (e.g. "Our Projects") |
+| **Subtext** | Supporting text beneath the heading |
+| **Text Color** | Hex color for heading and subtext |
+| **Columns** | Number of grid columns (default 3; responsive on mobile) |
+
+---
+
+## Visitor Experience
+
+- **Card grid** — cover image, title, location badge, truncated description, completed date
+- **Click any card** → opens a full-screen lightbox
+- **Lightbox** — large cover image, title + description, left/right arrow navigation, counter (1 of N)
+- **Gallery images** — thumbnails shown below the main lightbox image; click to jump to that photo
+- **Close** — click the × button or press Escape
+
+---
+
+## Image Recommendations
+
+| Use | Recommended Size |
+|-----|-----------------|
+| Cover image | 800×600 px, landscape |
+| Gallery images | 1200×900 px or larger |
+| Format | WebP or JPEG for best performance |
+
+> **Tip:** Upload images via Admin → Media Library first, then paste the URL into the project form.
 `;
 
 // ─────────────────────────────────────────────
@@ -3091,6 +3340,23 @@ export const DOC_TOPICS: DocTopic[] = [
     icon: "bi-images",
     children: [
       { id: "hero-overview", label: "Slides & Settings", icon: "bi-sliders", content: HERO_CAROUSEL },
+    ],
+  },
+  {
+    id: "coverage-map",
+    label: "Coverage Map",
+    icon: "bi-map",
+    children: [
+      { id: "coverage-overview",  label: "Overview & Setup",        icon: "bi-info-circle",   content: COVERAGE_MAP_OVERVIEW },
+      { id: "coverage-admin",     label: "Admin: Maps & Regions",   icon: "bi-pencil-square", content: COVERAGE_MAP_ADMIN },
+    ],
+  },
+  {
+    id: "projects-gallery",
+    label: "Projects Gallery",
+    icon: "bi-building",
+    children: [
+      { id: "projects-overview",  label: "Gallery & Lightbox",      icon: "bi-images",        content: PROJECTS_GALLERY_DOCS },
     ],
   },
   {

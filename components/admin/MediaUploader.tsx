@@ -66,7 +66,14 @@ export default function MediaUploader({
         try {
           const errData = await response.json();
           serverMsg = errData.error || errData.message || serverMsg;
-        } catch { /* ignore parse errors */ }
+        } catch {
+          // Body was empty or not JSON — give status-specific hints
+          if (response.status === 413) {
+            serverMsg = `File too large for server (${(file.size / 1024 / 1024).toFixed(1)} MB). Restart the dev server after config changes.`;
+          } else {
+            serverMsg = `Upload failed (${response.status} ${response.statusText})`;
+          }
+        }
         throw new Error(serverMsg);
       }
 

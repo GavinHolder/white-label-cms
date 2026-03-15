@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
+import { mkdir, unlink } from "fs/promises";
+import { createWriteStream, existsSync } from "fs";
 import { join } from "path";
-import { existsSync } from "fs";
 import sharp from "sharp";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const Busboy = require("busboy") as (opts: { headers: Record<string, string> }) => import("stream").Writable & {
+  on(event: "file", listener: (fieldname: string, file: import("stream").Readable, info: { filename: string; mimeType: string }) => void): void;
+  on(event: "error", listener: (err: Error) => void): void;
+  on(event: string, listener: (...args: unknown[]) => void): void;
+};
+import { Readable } from "stream";
 
 /**
  * Simple Media Upload API (No Database)
  *
- * Handles image/video uploads with automatic optimization
+ * Handles image/video uploads with automatic optimization.
+ * Uses busboy streaming to bypass Next.js body size limits — supports
+ * videos up to 200 MB without buffering the entire request into memory.
+ *
  * Saves to public/images/uploads/
  */
 
@@ -25,69 +35,118 @@ async function ensureUploadDir() {
   }
 }
 
+/** Parse a multipart request with busboy, streaming the first "file" field to disk. */
+function parseMultipart(request: NextRequest): Promise<{
+  filename: string;
+  mimeType: string;
+  filePath: string;
+  size: number;
+}> {
+  return new Promise((resolve, reject) => {
+    const contentType = request.headers.get("content-type") ?? "";
+    const bb = Busboy({ headers: { "content-type": contentType } });
+
+    let settled = false;
+    const finish = (val: Parameters<typeof resolve>[0] | Error) => {
+      if (settled) return;
+      settled = true;
+      val instanceof Error ? reject(val) : resolve(val);
+    };
+
+    bb.on("file", (_fieldname: string, fileStream: import("stream").Readable, info: { filename: string; mimeType: string }) => {
+      const { filename, mimeType } = info;
+      const isImage = mimeType.startsWith("image/");
+      const isVideo = mimeType.startsWith("video/");
+      const isPdf   = mimeType === "application/pdf";
+
+      if (!isImage && !isVideo && !isPdf) {
+        fileStream.resume(); // drain
+        finish(new Error("Only images, videos, and PDFs are allowed."));
+        return;
+      }
+
+      const timestamp  = Date.now();
+      const sanitized  = filename.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const ext        = sanitized.split(".").pop() ?? "bin";
+      const base       = sanitized.split(".").slice(0, -1).join(".") || "upload";
+      const outName    = `${base}-${timestamp}.${ext}`;
+      const filePath   = join(UPLOAD_DIR, outName);
+      const writer     = createWriteStream(filePath);
+
+      let size = 0;
+      const maxBytes = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+      let oversized = false;
+
+      fileStream.on("data", (chunk: Buffer) => {
+        size += chunk.length;
+        if (!oversized && size > maxBytes) {
+          oversized = true;
+          fileStream.destroy();
+          writer.destroy();
+          unlink(filePath).catch(() => {});
+          const limitMB = maxBytes / 1024 / 1024;
+          finish(new Error(
+            `File too large: ${(size / 1024 / 1024).toFixed(1)} MB. ` +
+            `${isVideo ? "Videos" : "Images"} must be under ${limitMB} MB.`
+          ));
+        }
+      });
+
+      fileStream.pipe(writer);
+
+      writer.on("finish", () => {
+        if (!oversized) finish({ filename: outName, mimeType, filePath, size });
+      });
+
+      writer.on("error", (err: Error) => finish(err));
+      fileStream.on("error", (err: Error) => finish(err));
+    });
+
+    bb.on("error", (err: Error) => finish(err));
+
+    // Feed the request body into busboy using Node.js 17+ Readable.fromWeb()
+    const body = request.body;
+    if (!body) {
+      finish(new Error("No request body"));
+      return;
+    }
+
+    // Readable.fromWeb is available in Node.js 17+ (project uses Node 22)
+    const nodeStream = Readable.fromWeb(body as Parameters<typeof Readable.fromWeb>[0]);
+    nodeStream.pipe(bb);
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File;
-
-    if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
-    }
-
-    const isImage = file.type.startsWith("image/");
-    const isVideo = file.type.startsWith("video/");
-    const isPdf = file.type === "application/pdf";
-
-    if (!isImage && !isVideo && !isPdf) {
-      return NextResponse.json(
-        { error: "Only images, videos, and PDFs allowed" },
-        { status: 400 }
-      );
-    }
-
-    // Validate file size before reading into memory
-    const maxBytes = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
-    if (file.size > maxBytes) {
-      const sizeMB = (file.size / 1024 / 1024).toFixed(1);
-      const limitMB = maxBytes / 1024 / 1024;
-      return NextResponse.json(
-        { error: `File too large: ${sizeMB} MB. ${isVideo ? "Videos" : "Images"} must be under ${limitMB} MB.` },
-        { status: 400 }
-      );
-    }
-
     await ensureUploadDir();
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const timestamp = Date.now();
-    const sanitized = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const baseName = sanitized.split(".")[0];
+    const { filename, mimeType, filePath, size } = await parseMultipart(request);
+
+    const isImage = mimeType.startsWith("image/");
+    const isPdf   = mimeType === "application/pdf";
+    const timestamp = filename.match(/-(\d+)\./)?.[1] ?? Date.now().toString();
+    const base = filename.split("-" + timestamp)[0];
 
     if (isImage) {
-      // Optimize image with Sharp
-      const webpFilename = `${baseName}-${timestamp}.webp`;
+      // Optimize with Sharp (the file is already on disk from streaming)
+      const webpFilename = `${base}-${timestamp}.webp`;
+      const jpegFilename = `${base}-${timestamp}.jpg`;
       const webpPath = join(UPLOAD_DIR, webpFilename);
+      const jpegPath = join(UPLOAD_DIR, jpegFilename);
 
-      await sharp(buffer)
-        .resize(MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT, {
-          fit: "inside",
-          withoutEnlargement: true,
-        })
+      await sharp(filePath)
+        .resize(MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT, { fit: "inside", withoutEnlargement: true })
         .webp({ quality: WEBP_QUALITY })
         .toFile(webpPath);
 
-      // JPEG fallback
-      const jpegFilename = `${baseName}-${timestamp}.jpg`;
-      const jpegPath = join(UPLOAD_DIR, jpegFilename);
-
-      await sharp(buffer)
-        .resize(MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT, {
-          fit: "inside",
-          withoutEnlargement: true,
-        })
+      await sharp(filePath)
+        .resize(MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT, { fit: "inside", withoutEnlargement: true })
         .jpeg({ quality: JPEG_QUALITY })
         .toFile(jpegPath);
+
+      // Remove the original temp file
+      await unlink(filePath).catch(() => {});
 
       return NextResponse.json({
         success: true,
@@ -95,37 +154,19 @@ export async function POST(request: NextRequest) {
         fallbackUrl: `/images/uploads/${jpegFilename}`,
         type: "image",
       });
-    } else if (isPdf) {
-      // Save PDF as-is
-      const pdfFilename = `${baseName}-${timestamp}.pdf`;
-      const pdfPath = join(UPLOAD_DIR, pdfFilename);
-
-      await writeFile(pdfPath, buffer);
-
-      return NextResponse.json({
-        success: true,
-        url: `/images/uploads/${pdfFilename}`,
-        type: "pdf",
-      });
-    } else {
-      // Save video as-is
-      const ext = file.name.split(".").pop();
-      const videoFilename = `${baseName}-${timestamp}.${ext}`;
-      const videoPath = join(UPLOAD_DIR, videoFilename);
-
-      await writeFile(videoPath, buffer);
-
-      return NextResponse.json({
-        success: true,
-        url: `/images/uploads/${videoFilename}`,
-        type: "video",
-      });
     }
+
+    // Video or PDF — already streamed to disk, serve as-is
+    return NextResponse.json({
+      success: true,
+      url: `/images/uploads/${filename}`,
+      type: isPdf ? "pdf" : "video",
+      size,
+    });
+
   } catch (error) {
-    console.error("Upload error:", error);
-    return NextResponse.json(
-      { error: "Upload failed" },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : "Upload failed";
+    console.error("upload-simple error:", msg);
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
 }
