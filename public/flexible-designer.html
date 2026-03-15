@@ -1837,12 +1837,42 @@ function renderCanvas() {
       b.gridCol  = Math.max(1, Math.min(b.gridCol  || 1, state.gridCols));
       b.colSpan  = Math.max(1, Math.min(b.colSpan  || 1, state.gridCols - b.gridCol + 1));
       b.rowSpan  = Math.max(1, Math.min(b.rowSpan  || 1, state.gridRows - b.gridRow + 1));
-      // Recalculate pixel position from the clamped grid coordinates.
-      // Preserve w/h if the user manually resized the block via drag handles.
-      const { cx, cy, cw, ch } = getCellRect(b.gridRow, b.gridCol, b.colSpan, b.rowSpan, b.section);
-      b.x = cx; b.y = cy;
-      if (!b.manualSize) { b.w = cw; b.h = ch; }
+      if (state.devicePreview !== 'mobile') {
+        // Desktop / tablet: recalculate pixel position from clamped grid coordinates.
+        // Preserve w/h if the user manually resized the block via drag handles.
+        const { cx, cy, cw, ch } = getCellRect(b.gridRow, b.gridCol, b.colSpan, b.rowSpan, b.section);
+        b.x = cx; b.y = cy;
+        if (!b.manualSize) { b.w = cw; b.h = ch; }
+      }
     });
+    // Restore natural canvas height when not in mobile stacking mode
+    // (only for single-section; multi-section height was already set above)
+    if (state.devicePreview !== 'mobile' && state.contentMode !== 'multi') {
+      canvas.style.height    = '';
+      canvas.style.minHeight = '';
+    }
+    // Mobile: simulate CSS media-query single-column stacking.
+    // Sort blocks by section → row → col and stack them full-width vertically,
+    // matching the actual page behaviour at ≤767px (flex-direction: column).
+    if (state.devicePreview === 'mobile') {
+      const { cw: canvasW, cellH, gap } = getCellMetrics();
+      const sorted = [...state.blocks].sort((a, b) =>
+        ((a.section||0)*10000 + (a.gridRow||1)*100 + (a.gridCol||1)) -
+        ((b.section||0)*10000 + (b.gridRow||1)*100 + (b.gridCol||1))
+      );
+      let nextY = 0;
+      sorted.forEach(b => {
+        const h = b.manualSize ? b.h : (b.h > 0 ? b.h : cellH);
+        b.x = 0; b.y = nextY; b.w = canvasW; b.h = h;
+        nextY += h + gap;
+      });
+      // Expand canvas to fit all stacked blocks so nothing is clipped
+      const totalH = nextY - (state.blocks.length ? gap : 0);
+      if (totalH > 0) {
+        canvas.style.height    = `${totalH}px`;
+        canvas.style.minHeight = `${totalH}px`;
+      }
+    }
   }
 
   renderGridOverlay();
@@ -1853,9 +1883,10 @@ function renderCanvas() {
   // Schedule ruler tick marks after layout reflow so canvas dimensions are final
   setTimeout(renderRulers, 0);
   // Auto-reflow block heights after DOM paint so text wrap is measured correctly
+  // Pass restack=true so overlapping sub-elements are re-stacked using actual DOM heights
   requestAnimationFrame(() => {
     state.blocks.forEach(b => {
-      if (b.subElements && b.subElements.length > 0) fitBlockToSubElementsDOM(b.id);
+      if (b.subElements && b.subElements.length > 0) fitBlockToSubElementsDOM(b.id, true);
     });
   });
 }
@@ -1874,6 +1905,8 @@ function renderGridOverlay() {
   if (!state.showGuides) return;
   // In free mode the grid doesn't apply — hide grid cells entirely
   if (state.positionMode === 'free') return;
+  // In mobile preview the blocks are stacked full-width — grid overlay is meaningless
+  if (state.devicePreview === 'mobile') return;
 
   const { cellW, cellH, sectionH, gap } = getCellMetrics();
   const sectionCount = state.contentMode === 'multi' ? state.multiLimit : 1;
@@ -2396,7 +2429,9 @@ function ensureSubElementPositions(block) {
   // For text-blocks respect paddingTop so elements visually start inside the padding area.
   const startY = block.type === 'text-block' ? (block.props?.paddingTop ?? 16) : 8;
   let nextY = startY;
-  block.subElements.forEach(se => {
+  block.subElements.forEach((se, idx) => {
+    // Assign a stable ID if missing — required for DOM queries in fitBlockToSubElementsDOM
+    if (!se.id) se.id = `${block.id}_se_${idx}`;
     if (se.y === undefined || se.y === null) {
       se.x = 0;
       se.y = nextY;
@@ -2644,19 +2679,39 @@ function fitBlockToSubElements(blockId) {
  * the canvas reflects the new size without a full re-render.
  * @param {string} blockId - ID of the block to resize.
  */
-function fitBlockToSubElementsDOM(blockId) {
+function fitBlockToSubElementsDOM(blockId, restack) {
   // DOM-aware: reads actual rendered sizes; always grows AND shrinks, both axes
+  // restack=true: re-stack sub-elements vertically using actual DOM heights (called on initial load)
   const block = state.blocks.find(b => b.id === blockId);
   if (!block || !block.subElements?.length) return;
   // Reserve space for the flex header (visible on hover/select) so sub-elements
   // at the bottom of cb-content are never clipped behind it.
   const HEADER_H = 26;
+
+  // Measure all actual rendered heights first
+  block.subElements.forEach(se => {
+    const domEl = document.querySelector(`.sub-element[data-sub-id="${se.id}"]`);
+    if (domEl) se._measuredH = domEl.offsetHeight;
+  });
+
+  // Restack vertically when called after initial render (not during drag)
+  // Only restacks blocks that were never manually resized/repositioned
+  if (restack && !block.manualSize) {
+    const startY = block.type === 'text-block' ? (block.props?.paddingTop ?? 16) : 8;
+    let nextY = startY;
+    block.subElements.forEach(se => {
+      const h = se._measuredH || estimateSubElementHeight(se.type);
+      se.y = nextY;
+      const domEl = document.querySelector(`.sub-element[data-sub-id="${se.id}"]`);
+      if (domEl) domEl.style.top = nextY + 'px';
+      nextY += h + 6;
+    });
+  }
+
   let maxBottom = 0;
   let maxRight = 0;
   block.subElements.forEach(se => {
-    // Use actual rendered height when available — more accurate than the estimate
-    const domEl = document.querySelector(`.sub-element[data-sub-id="${se.id}"]`);
-    const h = domEl ? domEl.offsetHeight : (se._measuredH || estimateSubElementHeight(se.type));
+    const h = se._measuredH || estimateSubElementHeight(se.type);
     const bottom = (se.y || 0) + h + 8;
     if (bottom > maxBottom) maxBottom = bottom;
     // Only explicit-width sub-elements constrain right edge
@@ -4837,20 +4892,36 @@ function updatePositionModeBadge() {
  */
 function getDisplayPos(block) {
   const device = state.devicePreview;
-  const srcW = state._desktopCanvasW || (() => {
-    const c = document.getElementById('canvas'); return c ? c.offsetWidth : 1200;
-  })();
   const canvas = document.getElementById('canvas');
   if (device === 'mobile') {
     const behavior = block.mobileBehavior || 'auto';
-    const basePos = block.mobilePos || autoScalePos({ x: block.x, y: block.y, w: block.w, h: block.h }, 375, srcW);
+    let basePos;
+    if (block.mobilePos) {
+      basePos = block.mobilePos;
+    } else if (state.positionMode !== 'free') {
+      // Grid mode: renderCanvas() already updated block.x/y/w/h to mobile grid positions.
+      // Do NOT auto-scale again — that would double-scale and crush blocks.
+      basePos = { x: block.x, y: block.y, w: block.w, h: block.h };
+    } else {
+      const srcW = state._desktopCanvasW || DESKTOP_CANVAS_W;
+      basePos = autoScalePos({ x: block.x, y: block.y, w: block.w, h: block.h }, 375, srcW);
+    }
     if (behavior === 'stretch') { const cw = canvas ? canvas.offsetWidth : 375; return { x:0, y:basePos.y, w:cw, h:basePos.h, hidden:false }; }
     if (behavior === 'hide')    return { ...basePos, hidden:true };
     return { ...basePos, hidden:false };
   }
   if (device === 'tablet') {
     const behavior = block.tabletBehavior || 'auto';
-    const basePos = block.tabletPos || autoScalePos({ x: block.x, y: block.y, w: block.w, h: block.h }, 768, srcW);
+    let basePos;
+    if (block.tabletPos) {
+      basePos = block.tabletPos;
+    } else if (state.positionMode !== 'free') {
+      // Grid mode: renderCanvas() already updated block.x/y/w/h to tablet grid positions.
+      basePos = { x: block.x, y: block.y, w: block.w, h: block.h };
+    } else {
+      const srcW = state._desktopCanvasW || DESKTOP_CANVAS_W;
+      basePos = autoScalePos({ x: block.x, y: block.y, w: block.w, h: block.h }, 768, srcW);
+    }
     if (behavior === 'stretch') { const cw = canvas ? canvas.offsetWidth : 768; return { x:0, y:basePos.y, w:cw, h:basePos.h, hidden:false }; }
     if (behavior === 'hide')    return { ...basePos, hidden:true };
     return { ...basePos, hidden:false };
