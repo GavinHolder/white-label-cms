@@ -346,17 +346,20 @@ export default function LandingPageManager() {
         </div>
       )}
 
-      <div className="d-flex gap-4">
-        {/* Filter Sidebar */}
-        <div className="flex-shrink-0" style={{ width: "200px" }}>
-          <nav className="nav nav-pills flex-column gap-1">
+      <div className="d-flex flex-column flex-lg-row gap-3 gap-lg-4">
+        {/* Filter Sidebar — vertical on desktop, horizontal scroll pills on mobile */}
+        <div className="flex-lg-shrink-0" style={{ minWidth: 0 }}>
+          <nav
+            className="nav nav-pills flex-row flex-lg-column gap-1 flex-nowrap"
+            style={{ overflowX: "auto", overflowY: "visible", paddingBottom: "2px" }}
+          >
             {filterCategories.map((cat) => {
               const count = getSectionCount(cat.id);
               return (
                 <button
                   key={cat.id}
                   onClick={() => setActiveFilter(cat.id)}
-                  className={`nav-link d-flex align-items-center gap-2 text-start ${
+                  className={`nav-link d-flex align-items-center gap-2 text-start flex-shrink-0 ${
                     activeFilter === cat.id ? "active" : "link-body-emphasis"
                   }`}
                   style={{
@@ -365,6 +368,7 @@ export default function LandingPageManager() {
                     borderRadius: "0.375rem",
                     border: "none",
                     background: activeFilter === cat.id ? undefined : "transparent",
+                    width: "max-content",
                   }}
                 >
                   <i className={`bi ${cat.icon}`} style={{ width: "18px" }}></i>
@@ -430,17 +434,17 @@ export default function LandingPageManager() {
                       <SortableItem key={section.id} section={section}>
                         {({ listeners, attributes }) => (
                         <div
-                          className="list-group-item d-flex align-items-center gap-3"
+                          className="list-group-item d-flex align-items-center gap-2 gap-md-3"
                           style={
                             section.type === "HERO" || section.type === "FOOTER"
                               ? { backgroundColor: "#e8f4fd" }
                               : undefined
                           }
                         >
-                    {/* Drag Handle - only this area triggers drag */}
+                    {/* Drag Handle */}
                     {isSectionMovable(section.type) ? (
                       <div
-                        className="text-muted d-flex align-items-center"
+                        className="text-muted d-flex align-items-center flex-shrink-0"
                         style={{ cursor: "grab", touchAction: "none" }}
                         title="Drag to reorder"
                         {...listeners}
@@ -449,19 +453,27 @@ export default function LandingPageManager() {
                         <i className="bi bi-grip-vertical fs-5"></i>
                       </div>
                     ) : (
-                      <div style={{ width: "20px" }}></div>
+                      <div style={{ width: "20px", flexShrink: 0 }}></div>
                     )}
 
-                    {/* Section Info — fixed columns: name | badges | order */}
-                    <div className="flex-grow-1 d-flex align-items-center gap-3" style={{ minWidth: 0 }}>
-                      <strong
-                        className="text-truncate"
-                        style={{ minWidth: "120px", maxWidth: "160px", flexShrink: 0 }}
-                        title={section.displayName || section.type}
-                      >
-                        {section.displayName || section.type}
-                      </strong>
-                      <div className="d-flex align-items-center gap-1 flex-shrink-0">
+                    {/* Section Info — stacks on mobile, single row on md+ */}
+                    <div className="flex-grow-1 d-flex flex-column flex-md-row align-items-start align-items-md-center gap-1 gap-md-3" style={{ minWidth: 0 }}>
+                      {/* Name + order (mobile: same line, order right-aligned) */}
+                      <div className="d-flex align-items-center gap-2 w-100 w-md-auto">
+                        <strong
+                          className="text-truncate"
+                          style={{ minWidth: "100px", maxWidth: "200px", flexShrink: 0 }}
+                          title={section.displayName || section.type}
+                        >
+                          {section.displayName || section.type}
+                        </strong>
+                        <small className="text-muted ms-auto d-md-none" style={{ flexShrink: 0 }}>
+                          Order: {section.order}
+                        </small>
+                      </div>
+
+                      {/* Badges */}
+                      <div className="d-flex align-items-center gap-1 flex-wrap flex-shrink-0">
                         <span className="badge rounded-pill text-secondary border border-secondary-subtle">
                           {section.type}
                         </span>
@@ -481,13 +493,15 @@ export default function LandingPageManager() {
                           </span>
                         )}
                       </div>
-                      <small className="text-muted flex-shrink-0" style={{ minWidth: "60px" }}>
+
+                      {/* Order — desktop only (shown inline on mobile above) */}
+                      <small className="text-muted flex-shrink-0 d-none d-md-block" style={{ minWidth: "60px" }}>
                         Order: {section.order}
                       </small>
                     </div>
 
                     {/* Actions */}
-                    <div className="d-flex gap-1">
+                    <div className="d-flex gap-1 flex-shrink-0">
                       {isSectionMovable(section.type) && movableSectionCount > 1 && (
                         <>
                           <button
