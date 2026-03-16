@@ -79,9 +79,11 @@ export async function sendSubmissionEmail(
   fields: Array<{ label: string; value: string }>,
   userEmail: string,
   cfg: Record<string, string>,
-  source: string
+  source: string,
+  emailTo?: string
 ) {
-  if (!cfg.admin_email) return; // No admin email configured — skip silently
+  const recipient = emailTo || cfg.admin_email;
+  if (!recipient) return; // No destination configured — skip silently
   const transporter = await createTransporter();
   const rows = fields
     .map(
@@ -95,7 +97,7 @@ export async function sendSubmissionEmail(
 
   await transporter.sendMail({
     from: cfg.smtp_from || cfg.smtp_user,
-    to: cfg.admin_email,
+    to: recipient,
     replyTo: userEmail,
     subject: `New enquiry from ${userEmail} — ${source}`,
     html: `

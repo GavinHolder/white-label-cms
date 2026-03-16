@@ -321,6 +321,9 @@ function FormPageRenderer({ page }: { page: FormPageConfig }) {
           fields: submittedFields,
           userEmail,
           source: title || "Form Page",
+          emailTo: submitConfig?.emailTo || undefined,
+          submitAction: submitConfig ? page.submitAction : "email",
+          webhookUrl: submitConfig?.webhookUrl || undefined,
         }),
       });
       setSubmitted(true);

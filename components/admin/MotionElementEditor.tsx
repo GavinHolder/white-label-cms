@@ -11,6 +11,7 @@ const EASING_OPTIONS = [
 export function createDefaultMotionElement(): MotionElement {
   return {
     id: `me-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    type: "image",
     src: "",
     alt: "",
     top: "20%",
@@ -382,7 +383,7 @@ export default function MotionElementEditor({ element, onChange, onDelete }: Mot
 
       <div className="accordion accordion-flush">
 
-        {/* ── Position & Image ── */}
+        {/* ── Position & Media ── */}
         <div className="accordion-item">
           <h2 className="accordion-header">
             <button
@@ -390,31 +391,60 @@ export default function MotionElementEditor({ element, onChange, onDelete }: Mot
               type="button"
               onClick={() => togglePanel("position")}
             >
-              Image & Position
+              {(element.type || "image") === "video" ? "Video & Position" : "Image & Position"}
             </button>
           </h2>
           {openPanel === "position" && (
             <div className="accordion-body py-2">
+              {/* Type selector */}
+              <div className="mb-3">
+                <label className="form-label small mb-1">Type</label>
+                <div className="btn-group w-100" role="group">
+                  {(["image", "volt", "video"] as const).map((t) => {
+                    const icons: Record<string, string> = { image: "bi-image", volt: "bi-lightning-charge", video: "bi-camera-video" };
+                    const labels: Record<string, string> = { image: "Image", volt: "Volt", video: "Video" };
+                    const active = (element.type || "image") === t;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        className={`btn btn-sm ${active ? "btn-primary" : "btn-outline-secondary"}`}
+                        onClick={() => set({ type: t })}
+                      >
+                        <i className={`bi ${icons[t]} me-1`} />
+                        {labels[t]}
+                      </button>
+                    );
+                  })}
+                </div>
+                {(element.type || "image") === "video" && (
+                  <div className="form-text">Portrait (9:16) • autoplay • loop • muted</div>
+                )}
+              </div>
               <div className="mb-2">
-                <label className="form-label small mb-1">Image URL</label>
+                <label className="form-label small mb-1">
+                  {(element.type || "image") === "video" ? "Video URL" : "Image URL"}
+                </label>
                 <input
                   type="text"
                   className="form-control form-control-sm"
                   value={element.src}
                   onChange={(e) => set({ src: e.target.value })}
-                  placeholder="/images/uploads/element.png"
+                  placeholder={(element.type || "image") === "video" ? "/videos/uploads/element.mp4" : "/images/uploads/element.png"}
                 />
               </div>
-              <div className="mb-3">
-                <label className="form-label small mb-1">Alt Text</label>
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  value={element.alt}
-                  onChange={(e) => set({ alt: e.target.value })}
-                  placeholder="Decorative element"
-                />
-              </div>
+              {(element.type || "image") !== "video" && (
+                <div className="mb-3">
+                  <label className="form-label small mb-1">Alt Text</label>
+                  <input
+                    type="text"
+                    className="form-control form-control-sm"
+                    value={element.alt}
+                    onChange={(e) => set({ alt: e.target.value })}
+                    placeholder="Decorative element"
+                  />
+                </div>
+              )}
               {/* Visual position canvas */}
               <PositionCanvas
                 top={element.top}

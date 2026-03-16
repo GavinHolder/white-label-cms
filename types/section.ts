@@ -151,6 +151,7 @@ export interface MotionElementIdle {
 
 export interface MotionElement {
   id: string;
+  type?: "image" | "volt" | "video"; // default "image" when absent
   src: string;
   alt: string;
   // Position (CSS values, absolute within section)

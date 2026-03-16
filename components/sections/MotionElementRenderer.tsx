@@ -159,34 +159,61 @@ export default function MotionElementRenderer({ elements, sectionId }: MotionEle
       aria-hidden="true"
       style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}
     >
-      {elements.map((el) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={el.id}
-          id={`motion-el-${el.id}`}
-          src={el.src}
-          alt={el.alt || ""}
-          style={{
-            position: "absolute",
-            top: el.top,
-            left: el.left,
-            right: el.right,
-            bottom: el.bottom,
-            width: el.width,
-            height: "auto",
-            zIndex: (() => {
-              const layerZIndex: Record<string, number> = {
-                "behind": 5,
-                "above-lower-third": 15,
-                "above-content": 25,
-              };
-              return el.layer ? (layerZIndex[el.layer] ?? 5) : (el.zIndex ?? 5);
-            })(),
-            // Start hidden if entrance animation is enabled; otherwise use user opacity
-            opacity: el.entrance.enabled ? 0 : (el.opacity ?? 100) / 100,
-          }}
-        />
-      ))}
+      {elements.map((el) => {
+        const elType = el.type || "image";
+        const layerZIndex: Record<string, number> = {
+          "behind": 5,
+          "above-lower-third": 15,
+          "above-content": 25,
+        };
+        const zIndex = el.layer ? (layerZIndex[el.layer] ?? 5) : (el.zIndex ?? 5);
+        const opacity = el.entrance.enabled ? 0 : (el.opacity ?? 100) / 100;
+        const commonStyle: React.CSSProperties = {
+          position: "absolute",
+          top: el.top,
+          left: el.left,
+          right: el.right,
+          bottom: el.bottom,
+          width: el.width,
+          zIndex,
+          opacity,
+        };
+
+        if (elType === "video") {
+          return (
+            <video
+              key={el.id}
+              id={`motion-el-${el.id}`}
+              src={el.src}
+              autoPlay
+              loop
+              muted
+              playsInline
+              style={{
+                ...commonStyle,
+                height: "auto",
+                aspectRatio: "9/16",
+                objectFit: "cover",
+              }}
+            />
+          );
+        }
+
+        // image (default) and volt both render as <img>
+        return (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={el.id}
+            id={`motion-el-${el.id}`}
+            src={el.src}
+            alt={el.alt || ""}
+            style={{
+              ...commonStyle,
+              height: "auto",
+            }}
+          />
+        );
+      })}
     </div>
   );
 }

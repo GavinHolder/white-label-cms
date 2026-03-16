@@ -1003,8 +1003,10 @@ function DesignerSubElement({ sub }: { sub: SubEl }) {
   const elRadius   = p.elRadius   !== undefined ? `${Number(p.elRadius)}px`  : undefined;
   const customCss  = (p.customCss  as string) || "";
 
+  // button and badge render bgColor inside inner() — don't let bgColor trigger a shell wrapper
+  const bgColorForShell = (sub.type === "button" || sub.type === "badge") ? "" : bgColor;
   // Determine whether a shell wrapper is needed for any visual override
-  const hasShell = !!(bgColor || bgImage || bgGradient || clipPath ||
+  const hasShell = !!(bgColorForShell || bgImage || bgGradient || clipPath ||
                       elOpacity !== undefined || zIdx !== undefined || elPad || elRadius || customCss);
 
   // Inject scoped customCss into the accompanying <style> element whenever it changes
@@ -1072,6 +1074,8 @@ function DesignerSubElement({ sub }: { sub: SubEl }) {
             letterSpacing: p.letterSpacing !== undefined ? `${Number(p.letterSpacing)}px` : undefined,
             textTransform: (p.textTransform as React.CSSProperties["textTransform"]) || undefined,
             maxWidth:      p.maxWidth && Number(p.maxWidth) > 0 ? `${Number(p.maxWidth)}px` : undefined,
+            marginLeft:    p.maxWidth && Number(p.maxWidth) > 0 ? "auto" : undefined,
+            marginRight:   p.maxWidth && Number(p.maxWidth) > 0 ? "auto" : undefined,
             marginBottom:  hasShell ? 0 : mb,
             marginTop:     0,
           }}>
@@ -1089,6 +1093,8 @@ function DesignerSubElement({ sub }: { sub: SubEl }) {
         return (
           <a href={String(p.navTarget || "#")} style={{
             display:        "inline-block",
+            alignSelf:      "center",
+            width:          "fit-content",
             background:     (p.bgColor   as string) || "#0d6efd",
             color:          (p.textColor as string) || "#fff",
             padding:        `${py}px ${px}px`,
@@ -1164,7 +1170,7 @@ function DesignerSubElement({ sub }: { sub: SubEl }) {
   const shellStyle: React.CSSProperties = {
     ...(bgImage     ? { background: `url("${bgImage}") center/cover no-repeat` }      : {}),
     ...(!bgImage && bgGradient ? { background: bgGradient }                           : {}),
-    ...(!bgImage && !bgGradient && bgColor ? { backgroundColor: bgColor }             : {}),
+    ...(!bgImage && !bgGradient && bgColorForShell ? { backgroundColor: bgColorForShell } : {}),
     ...(clipPath    ? { clipPath }                                                     : {}),
     ...(elOpacity   !== undefined  ? { opacity: elOpacity }                           : {}),
     // zIndex requires position:relative to take effect
