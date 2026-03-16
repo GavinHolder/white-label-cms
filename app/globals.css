@@ -350,8 +350,10 @@ main {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  /* CMS-controlled padding — desktop values */
-  padding-top: var(--section-pt, 100px);
+  /* CMS-controlled padding — desktop values.
+     max() ensures content never slides under the fixed navbar regardless
+     of what --section-pt is set to. --navbar-height is 100px (defined above). */
+  padding-top: max(var(--section-pt, 100px), var(--navbar-height, 100px));
   padding-bottom: var(--section-pb, 80px);
 }
 
@@ -360,7 +362,7 @@ main {
    Set --section-pt-mobile / --section-pb-mobile inline to override per section. */
 @media (max-width: 767px) {
   .section-content-wrapper {
-    padding-top: var(--section-pt-mobile, 100px);
+    padding-top: max(var(--section-pt-mobile, 100px), var(--navbar-height, 100px));
     padding-bottom: var(--section-pb-mobile, 80px);
   }
 }
