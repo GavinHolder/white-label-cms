@@ -40,19 +40,23 @@ export default function VoltSvgLayer({ layer, canvasWidth, canvasHeight }: Props
   const rotateTransform = rotation ? `rotate(${rotation} ${cx} ${cy})` : undefined
   const transform = [rotateTransform, scaleTransform].filter(Boolean).join(' ')
 
+  // Outer <g> receives the anime.js CSS-transform animations (translateX/Y, scale, rotate).
+  // Inner <g> holds the SVG coordinate-mapping transforms (scale to canvas px, base rotation).
+  // Separating them prevents anime CSS transforms from clobbering the SVG attribute transforms.
   return (
     <g
       id={`volt-layer-${layer.id}`}
       opacity={opacity}
       style={{ mixBlendMode: blendMode as React.CSSProperties['mixBlendMode'] }}
-      transform={transform || undefined}
     >
-      <path
-        d={vectorData.pathData}
-        fill={fillAttr}
-        fillOpacity={primaryFill?.opacity ?? 1}
-        {...strokeAttr}
-      />
+      <g transform={transform || undefined}>
+        <path
+          d={vectorData.pathData}
+          fill={fillAttr}
+          fillOpacity={primaryFill?.opacity ?? 1}
+          {...strokeAttr}
+        />
+      </g>
     </g>
   )
 }

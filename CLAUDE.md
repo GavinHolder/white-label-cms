@@ -31,6 +31,23 @@
 
 ---
 
+## ⛔ DESIGNER-FIRST RULE (PERMANENT — override requires explicit mutual agreement)
+
+**UI layout, content, and section design work MUST be done through the CMS Designer/Volt Designer — never via hardcoded scripts, direct JSON construction, or renderer code edits.**
+
+| Allowed via code | Must use Designer instead |
+|---|---|
+| Bug fixes in renderers | Text/heading changes |
+| New block type features | Spacing/padding adjustments |
+| API/backend work | Column layouts, card arrangements |
+| Features not in Designer yet | Any visual layout change |
+
+**Seeding scripts:** Must write `designerData` in the exact schema the Designer produces. After seeding, every section MUST open and be editable in the Designer. That is the test.
+
+**Override:** Only when user and Claude explicitly agree that a code change is needed and state why.
+
+---
+
 ## ⚡ MANDATORY: Feature Confirmation → Docs + Commit
 
 **Every time the user confirms a feature is working:**

@@ -30,9 +30,12 @@ export default function VoltRenderer({ voltElement, slots = {}, className, style
     async function transitionToState(targetStateName: string) {
       const { animate } = await import('animejs')
       const targetState = states.find(s => s.name === targetStateName)
-      if (!targetState) return
+      // Allow 'rest' to proceed even without an explicit state entry (resets to defaults)
+      if (!targetState && targetStateName !== 'rest') return
 
-      const overrides = targetState.layerOverrides ?? {}
+      const overrides = targetState?.layerOverrides ?? {}
+      const isRest = targetStateName === 'rest'
+
       const ROLE_ORDER = ['accent', 'structure', 'overlay', 'background', 'content']
       const staggeredLayers = [...layers].sort((a, b) =>
         ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role)
@@ -41,7 +44,13 @@ export default function VoltRenderer({ voltElement, slots = {}, className, style
       let staggerIndex = 0
       for (const layer of staggeredLayers) {
         const override = overrides[layer.id]
-        if (!override) continue
+        const { animates } = layer.animation
+        const anyAnimates = animates.opacity || animates.scale || animates.position || animates.rotation
+
+        // On rest transition: reset any layer that has animatable properties, even without
+        // an explicit rest override — prevents layers sticking in hover state on mouse-leave.
+        if (!override && !isRest) continue
+        if (!override && isRest && !anyAnimates) continue
 
         const layerEl = el?.querySelector(`#volt-layer-${layer.id}`)
         if (!layerEl) continue
@@ -49,11 +58,26 @@ export default function VoltRenderer({ voltElement, slots = {}, className, style
         const { duration, ease, delay } = personalityToAnimeConfig(layer.animation)
         const targets: Record<string, unknown> = {}
 
-        if (layer.animation.animates.opacity && override.opacity !== undefined) {
-          targets.opacity = override.opacity
+        if (animates.opacity) {
+          targets.opacity = isRest
+            ? (override?.opacity ?? layer.opacity)
+            : (override?.opacity ?? layer.opacity)
         }
-        if (layer.animation.animates.scale && override.scale !== undefined) {
-          targets.scale = override.scale
+        if (animates.scale) {
+          targets.scale = isRest ? (override?.scale ?? 1) : (override?.scale ?? 1)
+        }
+        if (animates.position) {
+          // translateX/Y are CSS-space pixel offsets applied to the outer <g> wrapper.
+          // Returning to rest always snaps back to 0 unless the rest state says otherwise.
+          targets.translateX = isRest ? (override?.translateX ?? 0) : (override?.translateX ?? 0)
+          targets.translateY = isRest ? (override?.translateY ?? 0) : (override?.translateY ?? 0)
+        }
+        if (animates.rotation) {
+          // 'rotate' animates the CSS rotate property on the outer <g>.
+          // Base layer.rotation is already baked into the inner SVG transform — this is a delta.
+          targets.rotate = isRest
+            ? `${override?.rotation ?? 0}deg`
+            : `${override?.rotation ?? 0}deg`
         }
 
         if (Object.keys(targets).length === 0) continue

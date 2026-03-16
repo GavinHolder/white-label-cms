@@ -11,6 +11,7 @@ const AnimBgRenderer    = dynamic(() => import("./AnimBgRenderer"), { ssr: false
 const ScrollStageWrapper = dynamic(() => import("./scroll-stage/ScrollStageWrapper"), { ssr: false });
 const CoverageMapEmbed   = dynamic(() => import("@/components/coverage/CoverageMapEmbed"), { ssr: false });
 const ProjectsGallery    = dynamic(() => import("@/components/sections/ProjectsGallery"), { ssr: false });
+const VoltBlock          = dynamic(() => import("@/components/sections/VoltBlock"), { ssr: false });
 
 interface FlexibleSectionRendererProps {
   section: FlexibleSection;
@@ -853,6 +854,34 @@ function DesignerBlock({ block, darkBg }: {
             />
           </div>
         );
+
+      // ── volt: renders a Volt Studio layered element with live hover animations ──
+      case "volt": {
+        const voltId = p.voltId as string | undefined;
+        if (!voltId) {
+          return (
+            <div style={{ padding: "20px", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#6c757d" }}>
+              <span style={{ fontSize: "12px" }}>No Volt element selected</span>
+            </div>
+          );
+        }
+        // Build slots from block props so designers can bind text/image content per-block
+        const voltSlots = {
+          title:       (p.slotTitle as string)       || undefined,
+          body:        (p.slotBody as string)        || undefined,
+          imageUrl:    (p.slotImageUrl as string)    || undefined,
+          imageAlt:    (p.slotImageAlt as string)    || undefined,
+          actionLabel: (p.slotActionLabel as string) || undefined,
+          actionHref:  (p.slotActionHref as string)  || undefined,
+          badge:       (p.slotBadge as string)       || undefined,
+          icon:        (p.slotIcon as string)        || undefined,
+        };
+        return (
+          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <VoltBlock voltId={voltId} slots={voltSlots} fitMode="contain" />
+          </div>
+        );
+      }
 
       // ── default: unknown block type — render the type name as a placeholder ─
       default:

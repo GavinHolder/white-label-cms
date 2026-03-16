@@ -172,6 +172,9 @@ export interface VoltLayerStateOverride {
   rotation?: number
   opacity?: number
   scale?: number
+  /** CSS-space translate offsets in pixels — used for hover slide/peek animations */
+  translateX?: number
+  translateY?: number
   fills?: VoltFill[]
   stroke?: VoltStroke
 }
