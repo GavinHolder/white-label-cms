@@ -51,6 +51,12 @@ const menuItems: MenuItem[] = [
         href: "/admin/content/navbar",
       },
       {
+        id: "navbar-links",
+        label: "Navbar Links",
+        icon: "bi-layout-navbar",
+        href: "/admin/settings/navbar-links",
+      },
+      {
         id: "seo",
         label: "SEO",
         icon: "bi-search",
@@ -122,12 +128,6 @@ const menuItems: MenuItem[] = [
         href: "/admin/settings/site-config",
       },
       {
-        id: "navbar-links",
-        label: "Navbar Links",
-        icon: "bi-layout-navbar",
-        href: "/admin/settings/navbar-links",
-      },
-      {
         id: "api-keys",
         label: "API Keys",
         icon: "bi-key",
@@ -166,6 +166,9 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
   const isActive = (href?: string) => {
     if (!href) return false;
+    // Exact-match-only hrefs: leaf settings pages that share a common prefix
+    const exactOnly = ["/admin/settings"];
+    if (exactOnly.includes(href)) return pathname === href;
     return pathname === href || pathname.startsWith(href + "/");
   };
 

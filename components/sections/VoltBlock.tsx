@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import type { VoltElementData, VoltSlots } from "@/types/volt";
+import type { VoltElementData, VoltSlots, VoltInstanceOverrides } from "@/types/volt";
 
 const VoltRenderer = dynamic(() => import("@/components/volt/VoltRenderer"), { ssr: false });
 const Volt3DRenderer = dynamic(() => import("./Volt3DRenderer"), { ssr: false });
@@ -10,11 +10,13 @@ const Volt3DRenderer = dynamic(() => import("./Volt3DRenderer"), { ssr: false })
 interface VoltBlockProps {
   voltId: string;
   slots?: VoltSlots;
+  /** Per-instance layer overrides — applied without modifying the master Volt design */
+  instanceOverrides?: VoltInstanceOverrides;
   /** Fit behaviour inside the block cell. "contain" (default) or "fill" */
   fitMode?: "contain" | "fill";
 }
 
-export default function VoltBlock({ voltId, slots = {}, fitMode = "contain" }: VoltBlockProps) {
+export default function VoltBlock({ voltId, slots = {}, instanceOverrides, fitMode = "contain" }: VoltBlockProps) {
   const [volt, setVolt] = useState<VoltElementData | null>(null);
   const [error, setError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -54,7 +56,7 @@ export default function VoltBlock({ voltId, slots = {}, fitMode = "contain" }: V
 
   return (
     <div ref={containerRef} style={containerStyle}>
-      <VoltRenderer voltElement={volt} slots={slots} style={{ borderRadius: "inherit" }} />
+      <VoltRenderer voltElement={volt} slots={slots} instanceOverrides={instanceOverrides} style={{ borderRadius: "inherit" }} />
       {layers3D.map(l => (
         <Volt3DRenderer
           key={l.id}

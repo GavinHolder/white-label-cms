@@ -1513,7 +1513,7 @@ const BLOCK_DEFAULTS = {
   video:       { label:'Video',   src:'', poster:'', autoplay:false, loop:false, customCss:'' },
   html:        { label:'HTML',    html:'<p>Custom HTML</p>', customCss:'' },
   divider:     { label:'Divider', thickness:2, dividerColor:'#dee2e6', customCss:'' },
-  volt:        { label:'Volt', bgColor:'transparent', voltId:'', voltName:'', voltThumbnail:null, customCss:'' },
+  volt:        { label:'Volt', bgColor:'transparent', voltId:'', voltName:'', voltThumbnail:null, voltLayerOverrides:{}, customCss:'' },
 };
 
 const SUB_DEFAULTS = {
@@ -2306,26 +2306,33 @@ function createBlockPreview(block) {
       wrap.innerHTML = `<div style="padding:10px 0;"><hr style="border-top:${p.thickness}px solid ${p.dividerColor};margin:0;"></div>`;
       break;
     case 'volt': {
-      const vContainer = document.createElement('div');
-      vContainer.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:4px;box-sizing:border-box;';
-      if (p.voltThumbnail) {
-        const vImg = document.createElement('img');
-        vImg.src = p.voltThumbnail;
-        vImg.alt = p.voltName || 'Volt';
-        vImg.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;';
-        vContainer.appendChild(vImg);
+      const vId = p.voltId;
+      wrap.style.cssText = 'width:100%;height:100%;position:relative;overflow:hidden;';
+      if (vId) {
+        const previewUrl = buildVoltPreviewUrl(block);
+        const vIframe = document.createElement('iframe');
+        vIframe.src = previewUrl;
+        vIframe.style.cssText = 'width:100%;height:100%;border:none;pointer-events:none;';
+        vIframe.loading = 'lazy';
+        wrap.appendChild(vIframe);
+        // Name badge overlay
+        const vBadge = document.createElement('div');
+        vBadge.style.cssText = 'position:absolute;top:4px;left:4px;background:rgba(30,27,75,0.85);color:#a5b4fc;font-size:10px;padding:2px 7px;border-radius:10px;pointer-events:none;white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis;';
+        vBadge.textContent = '⚡ ' + (p.voltName || 'Volt');
+        wrap.appendChild(vBadge);
       } else {
+        const vContainer = document.createElement('div');
+        vContainer.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;';
         const vIcon = document.createElement('i');
         vIcon.className = 'bi bi-lightning-charge';
         vIcon.style.cssText = 'font-size:24px;opacity:0.3;';
         const vLabel = document.createElement('span');
-        vLabel.textContent = p.voltName || 'Volt Design';
+        vLabel.textContent = 'No Volt selected';
         vLabel.style.cssText = 'font-size:11px;color:#6c757d;margin-top:4px;';
-        vContainer.style.flexDirection = 'column';
         vContainer.appendChild(vIcon);
         vContainer.appendChild(vLabel);
+        wrap.appendChild(vContainer);
       }
-      wrap.appendChild(vContainer);
       break;
     }
     default:
@@ -4066,18 +4073,68 @@ function renderTypeProps(block) {
       h+=colorRow('Color',p.dividerColor||'#dee2e6',`updateBlockProp('${block.id}','dividerColor',this.value);renderCanvas()`);
       break;
     case 'volt': {
-      const vThumb = p.voltThumbnail;
       const vName = p.voltName || 'Unnamed Volt';
-      h+=`<div style="text-align:center;padding:4px 0 8px;">`;
-      if (vThumb) {
-        h+=`<img src="${vThumb}" alt="${vName}" style="max-width:100%;max-height:80px;object-fit:contain;border-radius:4px;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;">`;
-      } else {
-        h+=`<i class="bi bi-lightning-charge" style="font-size:32px;opacity:0.2;display:block;margin-bottom:8px;"></i>`;
-      }
-      h+=`<div style="font-size:12px;font-weight:600;margin-bottom:2px;">${vName}</div>`;
-      if (p.voltId) h+=`<div style="font-size:10px;color:#adb5bd;margin-bottom:10px;">ID: ${p.voltId.substring(0,8)}&hellip;</div>`;
-      h+=`<button class="action-btn" style="width:100%;background:#1e1b4b;color:#a5b4fc;border-color:#4f46e5;" onclick="openVoltModal('${block.id}')"><i class="bi bi-lightning-charge me-1"></i>Edit in Volt Studio</button>`;
+      // Header with volt name + change button
+      h+=`<div style="display:flex;align-items:center;gap:8px;padding:4px 0 10px;border-bottom:1px solid #e9ecef;margin-bottom:10px;">
+        <i class="bi bi-lightning-charge" style="color:#4f46e5;font-size:18px;flex-shrink:0;"></i>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:700;color:#1e1b4b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(vName)}</div>
+          ${p.voltId ? `<div style="font-size:10px;color:#adb5bd;">ID: ${escHtml(p.voltId.substring(0,8))}&hellip;</div>` : ''}
+        </div>
+        <button class="action-btn" style="flex-shrink:0;background:#1e1b4b;color:#a5b4fc;border-color:#4f46e5;font-size:11px;padding:4px 8px;" onclick="openVoltModal('${block.id}')"><i class="bi bi-pencil"></i> Change</button>
+      </div>`;
+      // Slot overrides
+      h+=`<div style="margin-bottom:6px;">
+        <div style="font-size:11px;font-weight:700;color:#6c757d;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Content Slots</div>`;
+      h+=inputRow('Title', p.slotTitle||'', `updateVoltSlot('${block.id}','slotTitle',this.value)`, 'Override title…');
+      h+=`<div class="props-row" style="flex-direction:column;align-items:stretch;margin-bottom:8px;">
+        <label style="margin-bottom:3px;font-size:12px;">Body</label>
+        <textarea class="props-input" rows="3" style="resize:vertical;font-size:12px;" placeholder="Override body text…" oninput="updateVoltSlot('${block.id}','slotBody',this.value)">${escHtml(p.slotBody||'')}</textarea>
+      </div>`;
+      h+=inputRow('Icon', p.slotIcon||'', `updateVoltSlot('${block.id}','slotIcon',this.value)`, 'bi-star or emoji…');
+      h+=mediaPickerRow('Image', p.slotImageUrl||'', block.id, 'slotImageUrl', 'image/*', true);
+      h+=inputRow('Action label', p.slotActionLabel||'', `updateVoltSlot('${block.id}','slotActionLabel',this.value)`, 'Button text…');
       h+=`</div>`;
+      // Layer color overrides
+      if (p.voltId) {
+        loadVoltLayersForBlock(block.id); // no-op if already loading/loaded
+        const cached = _voltLayerCache[p.voltId];
+        const overrides = p.voltLayerOverrides || {};
+        const hasOverrides = Object.keys(overrides).length > 0;
+        h+=`<div style="margin-top:12px;padding-top:10px;border-top:1px solid #e9ecef;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:700;color:#6c757d;text-transform:uppercase;letter-spacing:.5px;">Layer Colors</div>
+            ${hasOverrides ? `<button class="action-btn" style="font-size:10px;padding:2px 7px;color:#dc3545;border-color:#dc3545;" onclick="resetVoltLayerOverrides('${block.id}')"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>` : ''}
+          </div>`;
+        if (!cached || cached.loading) {
+          h+=`<div style="font-size:11px;color:#adb5bd;font-style:italic;">Loading layers…</div>`;
+        } else {
+          const vectorLayers = cached.layers.filter(function(l){ return l.type === 'vector' && l.vectorData; });
+          if (!vectorLayers.length) {
+            h+=`<div style="font-size:11px;color:#adb5bd;font-style:italic;">No vector layers.</div>`;
+          } else {
+            vectorLayers.forEach(function(layer) {
+              const ov = overrides[layer.id] || {};
+              const masterFill = (layer.vectorData && layer.vectorData.fills && layer.vectorData.fills[0] && layer.vectorData.fills[0].type === 'solid')
+                ? layer.vectorData.fills[0].color || '#000000'
+                : '#000000';
+              const currentFill = ov.fill || masterFill;
+              const isVisible = ov.visible !== undefined ? ov.visible : (layer.visible !== false);
+              const isOverridden = ov.fill || ov.visible !== undefined;
+              h+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:7px;">
+                <input type="checkbox" title="Show layer" ${isVisible ? 'checked' : ''} onchange="updateVoltLayerVisible('${block.id}','${escHtml(layer.id)}',this.checked)" style="flex-shrink:0;cursor:pointer;">
+                <div style="flex:1;font-size:11px;color:${isVisible?'#212529':'#adb5bd'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escHtml(layer.name)}">${escHtml(layer.name)}</div>
+                <div style="position:relative;flex-shrink:0;">
+                  <input type="color" value="${currentFill}" onchange="updateVoltLayerFill('${block.id}','${escHtml(layer.id)}',this.value)"
+                    style="width:28px;height:22px;padding:1px 2px;border:1px solid #dee2e6;border-radius:4px;cursor:pointer;background:none;">
+                  ${isOverridden ? `<div style="position:absolute;top:-3px;right:-3px;width:7px;height:7px;background:#4f46e5;border-radius:50%;border:1px solid white;" title="Overridden"></div>` : ''}
+                </div>
+              </div>`;
+            });
+          }
+        }
+        h+=`</div>`;
+      }
       break;
     }
   }
@@ -4296,6 +4353,98 @@ function showCustomNav(el, id) {
  * @param {*} v - New value to assign.
  */
 function updateBlockProp(bId,k,v) { const b=state.blocks.find(b=>b.id==bId); if(b) { b.props[k]=v; autoSave(); } } // eslint-disable-line eqeqeq
+
+// ── Volt layer cache ──────────────────────────────────────────────────────────
+// Maps voltId → { layers: VoltLayer[], loading: bool }
+const _voltLayerCache = {};
+
+function loadVoltLayersForBlock(bId) {
+  const b = state.blocks.find(function(x){return x.id==bId;}); // eslint-disable-line eqeqeq
+  if (!b || !b.props.voltId) return;
+  const voltId = b.props.voltId;
+  if (_voltLayerCache[voltId]) return; // already loaded or loading
+  _voltLayerCache[voltId] = { layers: null, loading: true };
+  fetch('/api/public/volt/' + voltId)
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(); })
+    .then(function(json) {
+      const volt = json && json.volt ? json.volt : null;
+      _voltLayerCache[voltId] = { layers: volt ? volt.layers : [], loading: false };
+      // Re-render props panel if this block is still selected
+      if (state.selectedBlockId === bId) renderPropsPanel();
+    })
+    .catch(function() {
+      _voltLayerCache[voltId] = { layers: [], loading: false };
+      if (state.selectedBlockId === bId) renderPropsPanel();
+    });
+}
+
+// ── Volt preview URL builder ───────────────────────────────────────────────────
+function buildVoltPreviewUrl(b) {
+  if (!b.props.voltId) return '';
+  const sp = new URLSearchParams();
+  if (b.props.slotTitle)       sp.set('title', b.props.slotTitle);
+  if (b.props.slotBody)        sp.set('body', b.props.slotBody);
+  if (b.props.slotIcon)        sp.set('icon', b.props.slotIcon);
+  if (b.props.slotImageUrl)    sp.set('imageUrl', b.props.slotImageUrl);
+  if (b.props.slotImageAlt)    sp.set('imageAlt', b.props.slotImageAlt);
+  if (b.props.slotActionLabel) sp.set('actionLabel', b.props.slotActionLabel);
+  const overrides = b.props.voltLayerOverrides;
+  if (overrides && Object.keys(overrides).length > 0) {
+    try { sp.set('overrides', btoa(JSON.stringify(overrides))); } catch(e) { /* ignore */ }
+  }
+  return '/volt-preview/' + b.props.voltId + (sp.toString() ? '?' + sp.toString() : '');
+}
+
+// ── Volt slot helpers ─────────────────────────────────────────────────────────
+function refreshVoltIframe(bId) {
+  const b = state.blocks.find(function(x){return x.id==bId;}); // eslint-disable-line eqeqeq
+  if (!b) return;
+  const blockEl = document.querySelector('[data-block-id="' + bId + '"]');
+  if (blockEl) {
+    const iframe = blockEl.querySelector('iframe');
+    if (iframe && b.props.voltId) {
+      iframe.src = buildVoltPreviewUrl(b);
+    }
+  }
+}
+
+function updateVoltSlot(bId, key, val) {
+  const b = state.blocks.find(function(x){return x.id==bId;}); // eslint-disable-line eqeqeq
+  if (!b) return;
+  b.props[key] = val;
+  autoSave();
+  refreshVoltIframe(bId);
+}
+
+// ── Volt layer override helpers ────────────────────────────────────────────────
+function updateVoltLayerFill(bId, layerId, fill) {
+  const b = state.blocks.find(function(x){return x.id==bId;}); // eslint-disable-line eqeqeq
+  if (!b) return;
+  if (!b.props.voltLayerOverrides) b.props.voltLayerOverrides = {};
+  if (!b.props.voltLayerOverrides[layerId]) b.props.voltLayerOverrides[layerId] = {};
+  b.props.voltLayerOverrides[layerId].fill = fill;
+  autoSave();
+  refreshVoltIframe(bId);
+}
+
+function updateVoltLayerVisible(bId, layerId, visible) {
+  const b = state.blocks.find(function(x){return x.id==bId;}); // eslint-disable-line eqeqeq
+  if (!b) return;
+  if (!b.props.voltLayerOverrides) b.props.voltLayerOverrides = {};
+  if (!b.props.voltLayerOverrides[layerId]) b.props.voltLayerOverrides[layerId] = {};
+  b.props.voltLayerOverrides[layerId].visible = visible;
+  autoSave();
+  refreshVoltIframe(bId);
+}
+
+function resetVoltLayerOverrides(bId) {
+  const b = state.blocks.find(function(x){return x.id==bId;}); // eslint-disable-line eqeqeq
+  if (!b) return;
+  b.props.voltLayerOverrides = {};
+  autoSave();
+  refreshVoltIframe(bId);
+  renderPropsPanel();
+}
 
 // ── Carousel helpers ──────────────────────────────────────────────────────────
 function toggleCarouselMode(bId, enable) {

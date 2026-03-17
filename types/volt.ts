@@ -216,6 +216,21 @@ export interface VoltElementData {
   updatedAt: string
 }
 
+/**
+ * Per-instance layer overrides for a Volt block placed in the Flexible Designer.
+ * Stored in block.props.voltLayerOverrides and applied at render time
+ * without modifying the master Volt design.
+ */
+export interface VoltLayerInstanceOverride {
+  /** Hex fill color override for solid-fill vector layers */
+  fill?: string
+  /** Hide or show the layer for this instance */
+  visible?: boolean
+}
+
+/** Map of layerId → override settings */
+export type VoltInstanceOverrides = Record<string, VoltLayerInstanceOverride>
+
 export interface VoltSlotMap {
   [slotId: string]: string
 }

@@ -952,7 +952,7 @@ Each zone boundary is a CSS scroll-snap point — scrolling snaps cleanly to eac
 const FLEXIBLE_ELEMENTS = `
 # Flexible Sections — Element Types
 
-The block panel on the left contains **12 element types**. **Card, Banner, and Stats** now use the same free-positioning sub-element system as Text Block — all content is draggable, dblclick editable, and the block auto-resizes in all directions.
+The block panel on the left contains **13 element types**. **Card, Banner, and Stats** now use the same free-positioning sub-element system as Text Block — all content is draggable, dblclick editable, and the block auto-resizes in all directions.
 
 ---
 
@@ -1055,6 +1055,21 @@ When a heading or paragraph has no content yet, the canvas shows a **dimmed ital
 | Border Radius | Rounded corners |
 | Shadow | Drop shadow preset |
 | Animation | Entry animation type |
+
+### Image Carousel / Multi-image Slider
+
+Toggle **Carousel mode** in the Properties panel to turn any Image block into a multi-image slider.
+
+| Property | Description |
+|----------|-------------|
+| **Carousel mode** | Toggle on/off |
+| **Columns** | 1–4 images side-by-side per slide |
+| **Display mode** | Static (all columns always visible) or Slideshow (auto-advances) |
+| **Transition** | Slide or Fade |
+| **Interval** | Auto-advance interval in seconds (Slideshow only) |
+| **Images** | Add/remove/reorder images; each has URL + alt text |
+
+When Columns > 1, all columns scroll together as one group. In Slideshow mode with 1 column, the next image fades/slides in automatically.
 
 ---
 
@@ -1275,6 +1290,41 @@ Displays a responsive card grid of completed projects with a **lightbox viewer**
 - Completed date shown where available
 
 > **Admin:** Manage project entries at Admin → Features → Projects. Each project supports a cover image, gallery images (multiple URLs), description, location, and completed date.
+
+---
+
+## 13. Volt ⚡
+
+Embeds a live **Volt Studio** vector design inside the section. The Volt element renders as an interactive, animated SVG with optional slot content.
+
+### Selecting a Volt design
+
+Drag a **Volt** block from the library panel (⚡ Volt tab) onto the canvas. Click **Change** in the Properties panel to open Volt Studio and select or edit a design.
+
+### Content Slots
+
+Slots are placeholder regions in the Volt design that can be filled with live content per-instance:
+
+| Slot | Description |
+|------|-------------|
+| **Title** | Override the design's title slot |
+| **Body** | Override body text |
+| **Icon** | Bootstrap icon class or emoji |
+| **Image** | Upload an image to fill the image slot |
+| **Action label** | Button text |
+
+### Layer Colors (per-instance overrides)
+
+The **Layer Colors** section in the Properties panel lists every vector layer in the Volt design. You can override each layer's fill color and show/hide it for this specific instance — without modifying the master Volt design.
+
+| Control | Description |
+|---------|-------------|
+| **Color picker** | Override the fill color for this instance |
+| **Checkbox** | Show or hide the layer for this instance |
+| **● dot indicator** | Purple dot on the color picker = override active |
+| **Reset** | Remove all overrides, restore master design colors |
+
+> Changes are per-instance only — the master Volt design in Volt Studio is never modified.
 
 ---
 
@@ -1629,7 +1679,7 @@ Light background → dark logo + dark hamburger icon
 
 ---
 
-## Navbar Settings (Admin → Content → Navigation)
+## Navbar Settings (Admin → Content → Navbar)
 
 | Setting | Description |
 |---------|-------------|
@@ -1639,6 +1689,32 @@ Light background → dark logo + dark hamburger icon
 | **CTA Button URL** | Destination link — supports any page or external URL |
 | **CTA Button Style** | solid / outlined / ghost |
 | **Navbar Background** | Opaque color when scrolled (default: transparent) |
+
+---
+
+## Navbar Style
+
+| Style | Description |
+|-------|-------------|
+| **Standard** | Single-row navbar — logo + navigation links |
+| **Tall** | Two-row navbar — phone number on top row, logo + nav on bottom row |
+
+Toggle between styles at **Admin → Content → Navbar → Navbar Style**.
+
+When **Tall** is selected, the phone number is pulled from **Admin → Settings → Site Config → Contact Details**. If no phone number is set, a warning appears with a link to Site Config.
+
+---
+
+## Navbar Links (Admin → Content → Navbar Links)
+
+Manage which links appear in the navbar and in what order.
+
+| Setting | Description |
+|---------|-------------|
+| **Show on Navbar** | Toggle — include or exclude this link from the navbar |
+| **Drag handle** | Reorder links by dragging (desktop only) |
+
+Links can be section anchors (landing page sections) or custom pages. Order is saved live — the navbar polls for changes every 5 seconds.
 `;
 
 const SETTINGS_PAGE = `
@@ -3143,6 +3219,20 @@ The cutter is shown with an orange **CUTTER ✂** badge and dashed orange outlin
 The base is shown with a teal **BASE** badge.
 
 > **Cutter position is saved on mouse-up** — no extra Save needed. Esc confirms and returns to normal selection mode.
+
+---
+
+## Slot Layers & Boolean Ops
+
+Boolean operations **cannot be applied to slot layers**. Slot layers define content placeholders — they have no editable vector path.
+
+If your selection includes any slot layers (via marquee or Ctrl+click multi-select):
+- The Boolean Ops panel shows **N/A — slots selected**
+- The Union / Sub / Isect buttons are disabled
+- The CUTTER ✂ and BASE overlays do not appear on the canvas
+- Shift-click to set a boolean base is ignored
+
+To use boolean ops, select only **vector** layers (shapes, paths, ellipses, rectangles, polygons).
 
 ---
 

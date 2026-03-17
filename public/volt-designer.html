@@ -726,7 +726,7 @@
         }
       });
       // Boolean base outline (teal) — drawn first so cutter outline renders on top
-      if(state.boolBaseId&&state.boolBaseId!==state.selectedLayerId){
+      if(state.boolBaseId&&state.boolBaseId!==state.selectedLayerId&&!hasSlotInMultiSel()){
         var bbl=state.element.layers.find(function(l){return l.id===state.boolBaseId;});
         if(bbl){
           var bbx=topx(bbl.x,CW),bby=topx(bbl.y,CH),bbw=topx(bbl.width,CW),bbh=topx(bbl.height,CH);
@@ -747,7 +747,8 @@
         if(sel){
           var rx=topx(sel.x,CW),ry=topx(sel.y,CH),rw=topx(sel.width,CW),rh=topx(sel.height,CH);
           // When bool base is chosen, show cutter in orange; otherwise normal blue
-          var isCutterMode=!!(state.boolBaseId&&state.boolBaseId!==state.selectedLayerId);
+          // Never show cutter mode for slot layers or when multi-slot selection is active
+          var isCutterMode=!!(state.boolBaseId&&state.boolBaseId!==state.selectedLayerId&&sel.type!=='slot'&&!hasSlotInMultiSel());
           var selColor=isCutterMode?'#f97316':'#0d6efd';
           var sw1=((isCutterMode?2.5:0.75)/state.zoom).toFixed(3);var dd=(5/state.zoom).toFixed(1)+' '+(3/state.zoom).toFixed(1);
           if(isCutterMode){
@@ -1049,8 +1050,11 @@
         var hit=hitTest(pt);
         if(hit&&!hit.locked){
           // Shift+click on a different layer → assign as boolean base (keep cutter selected)
+          // Not allowed if either layer is a slot (no boolean ops on slots)
           if(e.shiftKey&&state.selectedLayerId&&hit.id!==state.selectedLayerId){
-            state.boolBaseId=hit.id;renderAll();return;
+            var _selForBool=state.element.layers.find(function(l){return l.id===state.selectedLayerId;});
+            if(hit.type!=='slot'&&_selForBool&&_selForBool.type!=='slot'){state.boolBaseId=hit.id;renderAll();return;}
+            return;
           }
           dragSt={layerId:hit.id,startPt:pt,startX:hit.x,startY:hit.y,origPath:hit.vectorData?hit.vectorData.pathData:null,moved:false,altDuped:false,isCutter:hit.boolRole==='cutter',cutterParentId:hit.boolParentId||null};
           // When clicking a cutter in bool-edit mode, stay in bool-edit (don't call selectLayer which would clear boolEditParentId)
@@ -1444,7 +1448,11 @@
             if(!state.selectedLayerId)state.selectedLayerId=layer.id;
             renderLayers();return;
           }
-          if(ev.shiftKey&&state.selectedLayerId&&layer.id!==state.selectedLayerId){state.boolBaseId=layer.id;renderAll();}
+          if(ev.shiftKey&&state.selectedLayerId&&layer.id!==state.selectedLayerId){
+            // No boolean ops on slots — Shift+click on/from a slot does nothing
+            var _curSel=state.element.layers.find(function(l){return l.id===state.selectedLayerId;});
+            if(layer.type!=='slot'&&_curSel&&_curSel.type!=='slot'){state.boolBaseId=layer.id;renderAll();}
+          }
           else if(layer.id!==state.selectedLayerId){
             if(onName){_lyrDblClick={id:layer.id,time:Date.now()};}
             selectLayer(layer.id);
@@ -1589,10 +1597,30 @@
       renderBoolPanel();
     }
     // ── Boolean ops panel ─────────────────────────────────────────────────────
+    /** Returns true when 2+ layers are selected and at least one is a slot —
+     *  boolean ops cannot be applied to slot layers. */
+    function hasSlotInMultiSel(){
+      if(state.multiSelectIds.length<2)return false;
+      return state.multiSelectIds.some(function(id){
+        var l=state.element.layers.find(function(l){return l.id===id;});
+        return l&&l.type==='slot';
+      });
+    }
     function renderBoolPanel(){
       var cutterNameEl=document.getElementById('bool-cutter-name');
       var basePicker=document.getElementById('bool-base-picker');
       if(!cutterNameEl||!basePicker)return;
+      // Disable entire panel when selection contains slot layers (no bool ops on slots)
+      var slotBlock=hasSlotInMultiSel();
+      var boolBtns=['btn-bool-union','btn-bool-subtract','btn-bool-intersect'];
+      boolBtns.forEach(function(id){var b=document.getElementById(id);if(b)b.disabled=slotBlock;});
+      if(slotBlock){
+        state.boolBaseId=null;
+        cutterNameEl.textContent='N/A — slots selected';
+        while(basePicker.firstChild)basePicker.removeChild(basePicker.firstChild);
+        var na=document.createElement('option');na.value='';na.textContent='N/A — slots selected';basePicker.appendChild(na);
+        return;
+      }
       var sel=state.selectedLayerId?state.element.layers.find(function(l){return l.id===state.selectedLayerId;}):null;
       cutterNameEl.textContent=(sel&&sel.type==='vector')?sel.name:'Select a vector shape first';
       while(basePicker.firstChild)basePicker.removeChild(basePicker.firstChild);

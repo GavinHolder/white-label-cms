@@ -39,6 +39,7 @@ export default async function RootLayout({
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
   const isAdminRoute = pathname.startsWith("/admin");
+  const isIsolatedRoute = pathname.startsWith("/volt-preview");
 
   // JSON-LD structured data — only injected when admin has configured it
   // buildStructuredData() returns null when disabled or business name is empty
@@ -62,17 +63,21 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         style={{ margin: 0, padding: 0 }}
       >
-        <ScrollRestoration />
-        <ClientLayout showNavigation={!isAdminRoute}>
-          {!isAdminRoute && <Navbar />}
-          {isAdminRoute ? (
-            children
-          ) : (
-            <main>
-              {children}
-            </main>
-          )}
-        </ClientLayout>
+        {isIsolatedRoute ? children : (
+          <>
+            <ScrollRestoration />
+            <ClientLayout showNavigation={!isAdminRoute}>
+              {!isAdminRoute && <Navbar />}
+              {isAdminRoute ? (
+                children
+              ) : (
+                <main>
+                  {children}
+                </main>
+              )}
+            </ClientLayout>
+          </>
+        )}
       </body>
     </html>
   );

@@ -58,6 +58,11 @@ export default function NavbarEditorPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // ── Navbar style (stored in site-config) ──────────────────────────────────
+  const [navbarStyle, setNavbarStyle] = useState<"standard" | "tall">("standard");
+  const [sitePhone, setSitePhone] = useState("");
+  const [styleSaving, setStyleSaving] = useState(false);
+
   // ── CTA link mode ─────────────────────────────────────────────────────────
   const [ctaLinkTarget, setCtaLinkTarget] = useState<LinkTarget>({
     mode: "external",
@@ -96,7 +101,18 @@ export default function NavbarEditorPage() {
         setLoading(false);
       }
     }
+    async function loadSiteConfig() {
+      try {
+        const res = await fetch("/api/site-config");
+        if (!res.ok) return;
+        const { data } = await res.json();
+        if (data?.navbarStyle) setNavbarStyle(data.navbarStyle as "standard" | "tall");
+        if (data?.phone) setSitePhone(data.phone);
+      } catch {}
+    }
+
     loadConfig();
+    loadSiteConfig();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -169,6 +185,27 @@ export default function NavbarEditorPage() {
           }
         : prev
     );
+  }
+
+  // ── Save navbar style (site-config) ──────────────────────────────────────
+
+  async function saveNavbarStyle(style: "standard" | "tall") {
+    setNavbarStyle(style);
+    setStyleSaving(true);
+    try {
+      const res = await fetch("/api/site-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ navbarStyle: style }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error?.message || "Save failed");
+      showAlert("success", "Navbar style saved — reload the live site to see the change.");
+    } catch (err: any) {
+      showAlert("error", err.message || "Failed to save navbar style.");
+    } finally {
+      setStyleSaving(false);
+    }
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────
@@ -423,6 +460,55 @@ export default function NavbarEditorPage() {
 
       {/* ══ SETTINGS ════════════════════════════════════════════════════════════ */}
       <div className="row g-4">
+
+        {/* ── Navbar Style ─────────────────────────────────────────────────── */}
+        <div className="col-12">
+          <div className="card shadow-sm">
+            <div className="card-header d-flex align-items-center gap-2 py-2">
+              <i className="bi bi-layout-navbar text-primary" />
+              <strong className="small">Navbar Style</strong>
+              {styleSaving && <span className="spinner-border spinner-border-sm ms-2 text-primary" />}
+            </div>
+            <div className="card-body">
+              <div className="d-flex gap-3">
+                {([
+                  { value: "standard" as const, label: "Standard", desc: "Logo · Nav links · CTA button", icon: "bi-layout-navbar" },
+                  { value: "tall" as const, label: "Tall + Contact", desc: "Logo · Links · Phone number + social icons", icon: "bi-telephone-fill" },
+                ] as const).map((opt) => (
+                  <label key={opt.value}
+                    className="d-flex align-items-start gap-2 p-3 rounded border"
+                    style={{
+                      flex: 1, cursor: "pointer",
+                      borderColor: navbarStyle === opt.value ? "#0d6efd" : "#dee2e6",
+                      background: navbarStyle === opt.value ? "#eff6ff" : "#fff",
+                      transition: "all 150ms",
+                    }}
+                  >
+                    <input type="radio" name="navbarStyle" value={opt.value}
+                      checked={navbarStyle === opt.value}
+                      onChange={() => saveNavbarStyle(opt.value)}
+                      className="mt-1 flex-shrink-0" />
+                    <div>
+                      <div className="fw-semibold small"><i className={`bi ${opt.icon} me-1`} />{opt.label}</div>
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>{opt.desc}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              {navbarStyle === "tall" && !sitePhone && (
+                <div className="alert alert-warning mt-3 py-2 px-3 mb-0 small d-flex align-items-center gap-3">
+                  <div className="flex-grow-1">
+                    <i className="bi bi-exclamation-triangle me-1" />
+                    Add a phone number in <strong>Contact Details</strong> — it will appear in the tall navbar.
+                  </div>
+                  <a href="/admin/settings/site-config" className="btn btn-sm btn-warning text-dark fw-semibold flex-shrink-0" style={{ whiteSpace: "nowrap" }}>
+                    <i className="bi bi-gear me-1" />Go to Site Config
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* ── Logo ─────────────────────────────────────────────────────────── */}
         <div className="col-12">

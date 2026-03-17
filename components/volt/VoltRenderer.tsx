@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef } from 'react'
-import type { VoltElementData, VoltSlots } from '@/types/volt'
+import type { VoltElementData, VoltSlots, VoltInstanceOverrides } from '@/types/volt'
 import { sortLayersByZ } from '@/lib/volt/volt-utils'
 import { personalityToAnimeConfig } from '@/lib/volt/personality-to-anime'
 import VoltSvgLayer from './VoltSvgLayer'
@@ -12,11 +12,13 @@ type AnimeAnimation = { cancel: () => void }
 interface Props {
   voltElement: VoltElementData
   slots?: VoltSlots
+  /** Per-instance layer overrides — applied without modifying the master Volt design */
+  instanceOverrides?: VoltInstanceOverrides
   className?: string
   style?: React.CSSProperties
 }
 
-export default function VoltRenderer({ voltElement, slots = {}, className, style }: Props) {
+export default function VoltRenderer({ voltElement, slots = {}, instanceOverrides, className, style }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   // Track in-flight animations so cleanup can cancel them (anime v4 pattern).
   const activeAnimationsRef = useRef<AnimeAnimation[]>([])
@@ -135,6 +137,7 @@ export default function VoltRenderer({ voltElement, slots = {}, className, style
               layer={layer}
               canvasWidth={canvasWidth}
               canvasHeight={canvasHeight}
+              instanceOverride={instanceOverrides?.[layer.id]}
             />
           ))}
       </svg>

@@ -1,14 +1,16 @@
 'use client'
-import type { VoltLayer } from '@/types/volt'
+import type { VoltLayer, VoltLayerInstanceOverride } from '@/types/volt'
 
 interface Props {
   layer: VoltLayer
   canvasWidth: number
   canvasHeight: number
+  instanceOverride?: VoltLayerInstanceOverride
 }
 
-export default function VoltSvgLayer({ layer, canvasWidth, canvasHeight }: Props) {
-  if (!layer.visible || layer.type !== 'vector' || !layer.vectorData) return null
+export default function VoltSvgLayer({ layer, canvasWidth, canvasHeight, instanceOverride }: Props) {
+  const isVisible = instanceOverride?.visible !== undefined ? instanceOverride.visible : layer.visible
+  if (!isVisible || layer.type !== 'vector' || !layer.vectorData) return null
 
   const { vectorData, opacity, blendMode, rotation, x, y, width, height } = layer
   const ax = (x / 100) * canvasWidth
@@ -22,7 +24,9 @@ export default function VoltSvgLayer({ layer, canvasWidth, canvasHeight }: Props
   const stroke = vectorData.stroke
   const primaryFill = fills[0]
   let fillAttr = 'none'
-  if (primaryFill?.type === 'solid' && primaryFill.color) {
+  if (instanceOverride?.fill) {
+    fillAttr = instanceOverride.fill
+  } else if (primaryFill?.type === 'solid' && primaryFill.color) {
     fillAttr = primaryFill.color
   }
 
