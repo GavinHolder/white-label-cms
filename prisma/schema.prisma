@@ -618,6 +618,9 @@ model SiteConfig {
   twitter       String   @default("")
   linkedin      String   @default("")
   youtube       String   @default("")
+  tiktok        String   @default("")
+  // Navbar
+  navbarStyle   String   @default("standard")
   // Footer
   copyrightText String   @default("")
   showRegulatory Boolean @default(false)

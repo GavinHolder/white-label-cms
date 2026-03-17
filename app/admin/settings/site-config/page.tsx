@@ -21,6 +21,8 @@ interface SiteConfig {
   twitter: string;
   linkedin: string;
   youtube: string;
+  tiktok: string;
+  navbarStyle: string;
   copyrightText: string;
   showRegulatory: boolean;
 }
@@ -28,7 +30,8 @@ interface SiteConfig {
 const DEFAULTS: SiteConfig = {
   companyName: "", tagline: "", logoUrl: "", faviconUrl: "",
   phone: "", email: "", address: "", city: "", postalCode: "", country: "",
-  facebook: "", instagram: "", twitter: "", linkedin: "", youtube: "",
+  facebook: "", instagram: "", twitter: "", linkedin: "", youtube: "", tiktok: "",
+  navbarStyle: "standard",
   copyrightText: "", showRegulatory: false,
 };
 
@@ -260,20 +263,65 @@ function SiteConfigForm() {
         <div className="card-body p-3">
           <div className="row g-3">
             {([
-              ["facebook", "bi-facebook", "Facebook URL"],
-              ["instagram", "bi-instagram", "Instagram URL"],
-              ["twitter", "bi-twitter-x", "Twitter / X URL"],
-              ["linkedin", "bi-linkedin", "LinkedIn URL"],
-              ["youtube", "bi-youtube", "YouTube URL"],
-            ] as const).map(([field, icon, placeholder]) => (
+              ["facebook", "bi-facebook", "Facebook"],
+              ["instagram", "bi-instagram", "Instagram"],
+              ["tiktok", "bi-tiktok", "TikTok"],
+              ["twitter", "bi-twitter-x", "Twitter / X"],
+              ["linkedin", "bi-linkedin", "LinkedIn"],
+              ["youtube", "bi-youtube", "YouTube"],
+            ] as const).map(([field, icon, label]) => (
               <div key={field} className="col-12 col-md-6">
                 <label className="form-label small fw-semibold mb-1">
-                  <i className={`bi ${icon} me-1`} />{placeholder.replace(" URL", "")}
+                  <i className={`bi ${icon} me-1`} />{label}
                 </label>
-                <input className="form-control form-control-sm" value={config[field]}
-                  onChange={(e) => set(field, e.target.value)} placeholder={`https://…`} />
+                <input className="form-control form-control-sm" value={config[field as keyof SiteConfig] as string}
+                  onChange={(e) => set(field as keyof SiteConfig, e.target.value)} placeholder="https://…" />
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Navbar Style */}
+      <div className="card shadow-sm">
+        <div className="card-header py-2 px-3 fw-semibold" style={{ fontSize: "0.875rem" }}>
+          <i className="bi bi-layout-navbar me-2 text-primary" />Navbar Style
+        </div>
+        <div className="card-body p-3">
+          <div className="row g-3">
+            <div className="col-12">
+              <div className="d-flex gap-3">
+                {[
+                  { value: "standard", label: "Standard", desc: "Logo · Links · CTA button", icon: "bi-layout-navbar" },
+                  { value: "tall", label: "Tall + Contact", desc: "Logo · Links · Phone + social icons", icon: "bi-telephone-fill" },
+                ].map((opt) => (
+                  <label key={opt.value}
+                    className="d-flex align-items-start gap-2 p-3 rounded border cursor-pointer"
+                    style={{
+                      flex: 1, cursor: "pointer",
+                      borderColor: config.navbarStyle === opt.value ? "#0d6efd" : "#dee2e6",
+                      background: config.navbarStyle === opt.value ? "#eff6ff" : "#fff",
+                      transition: "all 150ms",
+                    }}
+                  >
+                    <input type="radio" name="navbarStyle" value={opt.value}
+                      checked={config.navbarStyle === opt.value}
+                      onChange={() => set("navbarStyle", opt.value)}
+                      className="mt-1 flex-shrink-0" />
+                    <div>
+                      <div className="fw-semibold small"><i className={`bi ${opt.icon} me-1`} />{opt.label}</div>
+                      <div className="text-muted" style={{ fontSize: "0.75rem" }}>{opt.desc}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              {config.navbarStyle === "tall" && !config.phone && (
+                <div className="alert alert-warning mt-2 py-2 px-3 mb-0" style={{ fontSize: "0.8rem" }}>
+                  <i className="bi bi-exclamation-triangle me-1" />
+                  Add a phone number in Contact Details above — it will appear in the tall navbar.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
