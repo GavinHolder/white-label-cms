@@ -369,11 +369,11 @@ function FormPageRenderer({ page }: { page: FormPageConfig }) {
                     onChange={(e) => handleChange(field.name, e.target.value)}
                   >
                     <option value="">Select an option...</option>
-                    {field.options?.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
+                    {field.options?.map((opt) => {
+                      const val = typeof opt === "string" ? opt : opt.value;
+                      const lbl = typeof opt === "string" ? opt : opt.label;
+                      return <option key={val} value={val}>{lbl}</option>;
+                    })}
                   </select>
                 ) : field.type === "checkbox" ? (
                   <div className="form-check">

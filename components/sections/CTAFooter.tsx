@@ -113,8 +113,8 @@ export default function CTAFooter({
     // Validate required fields
     const errors: Record<string, string> = {};
     for (const field of formFields) {
-      if (field.required && !formValues[field.name]?.trim()) {
-        errors[field.name] = `${field.label} is required`;
+      if (field.required && !formValues[field.id]?.trim()) {
+        errors[field.id] = `${field.label} is required`;
       }
     }
     if (Object.keys(errors).length > 0) {
@@ -135,10 +135,10 @@ export default function CTAFooter({
     try {
       const fields = (formFields || []).map((f) => ({
         label: f.label,
-        value: formValues[f.name] || "",
+        value: formValues[f.id] || "",
       }));
       const emailField = (formFields || []).find((f) => f.type === "email");
-      const userEmail = emailField ? formValues[emailField.name] : "";
+      const userEmail = emailField ? formValues[emailField.id] : "";
 
       await fetch("/api/forms/submit", {
         method: "POST",
@@ -168,7 +168,7 @@ export default function CTAFooter({
         "--section-pb": `${bottomPad}px`,
       } as React.CSSProperties}
     >
-      <div className="section-content-wrapper" style={{ justifyContent: "center" }}>
+      <div className="section-content-wrapper" style={{ justifyContent: "center", overflowY: "auto" }}>
         <div
           className="container-fluid px-4"
           style={{
@@ -227,31 +227,33 @@ export default function CTAFooter({
 
                         {field.type === "textarea" ? (
                           <textarea
-                            className={`form-control ${formErrors[field.name] ? "is-invalid" : ""}`}
+                            className={`form-control ${formErrors[field.id] ? "is-invalid" : ""}`}
                             rows={3}
                             placeholder={field.placeholder}
-                            value={formValues[field.name] || ""}
-                            onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                            value={formValues[field.id] || ""}
+                            onChange={(e) => handleFieldChange(field.id, e.target.value)}
                           />
                         ) : field.type === "select" ? (
                           <select
-                            className={`form-select ${formErrors[field.name] ? "is-invalid" : ""}`}
-                            value={formValues[field.name] || ""}
-                            onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                            className={`form-select ${formErrors[field.id] ? "is-invalid" : ""}`}
+                            value={formValues[field.id] || ""}
+                            onChange={(e) => handleFieldChange(field.id, e.target.value)}
                           >
                             <option value="">Select…</option>
-                            {field.options?.map((opt) => (
-                              <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
+                            {field.options?.map((opt) => {
+                              const val = typeof opt === "string" ? opt : opt.value;
+                              const lbl = typeof opt === "string" ? opt : opt.label;
+                              return <option key={val} value={val}>{lbl}</option>;
+                            })}
                           </select>
                         ) : field.type === "checkbox" ? (
                           <div className="form-check">
                             <input
                               type="checkbox"
-                              className={`form-check-input ${formErrors[field.name] ? "is-invalid" : ""}`}
+                              className={`form-check-input ${formErrors[field.id] ? "is-invalid" : ""}`}
                               id={`cta-field-${field.id}`}
-                              checked={formValues[field.name] === "true"}
-                              onChange={(e) => handleFieldChange(field.name, e.target.checked ? "true" : "")}
+                              checked={formValues[field.id] === "true"}
+                              onChange={(e) => handleFieldChange(field.id, e.target.checked ? "true" : "")}
                             />
                             <label
                               className={`form-check-label ${isBlueBackground ? "text-white" : ""}`}
@@ -263,16 +265,16 @@ export default function CTAFooter({
                         ) : (
                           <input
                             type={field.type === "email" ? "email" : field.type === "phone" ? "tel" : "text"}
-                            className={`form-control ${formErrors[field.name] ? "is-invalid" : ""}`}
+                            className={`form-control ${formErrors[field.id] ? "is-invalid" : ""}`}
                             placeholder={field.placeholder}
-                            value={formValues[field.name] || ""}
-                            onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                            value={formValues[field.id] || ""}
+                            onChange={(e) => handleFieldChange(field.id, e.target.value)}
                           />
                         )}
 
-                        {formErrors[field.name] && (
+                        {formErrors[field.id] && (
                           <div className="invalid-feedback d-block" style={{ fontSize: 12 }}>
-                            {formErrors[field.name]}
+                            {formErrors[field.id]}
                           </div>
                         )}
                       </div>

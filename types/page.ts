@@ -73,5 +73,5 @@ export interface FormField {
   name: string;
   required: boolean;
   placeholder?: string;
-  options?: Array<{ value: string; label: string }>;
+  options?: Array<string | { value: string; label: string }>;
 }

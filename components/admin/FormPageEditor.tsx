@@ -338,7 +338,7 @@ function FieldEditorModal({ field, onSave, onCancel }: FieldEditorModalProps) {
   const [required, setRequired] = useState(field.required);
   const [placeholder, setPlaceholder] = useState(field.placeholder || "");
   const [options, setOptions] = useState<Array<{ value: string; label: string }>>(
-    field.options || []
+    (field.options || []).map((o) => typeof o === "string" ? { value: o, label: o } : o)
   );
 
   const handleSave = () => {
