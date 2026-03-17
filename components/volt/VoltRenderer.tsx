@@ -16,9 +16,11 @@ interface Props {
   instanceOverrides?: VoltInstanceOverrides
   className?: string
   style?: React.CSSProperties
+  /** Called whenever hover state changes — lets VoltBlock drive 3D hover animations */
+  onHoverChange?: (hovered: boolean) => void
 }
 
-export default function VoltRenderer({ voltElement, slots = {}, instanceOverrides, className, style }: Props) {
+export default function VoltRenderer({ voltElement, slots = {}, instanceOverrides, className, style, onHoverChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   // Track in-flight animations so cleanup can cancel them (anime v4 pattern).
   const activeAnimationsRef = useRef<AnimeAnimation[]>([])
@@ -95,10 +97,10 @@ export default function VoltRenderer({ voltElement, slots = {}, instanceOverride
       }
     }
 
-    const onEnter = () => transitionToState('hover')
-    const onLeave = () => transitionToState('rest')
-    const onFocus  = () => transitionToState('focus')
-    const onBlur   = () => transitionToState('rest')
+    const onEnter = () => { transitionToState('hover'); onHoverChange?.(true) }
+    const onLeave = () => { transitionToState('rest');  onHoverChange?.(false) }
+    const onFocus  = () => { transitionToState('focus'); onHoverChange?.(true) }
+    const onBlur   = () => { transitionToState('rest');  onHoverChange?.(false) }
 
     el.addEventListener('mouseenter', onEnter)
     el.addEventListener('mouseleave', onLeave)
@@ -152,6 +154,37 @@ export default function VoltRenderer({ voltElement, slots = {}, instanceOverride
             canvasHeight={canvasHeight}
             slots={slots}
           />
+        ))}
+
+      {sortedLayers
+        .filter(l => l.type === 'image' && l.visible !== false && l.imageData?.url)
+        .map(layer => (
+          <div
+            key={layer.id}
+            id={`volt-layer-${layer.id}`}
+            style={{
+              position: 'absolute',
+              left: `${layer.x}%`,
+              top: `${layer.y}%`,
+              width: `${layer.width}%`,
+              height: `${layer.height}%`,
+              opacity: layer.opacity ?? 1,
+              transform: layer.rotation ? `rotate(${layer.rotation}deg)` : undefined,
+              overflow: 'hidden',
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={layer.imageData!.url}
+              alt={layer.imageData!.alt ?? ''}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: layer.imageData!.mode === 'fit' ? 'contain' : 'cover',
+                display: 'block',
+              }}
+            />
+          </div>
         ))}
     </div>
   )

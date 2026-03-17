@@ -4081,7 +4081,7 @@ function renderTypeProps(block) {
           <div style="font-size:12px;font-weight:700;color:#1e1b4b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(vName)}</div>
           ${p.voltId ? `<div style="font-size:10px;color:#adb5bd;">ID: ${escHtml(p.voltId.substring(0,8))}&hellip;</div>` : ''}
         </div>
-        <button class="action-btn" style="flex-shrink:0;background:#1e1b4b;color:#a5b4fc;border-color:#4f46e5;font-size:11px;padding:4px 8px;" onclick="openVoltModal('${block.id}')"><i class="bi bi-pencil"></i> Change</button>
+        <button class="action-btn" style="width:auto;margin-bottom:0;flex-shrink:0;background:#1e1b4b;color:#a5b4fc;border-color:#4f46e5;font-size:11px;padding:4px 8px;" onclick="openVoltModal('${block.id}')"><i class="bi bi-pencil"></i> Change</button>
       </div>`;
       // Slot overrides
       h+=`<div style="margin-bottom:6px;">

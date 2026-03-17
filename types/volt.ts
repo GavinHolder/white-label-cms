@@ -117,6 +117,12 @@ export interface VoltTextDecorationData {
   stroke?: VoltStroke
 }
 
+export type Volt3DAnimTrigger = '3d-hover' | '3d-auto' | 'none'
+export type Volt3DEasing = 'linear' | 'easeIn' | 'easeOut' | 'easeInOut' | 'spring'
+
+export interface Volt3DPos { x: number; y: number; z: number }
+export interface Volt3DRot { x: number; y: number; z: number }
+
 export interface VoltObject3DData {
   assetId: string
   assetUrl: string
@@ -146,6 +152,29 @@ export interface VoltObject3DData {
     action: 'scrollToSection' | 'snapToSection' | 'scrollToElement' | 'highlightElement'
     targetId: string
   }>
+  // ── 3D Animation System ──────────────────────────────────────────────────
+  /** World-space position when at rest / trigger not active */
+  positionStart?: Volt3DPos
+  /** World-space position when trigger is active */
+  positionEnd?: Volt3DPos
+  /** Uniform scale multiplier at rest (applied on top of GLB normalisation) */
+  scaleStart?: number
+  /** Uniform scale multiplier when trigger is active */
+  scaleEnd?: number
+  /** Euler rotation (degrees) at rest */
+  rotationStart?: Volt3DRot
+  /** Euler rotation (degrees) when trigger is active */
+  rotationEnd?: Volt3DRot
+  /** What fires the animation: hover over the Volt card, continuous auto loop, or disabled */
+  animTrigger?: Volt3DAnimTrigger
+  /** Transition duration in milliseconds (default 600) */
+  transitionDuration?: number
+  /** Easing curve for the transition (default easeOut) */
+  transitionEasing?: Volt3DEasing
+  /** Delay before transition starts in ms (default 0) */
+  transitionDelay?: number
+  /** For animTrigger='3d-auto': period of one full oscillation in ms (default 2000) */
+  autoPeriod?: number
 }
 
 export interface VoltLayer {

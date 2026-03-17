@@ -241,6 +241,16 @@
             </button>
           </div>
         </div>
+        <div class="panel">
+          <div class="panel-header collapsed" data-panel="images">
+            <i class="bi bi-image"></i> Images <i class="bi bi-chevron-down chevron"></i>
+          </div>
+          <div class="panel-body hidden" id="pb-images">
+            <button id="btn-insert-image" class="btn btn-sm btn-outline-success w-100">
+              <i class="bi bi-image me-1"></i>Browse / Place Image
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     <button class="sidebar-toggle" id="toggle-left"><i class="bi bi-chevron-left" id="toggle-left-icon"></i></button>
@@ -355,6 +365,25 @@
       </div>
     </div>
   </div>
+<!-- Image Picker Modal -->
+<div id="img-picker-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;width:680px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="padding:14px 18px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;">
+      <i class="bi bi-image" style="color:#10b981;font-size:18px;"></i>
+      <span style="font-size:14px;font-weight:700;color:#212529;">Place Image</span>
+      <div class="ms-auto d-flex gap-2 align-items-center">
+        <input id="img-picker-search" type="text" placeholder="Search..." style="font-size:12px;padding:4px 10px;border:1px solid #dee2e6;border-radius:6px;width:160px;" />
+        <button id="img-picker-close" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i></button>
+      </div>
+    </div>
+    <div id="img-picker-grid" style="flex:1;overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;"></div>
+    <div style="padding:10px 18px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:10px;color:#6c757d;">Or paste URL:</span>
+      <input id="img-picker-url" type="text" placeholder="https://..." style="flex:1;font-size:11px;padding:4px 8px;border:1px solid #dee2e6;border-radius:5px;" />
+      <button id="img-picker-url-insert" class="btn btn-sm btn-success" style="font-size:11px;">Insert</button>
+    </div>
+  </div>
+</div>
 <!-- Canvas right-click context menu (must be before <script> so getElementById works during IIFE init) -->
 <div id="canvas-ctx-menu">
   <div class="ctx-item" id="ctx-to-front"><i class="bi bi-front"></i> Bring to Front</div>
@@ -608,7 +637,7 @@
       var sorted=state.element.layers.slice().sort(function(a,b){return a.zIndex-b.zIndex;});
       // Compute max z-index for slots and non-slots (for DOM stacking order fix below)
       var _maxSlotZ=-Infinity,_maxVecZ=-Infinity;
-      state.element.layers.forEach(function(l){if(l.visible===false)return;var z=l.zIndex||0;if(l.type==='slot')_maxSlotZ=Math.max(_maxSlotZ,z);else if(l.type==='vector'||l.type==='3d-object')_maxVecZ=Math.max(_maxVecZ,z);});
+      state.element.layers.forEach(function(l){if(l.visible===false)return;var z=l.zIndex||0;if(l.type==='slot')_maxSlotZ=Math.max(_maxSlotZ,z);else if(l.type==='vector'||l.type==='3d-object'||l.type==='image')_maxVecZ=Math.max(_maxVecZ,z);});
       sorted.forEach(function(layer){
         // Cutter layers: visible:false normally, but show in bool-edit mode OR when showCutter=true
         var _isCutterEdit=layer.boolRole==='cutter'&&state.boolEditParentId===layer.boolParentId;
@@ -754,6 +783,30 @@
             g3d.appendChild(lbl3d);
           }
           svgEl.appendChild(g3d);
+        }
+        if(layer.type==='image'){
+          var rx=topx(layer.x,CW),ry=topx(layer.y,CH),rw=topx(layer.width,CW),rh=topx(layer.height,CH);
+          var imgUrl=(layer.imageData&&layer.imageData.url)||'';
+          if(imgUrl){
+            var gImg=svgNs('g');gImg.id='volt-layer-'+layer.id;
+            var clipImgId='cimg'+layer.id;
+            var clipImgEl=svgNs('clipPath');clipImgEl.setAttribute('id',clipImgId);
+            var clipImgR=svgNs('rect');clipImgR.setAttribute('x',rx);clipImgR.setAttribute('y',ry);clipImgR.setAttribute('width',rw);clipImgR.setAttribute('height',rh);clipImgR.setAttribute('rx','4');
+            clipImgEl.appendChild(clipImgR);svgEl.appendChild(clipImgEl);
+            var imgEl=svgNs('image');imgEl.setAttribute('x',rx);imgEl.setAttribute('y',ry);imgEl.setAttribute('width',rw);imgEl.setAttribute('height',rh);
+            imgEl.setAttribute('href',imgUrl);
+            var imgMode=(layer.imageData&&layer.imageData.mode)||'fill';
+            imgEl.setAttribute('preserveAspectRatio',imgMode==='fit'?'xMidYMid meet':'xMidYMid slice');
+            imgEl.setAttribute('clip-path','url(#'+clipImgId+')');imgEl.setAttribute('opacity',layer.opacity!=null?layer.opacity:1);
+            gImg.appendChild(imgEl);svgEl.appendChild(gImg);
+          } else {
+            var gImgPh=svgNs('g');
+            var rImgPh=svgNs('rect');rImgPh.setAttribute('x',rx);rImgPh.setAttribute('y',ry);rImgPh.setAttribute('width',rw);rImgPh.setAttribute('height',rh);
+            rImgPh.setAttribute('fill','rgba(16,185,129,0.12)');rImgPh.setAttribute('stroke','#10b981');rImgPh.setAttribute('stroke-width',String(1/state.zoom));rImgPh.setAttribute('stroke-dasharray',String(4/state.zoom));rImgPh.setAttribute('rx','4');
+            gImgPh.appendChild(rImgPh);
+            var tImgPh=svgNs('text');tImgPh.setAttribute('x',String(rx+rw/2));tImgPh.setAttribute('y',String(ry+rh/2+4/state.zoom));tImgPh.setAttribute('text-anchor','middle');tImgPh.setAttribute('fill','#059669');tImgPh.setAttribute('font-size',String(10/state.zoom));tImgPh.setAttribute('font-family','system-ui,sans-serif');tImgPh.textContent=layer.name||'Image';
+            gImgPh.appendChild(tImgPh);svgEl.appendChild(gImgPh);
+          }
         }
       });
       // DOM stacking: if any vector has higher zIndex than all slots, move SVG after slot divs
@@ -1881,8 +1934,101 @@
       rrow.appendChild(rinp);rrow.appendChild(rsl);s4r.appendChild(rrow);body.appendChild(s4r);
       if(layer.type==='vector'){renderFillSec(body,layer);renderStrokeSec(body,layer);renderShadowSec(body,layer);}
       else if(layer.type==='3d-object'){render3DPropsSec(body,layer);return;}
+      else if(layer.type==='image'){renderImagePropsSec(body,layer);return;}
       else{renderSlotSec(body,layer);renderShadowSec(body,layer);}
       bindProps(layer);
+    }
+    function renderImagePropsSec(body,layer){
+      if(!layer.imageData)layer.imageData={url:'',alt:'',mode:'fill',opacity:1};
+      var d=layer.imageData;
+      function updI(key,val){var i=state.element.layers.findIndex(function(l){return l.id===layer.id;});if(i<0)return;if(!state.element.layers[i].imageData)state.element.layers[i].imageData={url:'',alt:'',mode:'fill',opacity:1};state.element.layers[i].imageData[key]=val;markDirty();renderAll();}
+      var prevDiv=document.createElement('div');prevDiv.className='prop-group';
+      prevDiv.appendChild(mkLbl('Image'));
+      if(d.url){
+        var thumb=document.createElement('img');thumb.src=d.url;thumb.style.cssText='width:100%;max-height:80px;object-fit:cover;border-radius:6px;border:1px solid #dee2e6;margin-bottom:4px;';
+        prevDiv.appendChild(thumb);
+      }
+      var changeImgBtn=document.createElement('button');changeImgBtn.className='btn btn-xs btn-outline-success w-100 mt-1';changeImgBtn.style.cssText='font-size:10px;padding:2px 6px;';
+      var _cIco=document.createElement('i');_cIco.className='bi bi-image me-1';changeImgBtn.appendChild(_cIco);changeImgBtn.appendChild(document.createTextNode('Browse / Change'));
+      changeImgBtn.addEventListener('click',function(){openImagePicker(function(url){updI('url',url);renderProps();});});
+      prevDiv.appendChild(changeImgBtn);body.appendChild(prevDiv);
+      var modeDiv=document.createElement('div');modeDiv.className='prop-group';
+      modeDiv.appendChild(mkLbl('Fit Mode'));
+      var modeRow=document.createElement('div');modeRow.className='btn-group w-100';modeRow.setAttribute('role','group');
+      [['fill','Fill'],['fit','Fit'],['crop','Crop']].forEach(function(pair){
+        var btn=document.createElement('button');btn.type='button';btn.className='btn btn-sm '+(d.mode===pair[0]?'btn-success':'btn-outline-secondary');btn.style.fontSize='10px';btn.textContent=pair[1];
+        btn.addEventListener('click',function(){updI('mode',pair[0]);renderProps();});
+        modeRow.appendChild(btn);
+      });
+      modeDiv.appendChild(modeRow);body.appendChild(modeDiv);
+      var altDiv=document.createElement('div');altDiv.className='prop-group';
+      altDiv.appendChild(mkLbl('Alt Text'));
+      var altInp=document.createElement('input');altInp.type='text';altInp.className='form-control form-control-sm';altInp.value=d.alt||'';altInp.placeholder='Describe image...';altInp.style.fontSize='11px';
+      altInp.addEventListener('change',function(){updI('alt',altInp.value);});
+      altDiv.appendChild(altInp);body.appendChild(altDiv);
+    }
+    var _imgPickerCallback=null;
+    function openImagePicker(cb){
+      _imgPickerCallback=cb||null;
+      document.getElementById('img-picker-modal').style.display='flex';
+      document.getElementById('img-picker-url').value='';
+      document.getElementById('img-picker-search').value='';
+      loadImagePickerGrid('');
+    }
+    function closeImagePicker(){
+      document.getElementById('img-picker-modal').style.display='none';
+      _imgPickerCallback=null;
+    }
+    function selectImagePickerUrl(url){
+      if(_imgPickerCallback)_imgPickerCallback(url);
+      closeImagePicker();
+    }
+    function loadImagePickerGrid(search){
+      var grid=document.getElementById('img-picker-grid');
+      grid.textContent='';
+      var loading=document.createElement('div');loading.style.cssText='color:#6c757d;font-size:11px;padding:12px;';loading.textContent='Loading...';grid.appendChild(loading);
+      var url='/api/media?perPage=60'+(search?'&search='+encodeURIComponent(search):'');
+      fetch(url).then(function(r){return r.ok?r.json():Promise.reject();}).then(function(data){
+        var items=(data.data&&data.data.assets)||data.data||data.assets||[];
+        grid.textContent='';
+        if(!items.length){var nm=document.createElement('div');nm.style.cssText='color:#6c757d;font-size:11px;padding:12px;';nm.textContent='No images found.';grid.appendChild(nm);return;}
+        var added=0;
+        items.forEach(function(item){
+          var mimeType=item.mimeType||item.type||'';
+          if(mimeType&&!mimeType.startsWith('image/'))return;
+          var fileUrl=item.url||item.filePath||'';if(!fileUrl)return;
+          var card=document.createElement('div');card.style.cssText='cursor:pointer;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;background:#f8fafc;transition:border-color 0.15s,box-shadow 0.15s;';
+          card.addEventListener('mouseenter',function(){card.style.borderColor='#10b981';card.style.boxShadow='0 0 0 2px rgba(16,185,129,0.2)';});
+          card.addEventListener('mouseleave',function(){card.style.borderColor='#e2e8f0';card.style.boxShadow='none';});
+          var img=document.createElement('img');img.src=fileUrl;img.style.cssText='width:100%;height:80px;object-fit:cover;display:block;';img.alt=item.altText||item.filename||'';
+          var lbl=document.createElement('div');lbl.style.cssText='font-size:9px;color:#64748b;padding:3px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+          lbl.textContent=item.filename||item.name||fileUrl.split('/').pop()||'';
+          card.appendChild(img);card.appendChild(lbl);
+          card.addEventListener('click',function(){selectImagePickerUrl(fileUrl);});
+          grid.appendChild(card);added++;
+        });
+        if(!added){var nf=document.createElement('div');nf.style.cssText='color:#6c757d;font-size:11px;padding:12px;';nf.textContent='No images found.';grid.appendChild(nf);}
+      }).catch(function(){var err=document.createElement('div');err.style.cssText='color:#dc3545;font-size:11px;padding:12px;';err.textContent='Failed to load media.';grid.textContent='';grid.appendChild(err);});
+    }
+    function insertImageLayer(url){
+      var layer={
+        id:nanoid(),name:'Image',type:'image',role:'content',
+        x:10,y:10,width:80,height:60,rotation:0,
+        zIndex:(state.element.layers.length?Math.max.apply(null,state.element.layers.map(function(l){return l.zIndex||0;}))+1:0),
+        visible:true,locked:false,opacity:1,blendMode:'normal',
+        imageData:{url:url||'',alt:'',mode:'fill',opacity:1},
+        animation:{character:50,speed:40,style:60,delay:0,animates:{opacity:true,scale:false,position:false,rotation:false,fill:false}}
+      };
+      pushHistory();
+      state.element.layers.push(layer);
+      state.selectedLayerId=layer.id;
+      markDirty();renderAll();renderLayers();renderProps();
+      if(!url){
+        openImagePicker(function(u){
+          var i=state.element.layers.findIndex(function(l){return l.id===layer.id;});
+          if(i>=0){if(!state.element.layers[i].imageData)state.element.layers[i].imageData={url:'',alt:'',mode:'fill',opacity:1};state.element.layers[i].imageData.url=u;markDirty();renderAll();renderProps();}
+        });
+      }
     }
     function renderFillSec(body,layer){
       var fill=layer.vectorData&&layer.vectorData.fills&&layer.vectorData.fills[0];
@@ -2708,6 +2854,16 @@
       markDirty();
       renderAll();
       closeV3DModal();
+    });
+    // ── Image picker modal wiring ─────────────────────────────────────────────
+    document.getElementById('btn-insert-image').addEventListener('click',function(){insertImageLayer('');});
+    document.getElementById('img-picker-close').addEventListener('click',closeImagePicker);
+    document.getElementById('img-picker-modal').addEventListener('click',function(e){if(e.target===this)closeImagePicker();});
+    document.getElementById('img-picker-url-insert').addEventListener('click',function(){
+      var url=document.getElementById('img-picker-url').value.trim();if(url)selectImagePickerUrl(url);
+    });
+    document.getElementById('img-picker-search').addEventListener('input',function(){
+      clearTimeout(this._st);var v=this.value;this._st=setTimeout(function(){loadImagePickerGrid(v);},350);
     });
     // ── Save / Done ───────────────────────────────────────────────────────────
     function captureThumbnail(){

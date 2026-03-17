@@ -9,6 +9,7 @@ import ClientLayout from "@/components/layout/ClientLayout";
 import ScrollRestoration from "@/components/ScrollRestoration";
 import { headers } from "next/headers";
 import { fetchSeoConfig, buildStructuredData } from "@/lib/metadata-generator";
+import prisma from "@/lib/prisma";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,11 +26,33 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export const metadata: Metadata = {
-  title: "Your Company - Website",
-  description:
-    "Professional services for your region.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const companyName = config?.companyName || "Your Company";
+    const faviconUrl = config?.faviconUrl || "";
+    return {
+      title: `${companyName} - Website`,
+      description: "Professional services for your region.",
+      ...(faviconUrl ? { icons: { icon: faviconUrl } } : {}),
+    };
+  } catch {
+    return {
+      title: "Your Company - Website",
+      description: "Professional services for your region.",
+    };
+  }
+}
+
+/** Fetch navbar height server-side so sections have correct padding on first paint */
+async function getNavbarHeight(): Promise<number> {
+  try {
+    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    return config?.navbarStyle === "tall" ? 140 : 100;
+  } catch {
+    return 100;
+  }
+}
 
 export default async function RootLayout({
   children,
@@ -44,21 +67,32 @@ export default async function RootLayout({
   // JSON-LD structured data — only injected when admin has configured it
   // buildStructuredData() returns null when disabled or business name is empty
   // Output uses JSON.stringify with </script> escaped — safe to inline
-  const seoConfig = await fetchSeoConfig();
+  const [seoConfig, navbarHeight] = await Promise.all([
+    fetchSeoConfig(),
+    isAdminRoute ? Promise.resolve(100) : getNavbarHeight(),
+  ]);
   const jsonLd = buildStructuredData(seoConfig);
 
   return (
-    <html lang="en" style={{ height: "100%" }}>
-      {jsonLd && (
-        <head>
+    <html
+      lang="en"
+      style={{ "--navbar-height": `${navbarHeight}px`, height: "100%" } as React.CSSProperties}
+    >
+      <head>
+        {/* Bootstrap Icons — required for social icons in navbar and other public-facing components */}
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css"
+          rel="stylesheet"
+        />
+        {jsonLd && (
           <script
             type="application/ld+json"
             // Safe: content is server-generated JSON with </script> escaped
             // eslint-disable-next-line react/no-danger
             dangerouslySetInnerHTML={{ __html: jsonLd }}
           />
-        </head>
-      )}
+        )}
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         style={{ margin: 0, padding: 0 }}

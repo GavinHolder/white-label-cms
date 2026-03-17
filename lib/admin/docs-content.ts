@@ -2939,7 +2939,21 @@ Every shape, slot, or 3D object is a **layer**. Layers are listed in the **Layer
 |------|------|-------------|
 | **vector** | STR/ACC/BG | SVG path layer (rect, ellipse, polygon, pen path) |
 | **slot** | SLT | Content slot placeholder |
+| **image** | IMG | Raster image layer (photo, texture, illustration) |
 | **3d-object** | 3D | Three.js 3D asset |
+
+### Image Layers
+
+Click **Images → Browse / Place Image** in the left sidebar to insert an image layer.
+
+- **Browse / Change** — opens the media library picker (thumbnail grid of all uploaded images)
+- **Paste URL** — type or paste any image URL directly
+- **Fill** — image covers the layer bounds (crops to fit, no letterbox)
+- **Fit** — image scales to fit inside layer bounds (letterbox, no crop)
+- **Crop** — same as Fill; use resize handles to control which part is visible
+- **Alt text** — set descriptive alt text for accessibility
+
+Image layers participate in the **animation** and **hover state** systems exactly like vector layers — you can fade, scale, or translate them using the Animation panel and State overrides.
 
 ### Roles
 

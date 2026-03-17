@@ -11,7 +11,8 @@ const AnimBgRenderer    = dynamic(() => import("./AnimBgRenderer"), { ssr: false
 const ScrollStageWrapper = dynamic(() => import("./scroll-stage/ScrollStageWrapper"), { ssr: false });
 const CoverageMapEmbed   = dynamic(() => import("@/components/coverage/CoverageMapEmbed"), { ssr: false });
 const ProjectsGallery    = dynamic(() => import("@/components/sections/ProjectsGallery"), { ssr: false });
-const VoltBlock          = dynamic(() => import("@/components/sections/VoltBlock"), { ssr: false });
+const VoltBlock                = dynamic(() => import("@/components/sections/VoltBlock"), { ssr: false });
+const InteractiveProductCard   = dynamic(() => import("@/components/sections/blocks/InteractiveProductCard"), { ssr: false });
 
 interface FlexibleSectionRendererProps {
   section: FlexibleSection;
@@ -774,8 +775,11 @@ function DesignerBlock({ block, darkBg }: {
           <div style={{
             background: statsBg,
             color: statsColor,
-            padding: "24px", height: "100%",
+            // Responsive padding: scales with viewport height so content fits in short rows
+            padding: "clamp(6px, 1.5vh, 24px)",
+            height: "100%",
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center",
+            overflow: "hidden",
           }}>
             {subs.length > 0
               ? subs.map((sub, i) => <DesignerSubElement key={i} sub={sub} />)
@@ -783,17 +787,17 @@ function DesignerBlock({ block, darkBg }: {
                   {!!p.icon && (
                     <i
                       className={`bi ${p.icon as string}`}
-                      style={{ fontSize: "2.2rem", marginBottom: "10px", color: statsColor, opacity: 0.8 }}
+                      style={{ fontSize: "clamp(1rem, 2.2vh, 2.2rem)", marginBottom: "clamp(3px, 0.6vh, 10px)", color: statsColor, opacity: 0.8 }}
                     />
                   )}
                   {/* statsNumRef drives countUp animation — set in useEffect above */}
                   {!!p.number && (
-                    <div ref={statsNumRef} style={{ fontSize: "2.6rem", fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em" }}>
+                    <div ref={statsNumRef} style={{ fontSize: "clamp(1.4rem, 3.2vh, 2.6rem)", fontWeight: 800, lineHeight: 1, letterSpacing: "-0.02em" }}>
                       {p.number as string}
                     </div>
                   )}
                   {!!p.statLabel && (
-                    <div style={{ fontSize: "13px", opacity: 0.65, marginTop: "6px", fontWeight: 500, letterSpacing: "0.02em" }}>
+                    <div style={{ fontSize: "clamp(10px, 1.3vh, 13px)", opacity: 0.65, marginTop: "clamp(3px, 0.6vh, 6px)", fontWeight: 500, letterSpacing: "0.02em" }}>
                       {p.statLabel as string}
                     </div>
                   )}
@@ -883,21 +887,38 @@ function DesignerBlock({ block, darkBg }: {
             </div>
           );
         }
-        // Build slots from block props so designers can bind text/image content per-block
+        // Build slots — support both flat props (slotTitle, slotBody…) and nested props.slots object
+        const nested = (p.slots && typeof p.slots === "object" ? p.slots : {}) as Record<string, string>;
         const voltSlots = {
-          title:       (p.slotTitle as string)       || undefined,
-          body:        (p.slotBody as string)        || undefined,
-          imageUrl:    (p.slotImageUrl as string)    || undefined,
-          imageAlt:    (p.slotImageAlt as string)    || undefined,
-          actionLabel: (p.slotActionLabel as string) || undefined,
-          actionHref:  (p.slotActionHref as string)  || undefined,
-          badge:       (p.slotBadge as string)       || undefined,
-          icon:        (p.slotIcon as string)        || undefined,
+          title:       (p.slotTitle as string)       || nested.title       || undefined,
+          body:        (p.slotBody as string)        || nested.body        || undefined,
+          imageUrl:    (p.slotImageUrl as string)    || nested.imageUrl    || undefined,
+          imageAlt:    (p.slotImageAlt as string)    || nested.imageAlt    || undefined,
+          actionLabel: (p.slotActionLabel as string) || nested.actionLabel || undefined,
+          actionHref:  (p.slotActionHref as string)  || nested.actionHref  || undefined,
+          badge:       (p.slotBadge as string)       || nested.badge       || undefined,
+          icon:        (p.slotIcon as string)        || nested.icon        || undefined,
         };
         return (
           <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <VoltBlock voltId={voltId} slots={voltSlots} fitMode="contain" />
           </div>
+        );
+      }
+
+      // ── interactive-3d-card: hover-driven 3D product card (custom GLB or procedural fallback) ──
+      case "interactive-3d-card": {
+        return (
+          <InteractiveProductCard
+            title={(p.title as string) || undefined}
+            subtitle={(p.subtitle as string) || undefined}
+            description={(p.description as string) || undefined}
+            accentColor={(p.accentColor as string) || undefined}
+            bg={(p.bg as string) || undefined}
+            modelUrl={(p.modelUrl as string) || undefined}
+            modelScale={typeof p.modelScale === "number" ? p.modelScale : 1}
+            shapeFrom={(p.shapeFrom as "right" | "left" | "bottom" | "top") || "right"}
+          />
         );
       }
 

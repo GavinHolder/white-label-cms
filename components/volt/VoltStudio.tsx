@@ -54,6 +54,7 @@ export default function VoltStudio({ initialElement, onSave, onDone }: Props) {
         src="/volt-designer.html"
         style={{ flex: 1, border: 'none', width: '100%', height: '100%' }}
         title="Volt Designer"
+        onLoad={sendLoad}
       />
     </div>
   )

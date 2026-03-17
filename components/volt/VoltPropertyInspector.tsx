@@ -1,6 +1,6 @@
 'use client'
 import { nanoid } from 'nanoid'
-import type { VoltLayer, VoltFill, VoltStroke, LayerRole, SlotType } from '@/types/volt'
+import type { VoltLayer, VoltFill, VoltStroke, VoltObject3DData, LayerRole, SlotType, Volt3DAnimTrigger, Volt3DEasing } from '@/types/volt'
 
 interface Props {
   selectedLayer: VoltLayer | null
@@ -254,8 +254,223 @@ export default function VoltPropertyInspector({ selectedLayer, onUpdateLayer }: 
           </Section>
         )}
 
+        {selectedLayer.type === '3d-object' && (
+          <Volt3DPanel
+            data={selectedLayer.object3DData}
+            onUpdate={updates => onUpdateLayer(id, {
+              object3DData: { ...selectedLayer.object3DData!, ...updates },
+            })}
+          />
+        )}
+
       </div>
     </div>
+  )
+}
+
+// ── 3D Object inspector panel ─────────────────────────────────────────────────
+
+function XYZRow({
+  label, value, onChange,
+}: {
+  label: string
+  value: { x: number; y: number; z: number }
+  onChange: (v: { x: number; y: number; z: number }) => void
+}) {
+  function num(field: 'x' | 'y' | 'z', raw: string) {
+    const n = parseFloat(raw)
+    if (!isNaN(n)) onChange({ ...value, [field]: n })
+  }
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <label style={labelStyle}>{label}</label>
+      <div style={{ display: 'flex', gap: 4 }}>
+        {(['x', 'y', 'z'] as const).map(axis => (
+          <div key={axis} style={{ flex: 1 }}>
+            <span style={{ ...labelStyle, textAlign: 'center', display: 'block' }}>{axis.toUpperCase()}</span>
+            <input
+              type="number" step={0.1}
+              value={value[axis]}
+              onChange={e => num(axis, e.target.value)}
+              style={{ ...inputStyle, textAlign: 'center', padding: '3px 4px' }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function Volt3DPanel({
+  data, onUpdate,
+}: {
+  data: VoltObject3DData | undefined
+  onUpdate: (updates: Partial<VoltObject3DData>) => void
+}) {
+  const d = data ?? {} as Partial<VoltObject3DData>
+  const animTrigger = (d.animTrigger ?? 'none') as Volt3DAnimTrigger
+  const easing      = (d.transitionEasing ?? 'easeOut') as Volt3DEasing
+  const hasAnim     = animTrigger !== 'none'
+  const isHover     = animTrigger === '3d-hover'
+  const isAuto      = animTrigger === '3d-auto'
+
+  return (
+    <>
+      <Section label="3D Asset">
+        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>
+          {d.assetName ?? 'No asset loaded'}
+        </div>
+      </Section>
+
+      <Section label="Camera">
+        <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+          {[['Azimuth', 'cameraAzimuth', 0, 360], ['Elevation', 'cameraElevation', -90, 90], ['Distance', 'cameraDistance', 0.5, 20]] .map(([lbl, key, min, max]) => (
+            <div key={key as string} style={{ flex: 1 }}>
+              <label style={labelStyle}>{lbl as string}</label>
+              <input
+                type="number" min={min as number} max={max as number} step={0.5}
+                value={(d as any)[key] ?? 0}
+                onChange={e => { const n = parseFloat(e.target.value); if (!isNaN(n)) onUpdate({ [key as string]: n } as any) }}
+                style={{ ...inputStyle, textAlign: 'center', padding: '3px 4px' }}
+              />
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section label="Lighting">
+        <div style={{ display: 'flex', gap: 4 }}>
+          {[['Ambient', 'ambientIntensity', 0, 5], ['Key', 'keyLightIntensity', 0, 5], ['Angle°', 'keyLightAngle', 0, 360]] .map(([lbl, key, min, max]) => (
+            <div key={key as string} style={{ flex: 1 }}>
+              <label style={labelStyle}>{lbl as string}</label>
+              <input
+                type="number" min={min as number} max={max as number} step={0.1}
+                value={(d as any)[key] ?? 0}
+                onChange={e => { const n = parseFloat(e.target.value); if (!isNaN(n)) onUpdate({ [key as string]: n } as any) }}
+                style={{ ...inputStyle, textAlign: 'center', padding: '3px 4px' }}
+              />
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section label="Animation Trigger">
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(['none', '3d-hover', '3d-auto'] as Volt3DAnimTrigger[]).map(t => (
+            <button
+              key={t}
+              onClick={() => onUpdate({ animTrigger: t })}
+              style={{
+                ...pillStyle, flex: 1,
+                background: animTrigger === t ? '#6366f1' : '#1e1e3a',
+              }}
+            >
+              {t === 'none' ? 'None' : t === '3d-hover' ? 'Hover' : 'Auto'}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      {hasAnim && (
+        <Section label="Transition">
+          <div style={{ marginBottom: 6 }}>
+            <label style={labelStyle}>Easing</label>
+            <select
+              value={easing}
+              onChange={e => onUpdate({ transitionEasing: e.target.value as Volt3DEasing })}
+              style={inputStyle}
+            >
+              {(['linear', 'easeIn', 'easeOut', 'easeInOut', 'spring'] as Volt3DEasing[]).map(e => (
+                <option key={e} value={e}>{e}</option>
+              ))}
+            </select>
+          </div>
+          {!isAuto && (
+            <div style={{ display: 'flex', gap: 4 }}>
+              <div style={{ flex: 2 }}>
+                <label style={labelStyle}>Duration (ms)</label>
+                <input
+                  type="number" min={50} max={5000} step={50}
+                  value={d.transitionDuration ?? 600}
+                  onChange={e => { const n = parseFloat(e.target.value); if (!isNaN(n)) onUpdate({ transitionDuration: n }) }}
+                  style={inputStyle}
+                />
+              </div>
+              {isHover && (
+                <div style={{ flex: 1 }}>
+                  <label style={labelStyle}>Delay (ms)</label>
+                  <input
+                    type="number" min={0} max={2000} step={50}
+                    value={d.transitionDelay ?? 0}
+                    onChange={e => { const n = parseFloat(e.target.value); if (!isNaN(n)) onUpdate({ transitionDelay: n }) }}
+                    style={inputStyle}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          {isAuto && (
+            <div>
+              <label style={labelStyle}>Period (ms)</label>
+              <input
+                type="number" min={200} max={10000} step={100}
+                value={d.autoPeriod ?? 2000}
+                onChange={e => { const n = parseFloat(e.target.value); if (!isNaN(n)) onUpdate({ autoPeriod: n }) }}
+                style={inputStyle}
+              />
+            </div>
+          )}
+        </Section>
+      )}
+
+      {hasAnim && (
+        <Section label={isAuto ? 'State A (start)' : 'Start State (rest)'}>
+          <XYZRow
+            label="Position"
+            value={d.positionStart ?? { x: 0, y: 0, z: 0 }}
+            onChange={v => onUpdate({ positionStart: v })}
+          />
+          <div style={{ marginBottom: 6 }}>
+            <label style={labelStyle}>Scale</label>
+            <input
+              type="number" min={0.01} max={10} step={0.05}
+              value={d.scaleStart ?? 1}
+              onChange={e => { const n = parseFloat(e.target.value); if (!isNaN(n)) onUpdate({ scaleStart: n }) }}
+              style={inputStyle}
+            />
+          </div>
+          <XYZRow
+            label="Rotation (°)"
+            value={d.rotationStart ?? { x: 0, y: 0, z: 0 }}
+            onChange={v => onUpdate({ rotationStart: v })}
+          />
+        </Section>
+      )}
+
+      {hasAnim && (
+        <Section label={isAuto ? 'State B (end)' : 'End State (hover)'}>
+          <XYZRow
+            label="Position"
+            value={d.positionEnd ?? { x: 0, y: 0, z: 0 }}
+            onChange={v => onUpdate({ positionEnd: v })}
+          />
+          <div style={{ marginBottom: 6 }}>
+            <label style={labelStyle}>Scale</label>
+            <input
+              type="number" min={0.01} max={10} step={0.05}
+              value={d.scaleEnd ?? 1}
+              onChange={e => { const n = parseFloat(e.target.value); if (!isNaN(n)) onUpdate({ scaleEnd: n }) }}
+              style={inputStyle}
+            />
+          </div>
+          <XYZRow
+            label="Rotation (°)"
+            value={d.rotationEnd ?? { x: 0, y: 0, z: 0 }}
+            onChange={v => onUpdate({ rotationEnd: v })}
+          />
+        </Section>
+      )}
+    </>
   )
 }
 

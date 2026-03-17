@@ -19,6 +19,7 @@ interface VoltBlockProps {
 export default function VoltBlock({ voltId, slots = {}, instanceOverrides, fitMode = "contain" }: VoltBlockProps) {
   const [volt, setVolt] = useState<VoltElementData | null>(null);
   const [error, setError] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -56,7 +57,7 @@ export default function VoltBlock({ voltId, slots = {}, instanceOverrides, fitMo
 
   return (
     <div ref={containerRef} style={containerStyle}>
-      <VoltRenderer voltElement={volt} slots={slots} instanceOverrides={instanceOverrides} style={{ borderRadius: "inherit" }} />
+      <VoltRenderer voltElement={volt} slots={slots} instanceOverrides={instanceOverrides} style={{ borderRadius: "inherit" }} onHoverChange={setIsHovered} />
       {layers3D.map(l => (
         <Volt3DRenderer
           key={l.id}
@@ -66,6 +67,7 @@ export default function VoltBlock({ voltId, slots = {}, instanceOverrides, fitMo
           width={l.width}
           height={l.height}
           sectionRef={containerRef}
+          isHovered={isHovered}
         />
       ))}
     </div>
