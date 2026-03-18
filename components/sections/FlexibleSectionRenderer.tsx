@@ -13,6 +13,7 @@ const CoverageMapEmbed   = dynamic(() => import("@/components/coverage/CoverageM
 const ProjectsGallery    = dynamic(() => import("@/components/sections/ProjectsGallery"), { ssr: false });
 const VoltBlock                = dynamic(() => import("@/components/sections/VoltBlock"), { ssr: false });
 const InteractiveProductCard   = dynamic(() => import("@/components/sections/blocks/InteractiveProductCard"), { ssr: false });
+const ScrollStoryBlock         = dynamic(() => import("@/components/sections/blocks/ScrollStoryBlock"), { ssr: false });
 
 interface FlexibleSectionRendererProps {
   section: FlexibleSection;
@@ -960,6 +961,12 @@ function DesignerBlock({ block, darkBg }: {
           />
         );
       }
+
+      // ── scroll-story: scroll-pinned Three.js 3D storytelling block ────────────
+      case "scroll-story":
+        return (
+          <ScrollStoryBlock block={block} />
+        );
 
       // ── default: unknown block type — render the type name as a placeholder ─
       default:
