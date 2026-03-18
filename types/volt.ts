@@ -232,14 +232,28 @@ export interface VoltState {
   layerOverrides: Record<string, VoltLayerStateOverride>
 }
 
+export type FlipAnimType  = 'flip3d' | 'slide' | 'scalefade' | 'swing'
+export type FlipTrigger   = 'hover' | 'click' | 'auto'
+export type FlipDirection = 'left' | 'right' | 'up' | 'down'
+
 export interface VoltFlipCard {
   enabled: boolean
-  /** Flip axis: 'y' = horizontal flip (left↔right), 'x' = vertical flip (top↔bottom) */
+  /** Animation style (default: 'flip3d') */
+  animType?: FlipAnimType
+  /** What triggers the flip (default: 'hover') */
+  trigger?: FlipTrigger
+  /** Flip axis for flip3d/swing — 'y' = horizontal, 'x' = vertical (default: 'y') */
   axis: 'x' | 'y'
-  /** Flip transition duration in milliseconds (default: 600) */
+  /** Slide/swing direction (default: 'right') */
+  direction?: FlipDirection
+  /** CSS perspective in px for flip3d/swing (default: 1200) */
+  perspective?: number
+  /** Transition duration in ms (default: 600) */
   duration: number
   /** Anime.js ease string (default: 'easeInOut') */
   ease: string
+  /** Auto-flip loop interval in ms — used when trigger === 'auto' (default: 3000) */
+  autoInterval?: number
 }
 
 export interface VoltElementData {

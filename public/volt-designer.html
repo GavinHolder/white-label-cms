@@ -1902,7 +1902,12 @@
       var layer=state.element.layers.find(function(l){return l.id===state.selectedLayerId;});
       if(!layer){
         // ── Element-level settings (no layer selected) ─────────────────────────
-        var fc=state.element.flipCard||{enabled:false,axis:'y',duration:600,ease:'easeInOut'};
+        var _fcDef={enabled:false,animType:'flip3d',trigger:'hover',axis:'y',direction:'right',perspective:1200,duration:600,ease:'easeInOut',autoInterval:3000};
+        var fc=Object.assign({},_fcDef,state.element.flipCard||{});
+        var _fcAT=fc.animType||'flip3d';
+        var _fcTr=fc.trigger||'hover';
+        // Helper: ensure flipCard object exists on state
+        function _ensureFC(){if(!state.element.flipCard)state.element.flipCard=Object.assign({},_fcDef);return state.element.flipCard;}
         // Header
         var ehdr=document.createElement('div');ehdr.style.cssText='font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;';ehdr.textContent='Element Settings';body.appendChild(ehdr);
         // Flip Card section
@@ -1914,23 +1919,59 @@
         fcTog.appendChild(fcChk);fcHdr.appendChild(fcLbl);fcHdr.appendChild(fcTog);fcSec.appendChild(fcHdr);
         // Controls (shown always so user can configure before enabling)
         var fcControls=document.createElement('div');fcControls.id='fc-controls';fcControls.style.cssText='opacity:'+(fc.enabled?'1':'0.5')+';';
-        // Axis
-        var axRow=document.createElement('div');axRow.style.cssText='margin-bottom:8px;';axRow.appendChild(mkLbl('Flip Axis'));
+        // ── Animation Type ─────────────────────────────────────────────────────
+        var atRow=document.createElement('div');atRow.style.cssText='margin-bottom:8px;';atRow.appendChild(mkLbl('Animation Type'));
+        var atBg=document.createElement('div');atBg.className='btn-group w-100';atBg.setAttribute('role','group');
+        [['flip3d','3D Flip'],['slide','Slide'],['scalefade','Fade'],['swing','Swing']].forEach(function(pair){
+          var ab=document.createElement('button');ab.type='button';ab.className='btn btn-sm '+(_fcAT===pair[0]?'btn-primary':'btn-outline-secondary');ab.style.cssText='font-size:9px;padding:3px 4px;';ab.textContent=pair[1];
+          ab.addEventListener('click',function(){pushHistory();_ensureFC();state.element.flipCard.animType=pair[0];markDirty();renderProps();});
+          atBg.appendChild(ab);
+        });
+        atRow.appendChild(atBg);fcControls.appendChild(atRow);
+        // ── Trigger ────────────────────────────────────────────────────────────
+        var trRow=document.createElement('div');trRow.style.cssText='margin-bottom:8px;';trRow.appendChild(mkLbl('Trigger'));
+        var trBg=document.createElement('div');trBg.className='btn-group w-100';trBg.setAttribute('role','group');
+        [['hover','Hover'],['click','Click'],['auto','Auto']].forEach(function(pair){
+          var tb=document.createElement('button');tb.type='button';tb.className='btn btn-sm '+(_fcTr===pair[0]?'btn-primary':'btn-outline-secondary');tb.style.cssText='font-size:10px;';tb.textContent=pair[1];
+          tb.addEventListener('click',function(){pushHistory();_ensureFC();state.element.flipCard.trigger=pair[0];markDirty();renderProps();});
+          trBg.appendChild(tb);
+        });
+        trRow.appendChild(trBg);fcControls.appendChild(trRow);
+        // ── Auto Interval (only when trigger=auto) ─────────────────────────────
+        var autoRow=document.createElement('div');autoRow.style.cssText='margin-bottom:8px;display:'+(_fcTr==='auto'?'':'none')+';';autoRow.appendChild(mkLbl('Auto Interval (ms)'));
+        var autoInp=document.createElement('input');autoInp.type='number';autoInp.className='form-control form-control-sm';autoInp.min='500';autoInp.max='10000';autoInp.step='500';autoInp.value=fc.autoInterval||3000;
+        autoRow.appendChild(autoInp);fcControls.appendChild(autoRow);
+        // ── Direction (slide/swing only) ───────────────────────────────────────
+        var dirRow=document.createElement('div');dirRow.style.cssText='margin-bottom:8px;display:'+((_fcAT==='slide'||_fcAT==='swing')?'':'none')+';';dirRow.appendChild(mkLbl('Direction'));
+        var dirBg=document.createElement('div');dirBg.className='btn-group w-100';dirBg.setAttribute('role','group');
+        [['left','←'],['right','→'],['up','↑'],['down','↓']].forEach(function(pair){
+          var db=document.createElement('button');db.type='button';db.className='btn btn-sm '+((fc.direction||'right')===pair[0]?'btn-primary':'btn-outline-secondary');db.style.fontSize='13px';db.textContent=pair[1];
+          db.addEventListener('click',function(){pushHistory();_ensureFC();state.element.flipCard.direction=pair[0];markDirty();renderProps();});
+          dirBg.appendChild(db);
+        });
+        dirRow.appendChild(dirBg);fcControls.appendChild(dirRow);
+        // ── Axis (flip3d/swing only) ───────────────────────────────────────────
+        var axRow=document.createElement('div');axRow.style.cssText='margin-bottom:8px;display:'+((_fcAT==='slide'||_fcAT==='scalefade')?'none':'')+'';axRow.appendChild(mkLbl('Flip Axis'));
         var axBg=document.createElement('div');axBg.className='btn-group w-100';axBg.setAttribute('role','group');
         [['y','Horizontal (Y)'],['x','Vertical (X)']].forEach(function(pair){
-          var ab=document.createElement('button');ab.type='button';ab.id='fc-axis-'+pair[0];ab.className='btn btn-sm '+(fc.axis===pair[0]?'btn-primary':'btn-outline-secondary');ab.style.fontSize='10px';ab.textContent=pair[1];
-          ab.addEventListener('click',function(){
-            pushHistory();if(!state.element.flipCard)state.element.flipCard={enabled:false,axis:'y',duration:600,ease:'easeInOut'};
-            state.element.flipCard.axis=pair[0];markDirty();renderProps();
-          });
+          var ab=document.createElement('button');ab.type='button';ab.className='btn btn-sm '+(fc.axis===pair[0]?'btn-primary':'btn-outline-secondary');ab.style.fontSize='10px';ab.textContent=pair[1];
+          ab.addEventListener('click',function(){pushHistory();_ensureFC();state.element.flipCard.axis=pair[0];markDirty();renderProps();});
           axBg.appendChild(ab);
         });
         axRow.appendChild(axBg);fcControls.appendChild(axRow);
-        // Duration
+        // ── Perspective (flip3d/swing only) ───────────────────────────────────
+        var perspRow=document.createElement('div');perspRow.style.cssText='margin-bottom:8px;display:'+((_fcAT==='slide'||_fcAT==='scalefade')?'none':'')+';';perspRow.appendChild(mkLbl('Perspective (px)'));
+        var perspWrap=document.createElement('div');perspWrap.className='d-flex align-items-center gap-2';
+        var perspSl=document.createElement('input');perspSl.type='range';perspSl.className='form-range';perspSl.min='400';perspSl.max='2400';perspSl.step='100';perspSl.value=fc.perspective||1200;perspSl.style.flex='1';
+        var perspNum=document.createElement('span');perspNum.style.cssText='font-size:10px;color:#94a3b8;min-width:36px;text-align:right;';perspNum.textContent=(fc.perspective||1200)+'px';
+        perspSl.addEventListener('input',function(){perspNum.textContent=perspSl.value+'px';_ensureFC();state.element.flipCard.perspective=parseInt(perspSl.value);});
+        perspSl.addEventListener('change',function(){pushHistory();markDirty();});
+        perspWrap.appendChild(perspSl);perspWrap.appendChild(perspNum);perspRow.appendChild(perspWrap);fcControls.appendChild(perspRow);
+        // ── Duration ──────────────────────────────────────────────────────────
         var durRow=document.createElement('div');durRow.style.cssText='margin-bottom:8px;';durRow.appendChild(mkLbl('Duration (ms)'));
         var durInp=document.createElement('input');durInp.type='number';durInp.className='form-control form-control-sm';durInp.id='fc-duration';durInp.min='100';durInp.max='3000';durInp.step='50';durInp.value=fc.duration||600;
         durRow.appendChild(durInp);fcControls.appendChild(durRow);
-        // Easing
+        // ── Easing ────────────────────────────────────────────────────────────
         var easRow=document.createElement('div');easRow.style.cssText='margin-bottom:8px;';easRow.appendChild(mkLbl('Easing'));
         var easSel=document.createElement('select');easSel.className='form-select form-select-sm';easSel.id='fc-ease';
         ['easeIn','easeOut','easeInOut','linear','spring'].forEach(function(e){var o=document.createElement('option');o.value=e;o.textContent=e;if((fc.ease||'easeInOut')===e)o.selected=true;easSel.appendChild(o);});
@@ -1940,14 +1981,13 @@
         fcHint.textContent='Assign layers to front or back faces using the Face property when a layer is selected.';
         fcControls.appendChild(fcHint);
         fcSec.appendChild(fcControls);body.appendChild(fcSec);
-        // Bind flip card events
-        fcChk.addEventListener('change',function(){
-          pushHistory();if(!state.element.flipCard)state.element.flipCard={enabled:false,axis:'y',duration:600,ease:'easeInOut'};
-          state.element.flipCard.enabled=fcChk.checked;markDirty();renderProps();
-        });
-        durInp.addEventListener('input',function(){var n=parseInt(durInp.value);if(!isNaN(n)&&n>=100){if(!state.element.flipCard)state.element.flipCard={enabled:false,axis:'y',duration:600,ease:'easeInOut'};state.element.flipCard.duration=n;}});
+        // Bind events
+        fcChk.addEventListener('change',function(){pushHistory();_ensureFC();state.element.flipCard.enabled=fcChk.checked;markDirty();renderProps();});
+        autoInp.addEventListener('input',function(){var n=parseInt(autoInp.value);if(!isNaN(n)&&n>=500){_ensureFC();state.element.flipCard.autoInterval=n;}});
+        autoInp.addEventListener('change',function(){pushHistory();markDirty();});
+        durInp.addEventListener('input',function(){var n=parseInt(durInp.value);if(!isNaN(n)&&n>=100){_ensureFC();state.element.flipCard.duration=n;}});
         durInp.addEventListener('change',function(){pushHistory();markDirty();});
-        easSel.addEventListener('change',function(){pushHistory();if(!state.element.flipCard)state.element.flipCard={enabled:false,axis:'y',duration:600,ease:'easeInOut'};state.element.flipCard.ease=easSel.value;markDirty();});
+        easSel.addEventListener('change',function(){pushHistory();_ensureFC();state.element.flipCard.ease=easSel.value;markDirty();});
         return;
       }
       // Name
