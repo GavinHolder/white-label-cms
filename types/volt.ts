@@ -381,6 +381,8 @@ export interface VoltElementData {
   downloads: number
   createdAt: string
   updatedAt: string
+  /** Card background colour (CSS colour string). Undefined = transparent/inherited. */
+  canvasBackground?: string
   /** Hover flip card config — when enabled, the Volt card flips on hover to reveal a back face */
   flipCard?: VoltFlipCard
   // ── 3D Tilt (parallax depth hover) ─────────────────────────────────────────

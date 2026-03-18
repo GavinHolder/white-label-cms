@@ -722,6 +722,7 @@ export default function VoltRenderer({ voltElement, slots = {}, instanceOverride
         overflow: 'hidden',
         containerType: 'inline-size',   // enables cqw units for text layer font scaling
         willChange: tiltEnabled ? 'transform' : undefined,
+        background: voltElement.canvasBackground ?? undefined,
         ...style,
       }}
     >
