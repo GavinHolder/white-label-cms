@@ -77,3 +77,4 @@ deploy/portainer/.env
 next-env.d.ts
 public/images/uploads/
 public/uploads/
+.superpowers/
