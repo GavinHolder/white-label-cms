@@ -9,9 +9,11 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { UserRole } from "@prisma/client";
 
-// Environment variables with fallbacks
-const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret-change-in-production";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "fallback-refresh-secret-change-in-production";
+// Environment variables — fail fast if required secrets are missing
+if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET environment variable is not set");
+if (!process.env.JWT_REFRESH_SECRET) throw new Error("JWT_REFRESH_SECRET environment variable is not set");
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 const SESSION_TIMEOUT = process.env.SESSION_TIMEOUT || "14400000"; // 4 hours
 
 // JWT payload interface

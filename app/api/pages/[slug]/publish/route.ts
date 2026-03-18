@@ -24,6 +24,11 @@ export async function POST(
 
     const slug = decodeURIComponent(rawSlug);
 
+    // Validate slug — only alphanumeric, hyphens, underscores, and forward slashes allowed
+    if (!/^[a-zA-Z0-9_\-/]+$/.test(slug)) {
+      return errorResponse("INVALID_SLUG", "Invalid page slug", 400);
+    }
+
     // Check if page exists
     const page = await prisma.page.findUnique({
       where: { slug },
