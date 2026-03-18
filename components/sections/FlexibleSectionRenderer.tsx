@@ -132,6 +132,33 @@ const FLEXIBLE_CSS = `
   .db-shadow-lg   { box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
   .db-shadow-xl   { box-shadow: 0 16px 60px rgba(0,0,0,0.28); }
   .db-shadow-glow { box-shadow: 0 0 32px var(--db-glow-color, rgba(9,105,218,0.45)); }
+
+  /* ── Photo-card block — full-bleed image card with slide-up hover panel ─ */
+  .photo-card-block { cursor: pointer; }
+  .photo-card-bg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; object-fit: cover; object-position: center;
+    filter: brightness(0.7);
+    transition: filter 0.45s ease, transform 0.5s ease;
+    will-change: transform, filter;
+  }
+  .photo-card-block:hover .photo-card-bg {
+    filter: brightness(1.05);
+    transform: scale(1.04);
+  }
+  .photo-card-static {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 20px 22px; z-index: 1;
+    transition: opacity 0.3s ease;
+  }
+  .photo-card-block:hover .photo-card-static { opacity: 0; }
+  .photo-card-hover {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 24px 22px; z-index: 2;
+    transform: translateY(100%);
+    transition: transform 0.45s cubic-bezier(0.33, 1, 0.68, 1);
+  }
+  .photo-card-block:hover .photo-card-hover { transform: translateY(0); }
 `;
 
 /** Module-level flag so FLEXIBLE_CSS is only injected into <head> once per page load. */
@@ -478,7 +505,7 @@ function DesignerBlocksRenderer({ designerData, darkBg, scrollStageZone }: { des
         // Visual block types that benefit from filling available space (have aspect ratios
         // or are designed to scale). All other types (text, card, button, etc.) are
         // content-driven and should collapse to their natural height.
-        const FILL_TYPES = new Set(["volt", "image", "3d-object", "video", "canvas"]);
+        const FILL_TYPES = new Set(["volt", "image", "3d-object", "video", "canvas", "photo-card", "coverage-map", "projects-gallery"]);
         return Array.from({ length: totalRows }, (_, i) => {
           const types = rowTypes[i + 1];
           // A row gets '1fr' only if it contains a visual/fill block type.
@@ -668,8 +695,10 @@ function DesignerBlock({ block, darkBg }: {
   const bgGradient   = (p.bgGradient as string) || "";
   const overlayColor = (p.bgOverlayColor as string) || "#000000";
   const overlayOpac  = Number(p.bgOverlayOpacity ?? 0);
-  const borderWidthV = Number(p.borderWidth ?? 0);
-  const borderColorV = (p.borderColor as string) || "";
+  const borderWidthV    = Number(p.borderWidth ?? 0);
+  const borderColorV    = (p.borderColor as string) || "";
+  const borderTopWidthV = Number(p.borderTopWidth ?? 0);
+  const borderTopColorV = (p.borderTopColor as string) || "";
   const boxShadowPre = (p.boxShadow as string) || "none";
   const cardEffect   = (p.cardEffect as string) || "none";
   const glowColor    = (p.glowColor as string) || "";
@@ -695,6 +724,7 @@ function DesignerBlock({ block, darkBg }: {
     ...(bgImageSafe ? { background: `url("${bgImageSafe}") center/cover no-repeat` } : {}),
     ...(!bgImageSafe && bgGradient ? { background: bgGradient } : {}),
     ...(borderWidthV > 0 && borderColorV ? { border: `${borderWidthV}px solid ${borderColorV}` } : {}),
+    ...(borderTopWidthV > 0 && borderTopColorV ? { borderTop: `${borderTopWidthV}px solid ${borderTopColorV}` } : {}),
     ...(glowColor ? { ["--db-glow-color" as string]: glowColor } : {}),
   };
 
@@ -903,6 +933,39 @@ function DesignerBlock({ block, darkBg }: {
             />
           </div>
         );
+
+      // ── photo-card: full-bleed image card with slide-up hover info panel ───
+      case "photo-card": {
+        const pcImg    = safeUrl((p.bgImageUrl as string) || "");
+        const pcTitle  = (p.title    as string) || "";
+        const pcLoc    = (p.location as string) || "";
+        const pcBadge  = (p.badge    as string) || "";
+        const pcPanel  = (p.panelBg  as string) || "rgba(45,90,61,0.97)";
+        return (
+          <div className="photo-card-block" style={{ position: "relative", height: "100%", overflow: "hidden", borderRadius }}>
+            {/* Background image — use <img> for reliable external URL loading */}
+            {pcImg
+              ? <img src={pcImg} alt="" aria-hidden className="photo-card-bg" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }} />
+              : <div className="photo-card-bg" style={{ background: "#374151" }} />
+            }
+            {/* Persistent dark gradient at bottom */}
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.12) 55%, transparent 100%)", zIndex: 0 }} />
+            {/* Static label (visible when not hovering) */}
+            <div className="photo-card-static">
+              {pcBadge && <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#86efac", marginBottom: 6 }}>{pcBadge}</div>}
+              <div style={{ fontSize: "18px", fontWeight: 700, color: "#fff", lineHeight: 1.25 }}>{pcTitle}</div>
+              {pcLoc && <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.6)", marginTop: 4 }}>{pcLoc}</div>}
+            </div>
+            {/* Hover slide-up panel */}
+            <div className="photo-card-hover" style={{ background: pcPanel }}>
+              {pcBadge && <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#86efac", marginBottom: 10 }}>{pcBadge}</div>}
+              <div style={{ fontSize: "18px", fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.25 }}>{pcTitle}</div>
+              {pcLoc && <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.7)", marginBottom: 16 }}>{pcLoc}</div>}
+              <a href="#contact" style={{ fontSize: "13px", fontWeight: 700, color: "#86efac", textDecoration: "none" }}>View Project Details →</a>
+            </div>
+          </div>
+        );
+      }
 
       // ── projects-gallery: photo gallery of completed projects ─────────────
       case "projects-gallery":

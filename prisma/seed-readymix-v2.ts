@@ -361,8 +361,8 @@ async function main() {
   // ══════════════════════════════════════════════════════════════════════════
   // SECTION 2 — WHY CHOOSE US (FLEXIBLE, white bg, 3-col trust pillars)
   // Grid: 3 cols × 4 rows, gap 24
-  //   Row 1: full-width heading text (colSpan 3)
-  //   Rows 2–4: 3 feature cards (one per col, rowSpan 3)
+  //   Row 1: left-aligned heading + body + CTA button (colSpan 3)
+  //   Rows 2–4: 3 cards with green top border accent
   // ══════════════════════════════════════════════════════════════════════════
   await prisma.section.create({
     data: {
@@ -381,55 +381,42 @@ async function main() {
             {
               id: 1, type: 'text',
               position: { row: 1, col: 1, colSpan: 3 },
-              props: { textAlign: 'center', paddingTop: 24, paddingBottom: 8 },
+              props: { textAlign: 'left', paddingTop: 24, paddingBottom: 16 },
               subElements: [
-                {
-                  type: 'heading',
-                  props: {
-                    text: 'WHY OVERBERG READY MIX',
-                    fontSize: 11, fontWeight: '700', color: '#4a7c59',
-                    letterSpacing: 2, textTransform: 'uppercase',
-                    textAlign: 'center', marginBottom: 16,
-                  },
-                },
-                {
-                  type: 'heading',
-                  props: {
-                    text: 'Built on Reliability. Backed by Local Experience.',
-                    fontSize: 40, fontWeight: '900', color: '#1f2937',
-                    lineHeight: 1.1, textAlign: 'center', marginBottom: 0,
-                  },
-                },
+                { type: 'heading', props: { text: 'WHY OVERBERG READY MIX', fontSize: 11, fontWeight: '700', color: '#4a7c59', letterSpacing: 2, textTransform: 'uppercase', textAlign: 'left', marginBottom: 16 } },
+                { type: 'heading', props: { text: 'Built on Reliability. Backed by Local Experience.', fontSize: 44, fontWeight: '900', color: '#1f2937', lineHeight: 1.05, textAlign: 'left', marginBottom: 16 } },
+                { type: 'paragraph', props: { text: 'Three reasons contractors across the Overberg choose us for every project — from garden walls to industrial slabs.', fontSize: 17, color: '#6b7280', lineHeight: 1.65, marginBottom: 24 } },
+                { type: 'button', props: { text: 'Learn More About Us →', navTarget: '/about', bgColor: 'transparent', textColor: '#4a7c59', paddingX: 24, paddingY: 11, borderRadius: 8 } },
               ],
             },
             {
               id: 2, type: 'card',
               position: { row: 2, col: 1, rowSpan: 3 },
-              props: { bgColor: '#ffffff', borderRadius: 16, paddingTop: 32, paddingBottom: 32, paddingX: 28 },
+              props: { bgColor: '#ffffff', borderRadius: 12, borderTopColor: '#4a7c59', borderTopWidth: 4, paddingTop: 28, paddingBottom: 28, paddingX: 24 },
               subElements: [
-                { type: 'heading', props: { text: '🏗', fontSize: 36, textAlign: 'left', marginBottom: 16 } },
-                { type: 'heading', props: { text: 'Local Knowledge', fontSize: 20, fontWeight: '700', color: '#1f2937', marginBottom: 10 } },
-                { type: 'paragraph', props: { text: 'Family-owned and operated in the Overberg. We know the region\'s roads, weather, and project demands.', fontSize: 15, color: '#6b7280', lineHeight: 1.7 } },
+                { type: 'heading', props: { text: '🏗', fontSize: 32, textAlign: 'left', marginBottom: 14 } },
+                { type: 'heading', props: { text: 'Local Knowledge', fontSize: 19, fontWeight: '700', color: '#1f2937', marginBottom: 10 } },
+                { type: 'paragraph', props: { text: 'Family-owned and based in the Overberg. We know the region\'s roads, weather patterns, and site demands inside out.', fontSize: 15, color: '#6b7280', lineHeight: 1.7 } },
               ],
             },
             {
               id: 3, type: 'card',
               position: { row: 2, col: 2, rowSpan: 3 },
-              props: { bgColor: '#ffffff', borderRadius: 16, paddingTop: 32, paddingBottom: 32, paddingX: 28 },
+              props: { bgColor: '#ffffff', borderRadius: 12, borderTopColor: '#4a7c59', borderTopWidth: 4, paddingTop: 28, paddingBottom: 28, paddingX: 24 },
               subElements: [
-                { type: 'heading', props: { text: '🚛', fontSize: 36, textAlign: 'left', marginBottom: 16 } },
-                { type: 'heading', props: { text: 'Reliable Delivery', fontSize: 20, fontWeight: '700', color: '#1f2937', marginBottom: 10 } },
-                { type: 'paragraph', props: { text: 'Punctual delivery to your site. We coordinate with your schedule so your crew never waits.', fontSize: 15, color: '#6b7280', lineHeight: 1.7 } },
+                { type: 'heading', props: { text: '🚛', fontSize: 32, textAlign: 'left', marginBottom: 14 } },
+                { type: 'heading', props: { text: 'Reliable Delivery', fontSize: 19, fontWeight: '700', color: '#1f2937', marginBottom: 10 } },
+                { type: 'paragraph', props: { text: 'Punctual delivery to your site every time. We coordinate with your schedule so your crew never stands around waiting.', fontSize: 15, color: '#6b7280', lineHeight: 1.7 } },
               ],
             },
             {
               id: 4, type: 'card',
               position: { row: 2, col: 3, rowSpan: 3 },
-              props: { bgColor: '#ffffff', borderRadius: 16, paddingTop: 32, paddingBottom: 32, paddingX: 28 },
+              props: { bgColor: '#ffffff', borderRadius: 12, borderTopColor: '#4a7c59', borderTopWidth: 4, paddingTop: 28, paddingBottom: 28, paddingX: 24 },
               subElements: [
-                { type: 'heading', props: { text: '✅', fontSize: 36, textAlign: 'left', marginBottom: 16 } },
-                { type: 'heading', props: { text: 'Quality Assured', fontSize: 20, fontWeight: '700', color: '#1f2937', marginBottom: 10 } },
-                { type: 'paragraph', props: { text: 'SABS-compliant mixes batched to specification every time. Consistent strength, every pour.', fontSize: 15, color: '#6b7280', lineHeight: 1.7 } },
+                { type: 'heading', props: { text: '✅', fontSize: 32, textAlign: 'left', marginBottom: 14 } },
+                { type: 'heading', props: { text: 'Quality Assured', fontSize: 19, fontWeight: '700', color: '#1f2937', marginBottom: 10 } },
+                { type: 'paragraph', props: { text: 'SABS-compliant mixes batched to specification on every order. Consistent strength and workability, every pour.', fontSize: 15, color: '#6b7280', lineHeight: 1.7 } },
               ],
             },
           ],
@@ -483,8 +470,10 @@ async function main() {
               props: { bgColor: '#374151', borderRadius: 12, paddingTop: 24, paddingBottom: 24, paddingX: 24 },
               subElements: [
                 { type: 'heading', props: { text: 'LIGHT DUTY', fontSize: 10, fontWeight: '700', color: '#4a7c59', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 } },
-                { type: 'heading', props: { text: '15 MPa', fontSize: 40, fontWeight: '900', color: '#ffffff', marginBottom: 4 } },
-                { type: 'paragraph', props: { text: 'Foundations, kerbing, walkways and garden walls.', fontSize: 14, color: '#9ca3af', lineHeight: 1.6, marginBottom: 20 } },
+                { type: 'heading', props: { text: '15 MPa', fontSize: 56, fontWeight: '900', color: '#ffffff', lineHeight: 1, marginBottom: 10 } },
+                { type: 'divider', props: { dividerColor: '#4a7c59', thickness: 2 } },
+                { type: 'heading', props: { text: 'Residential', fontSize: 15, fontWeight: '600', color: '#e5e7eb', marginBottom: 8 } },
+                { type: 'paragraph', props: { text: 'Foundations, kerbing, walkways and garden walls. Ideal for light-duty residential applications.', fontSize: 13, color: '#9ca3af', lineHeight: 1.6, marginBottom: 20 } },
                 { type: 'button', props: { text: 'Enquire →', navTarget: '#contact', bgColor: 'transparent', textColor: '#4a7c59', paddingX: 0, paddingY: 4, borderRadius: 0 } },
               ],
             },
@@ -494,8 +483,10 @@ async function main() {
               props: { bgColor: '#374151', borderRadius: 12, paddingTop: 24, paddingBottom: 24, paddingX: 24 },
               subElements: [
                 { type: 'heading', props: { text: 'STANDARD', fontSize: 10, fontWeight: '700', color: '#4a7c59', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 } },
-                { type: 'heading', props: { text: '20 MPa', fontSize: 40, fontWeight: '900', color: '#ffffff', marginBottom: 4 } },
-                { type: 'paragraph', props: { text: 'Floor slabs, driveways and residential walls.', fontSize: 14, color: '#9ca3af', lineHeight: 1.6, marginBottom: 20 } },
+                { type: 'heading', props: { text: '20 MPa', fontSize: 56, fontWeight: '900', color: '#ffffff', lineHeight: 1, marginBottom: 10 } },
+                { type: 'divider', props: { dividerColor: '#4a7c59', thickness: 2 } },
+                { type: 'heading', props: { text: 'Floor Slabs', fontSize: 15, fontWeight: '600', color: '#e5e7eb', marginBottom: 8 } },
+                { type: 'paragraph', props: { text: 'Floor slabs, driveways and residential walls. The go-to mix for most domestic construction.', fontSize: 13, color: '#9ca3af', lineHeight: 1.6, marginBottom: 20 } },
                 { type: 'button', props: { text: 'Enquire →', navTarget: '#contact', bgColor: 'transparent', textColor: '#4a7c59', paddingX: 0, paddingY: 4, borderRadius: 0 } },
               ],
             },
@@ -505,8 +496,10 @@ async function main() {
               props: { bgColor: '#374151', borderRadius: 12, paddingTop: 24, paddingBottom: 24, paddingX: 24 },
               subElements: [
                 { type: 'heading', props: { text: 'STRUCTURAL', fontSize: 10, fontWeight: '700', color: '#4a7c59', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 } },
-                { type: 'heading', props: { text: '25 MPa', fontSize: 40, fontWeight: '900', color: '#ffffff', marginBottom: 4 } },
-                { type: 'paragraph', props: { text: 'Structural beams, columns and commercial slabs.', fontSize: 14, color: '#9ca3af', lineHeight: 1.6, marginBottom: 20 } },
+                { type: 'heading', props: { text: '25 MPa', fontSize: 56, fontWeight: '900', color: '#ffffff', lineHeight: 1, marginBottom: 10 } },
+                { type: 'divider', props: { dividerColor: '#4a7c59', thickness: 2 } },
+                { type: 'heading', props: { text: 'Commercial', fontSize: 15, fontWeight: '600', color: '#e5e7eb', marginBottom: 8 } },
+                { type: 'paragraph', props: { text: 'Structural beams, columns and commercial slabs. Meets standard structural requirements.', fontSize: 13, color: '#9ca3af', lineHeight: 1.6, marginBottom: 20 } },
                 { type: 'button', props: { text: 'Enquire →', navTarget: '#contact', bgColor: 'transparent', textColor: '#4a7c59', paddingX: 0, paddingY: 4, borderRadius: 0 } },
               ],
             },
@@ -517,8 +510,10 @@ async function main() {
               props: { bgColor: '#374151', borderRadius: 12, paddingTop: 24, paddingBottom: 24, paddingX: 24 },
               subElements: [
                 { type: 'heading', props: { text: 'HEAVY LOAD', fontSize: 10, fontWeight: '700', color: '#4a7c59', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 } },
-                { type: 'heading', props: { text: '30 MPa', fontSize: 40, fontWeight: '900', color: '#ffffff', marginBottom: 4 } },
-                { type: 'paragraph', props: { text: 'Warehouse floors and high-traffic areas.', fontSize: 14, color: '#9ca3af', lineHeight: 1.6, marginBottom: 20 } },
+                { type: 'heading', props: { text: '30 MPa', fontSize: 56, fontWeight: '900', color: '#ffffff', lineHeight: 1, marginBottom: 10 } },
+                { type: 'divider', props: { dividerColor: '#4a7c59', thickness: 2 } },
+                { type: 'heading', props: { text: 'Industrial Slabs', fontSize: 15, fontWeight: '600', color: '#e5e7eb', marginBottom: 8 } },
+                { type: 'paragraph', props: { text: 'Warehouse floors and high-traffic areas requiring superior load-bearing capacity.', fontSize: 13, color: '#9ca3af', lineHeight: 1.6, marginBottom: 20 } },
                 { type: 'button', props: { text: 'Enquire →', navTarget: '#contact', bgColor: 'transparent', textColor: '#4a7c59', paddingX: 0, paddingY: 4, borderRadius: 0 } },
               ],
             },
@@ -528,8 +523,10 @@ async function main() {
               props: { bgColor: '#374151', borderRadius: 12, paddingTop: 24, paddingBottom: 24, paddingX: 24 },
               subElements: [
                 { type: 'heading', props: { text: 'INDUSTRIAL', fontSize: 10, fontWeight: '700', color: '#4a7c59', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 } },
-                { type: 'heading', props: { text: '40 MPa', fontSize: 40, fontWeight: '900', color: '#ffffff', marginBottom: 4 } },
-                { type: 'paragraph', props: { text: 'Precast, industrial floors and high-stress applications.', fontSize: 14, color: '#9ca3af', lineHeight: 1.6, marginBottom: 20 } },
+                { type: 'heading', props: { text: '40 MPa', fontSize: 56, fontWeight: '900', color: '#ffffff', lineHeight: 1, marginBottom: 10 } },
+                { type: 'divider', props: { dividerColor: '#4a7c59', thickness: 2 } },
+                { type: 'heading', props: { text: 'High Strength', fontSize: 15, fontWeight: '600', color: '#e5e7eb', marginBottom: 8 } },
+                { type: 'paragraph', props: { text: 'Precast elements, industrial floors and high-stress applications at maximum strength.', fontSize: 13, color: '#9ca3af', lineHeight: 1.6, marginBottom: 20 } },
                 { type: 'button', props: { text: 'Enquire →', navTarget: '#contact', bgColor: 'transparent', textColor: '#4a7c59', paddingX: 0, paddingY: 4, borderRadius: 0 } },
               ],
             },
@@ -676,21 +673,60 @@ async function main() {
         },
         designerData: {
           layoutType: 'grid',
-          grid: { cols: 2, rows: 3, gap: 24 },
+          grid: { cols: 2, rows: 3, gap: 20 },
           blocks: [
             {
               id: 40, type: 'text',
               position: { row: 1, col: 1, colSpan: 2 },
-              props: { textAlign: 'left', paddingTop: 16 },
+              props: { textAlign: 'left', paddingTop: 16, paddingBottom: 8 },
               subElements: [
                 { type: 'heading', props: { text: 'REFERENCE PROJECTS', fontSize: 11, fontWeight: '700', color: '#4a7c59', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 } },
                 { type: 'heading', props: { text: 'Poured Into the Overberg.', fontSize: 44, fontWeight: '900', color: '#ffffff', lineHeight: 1.05, marginBottom: 0 } },
               ],
             },
             {
-              id: 41, type: 'projects-gallery',
-              position: { row: 2, col: 1, colSpan: 2, rowSpan: 2 },
-              props: { heading: '', subtext: '', textColor: '#ffffff', columns: 4 },
+              id: 41, type: 'photo-card',
+              position: { row: 2, col: 1 },
+              props: {
+                bgImageUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&q=80',
+                title: 'Hermanus Shopping Centre',
+                location: 'Hermanus, Western Cape',
+                badge: 'CALEDON · 25 MPa',
+                panelBg: 'rgba(45,90,61,0.97)',
+              },
+            },
+            {
+              id: 42, type: 'photo-card',
+              position: { row: 2, col: 2 },
+              props: {
+                bgImageUrl: 'https://images.unsplash.com/photo-1590496793929-36417d3117de?w=800&q=80',
+                title: 'Stanford Primary School',
+                location: 'Stanford, Western Cape',
+                badge: 'STANFORD · 15 MPa',
+                panelBg: 'rgba(45,90,61,0.97)',
+              },
+            },
+            {
+              id: 43, type: 'photo-card',
+              position: { row: 3, col: 1 },
+              props: {
+                bgImageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80',
+                title: 'Caledon Industrial Estate',
+                location: 'Caledon, Western Cape',
+                badge: 'CALEDON · 30 MPa',
+                panelBg: 'rgba(45,90,61,0.97)',
+              },
+            },
+            {
+              id: 44, type: 'photo-card',
+              position: { row: 3, col: 2 },
+              props: {
+                bgImageUrl: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=800&q=80',
+                title: 'Gansbaai Harbour',
+                location: 'Gansbaai, Western Cape',
+                badge: 'GANSBAAI · 25 MPa',
+                panelBg: 'rgba(45,90,61,0.97)',
+              },
             },
           ],
         },
