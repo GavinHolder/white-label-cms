@@ -85,6 +85,27 @@ export const DEFAULT_ANIMATION: VoltLayerAnimation = {
   animates: { opacity: true, scale: false, position: false, rotation: false, fill: false },
 }
 
+// ── Entrance Animations ────────────────────────────────────────────────────────
+export type EntranceAnimType =
+  | 'none'
+  | 'fadeIn'
+  | 'slideInLeft' | 'slideInRight' | 'slideInUp' | 'slideInDown'
+  | 'scaleIn'
+  | 'rotateIn'
+  | 'flipInX' | 'flipInY'
+
+export interface VoltEntranceAnim {
+  type: EntranceAnimType
+  /** Duration in ms (default: 600) */
+  duration?: number
+  /** Delay in ms after the card enters the viewport (default: 0) */
+  delay?: number
+  /** Anime.js ease string (default: 'easeOutCubic') */
+  ease?: string
+  /** Slide distance in px (for slideIn variants, default: 40) */
+  distance?: number
+}
+
 export interface VoltVectorData {
   pathData: string
   fills: VoltFill[]
@@ -273,6 +294,8 @@ export interface VoltLayer {
   translateZ?: number
   /** Per-layer visual effects (shadow, glow, blur) */
   effects?: VoltLayerEffects
+  /** On-enter animation played once when the card enters the viewport */
+  entranceAnim?: VoltEntranceAnim
   vectorData?: VoltVectorData
   slotData?: VoltSlotData
   imageData?: VoltImageData

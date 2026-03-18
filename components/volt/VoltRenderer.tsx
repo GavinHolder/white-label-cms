@@ -246,6 +246,59 @@ export default function VoltRenderer({ voltElement, slots = {}, instanceOverride
       }, flipAutoInterval)
     }
 
+    // ── Entrance animations (fire once on first viewport entry) ───────────────
+    const layersWithEntrance = layers.filter(l => l.entranceAnim && l.entranceAnim.type !== 'none')
+    if (layersWithEntrance.length > 0) {
+      // Set initial hidden state immediately (before card is visible)
+      for (const layer of layersWithEntrance) {
+        const ea = layer.entranceAnim!
+        const layerEl = el.querySelector<HTMLElement>(`#volt-layer-${layer.id}`)
+        if (!layerEl) continue
+        const dist = ea.distance ?? 40
+        switch (ea.type) {
+          case 'fadeIn':                       layerEl.style.opacity = '0'; break
+          case 'slideInLeft':   layerEl.style.transform = `translateX(-${dist}px)`; layerEl.style.opacity = '0'; break
+          case 'slideInRight':  layerEl.style.transform = `translateX(${dist}px)`;  layerEl.style.opacity = '0'; break
+          case 'slideInUp':     layerEl.style.transform = `translateY(-${dist}px)`; layerEl.style.opacity = '0'; break
+          case 'slideInDown':   layerEl.style.transform = `translateY(${dist}px)`;  layerEl.style.opacity = '0'; break
+          case 'scaleIn':       layerEl.style.transform = 'scale(0.7)'; layerEl.style.opacity = '0'; break
+          case 'rotateIn':      layerEl.style.transform = 'rotate(-15deg) scale(0.8)'; layerEl.style.opacity = '0'; break
+          case 'flipInX':       layerEl.style.transform = 'rotateX(90deg)'; layerEl.style.opacity = '0'; break
+          case 'flipInY':       layerEl.style.transform = 'rotateY(90deg)'; layerEl.style.opacity = '0'; break
+        }
+      }
+
+      const entranceObserver = new IntersectionObserver(
+        async (entries) => {
+          if (!entries[0].isIntersecting) return
+          entranceObserver.disconnect()
+          const { animate } = await import('animejs')
+
+          // Sort by z-index for stagger (lower z = plays first = background layers first)
+          const sorted = [...layersWithEntrance].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0))
+          let autoStagger = 0
+
+          for (const layer of sorted) {
+            const ea = layer.entranceAnim!
+            const layerEl = el.querySelector<HTMLElement>(`#volt-layer-${layer.id}`)
+            if (!layerEl) continue
+            const duration = ea.duration ?? 600
+            const delay    = (ea.delay ?? 0) + autoStagger
+            const ease     = ea.ease ?? 'easeOutCubic'
+            const targets: Record<string, unknown> = { opacity: 1, translateX: 0, translateY: 0, scale: 1, rotate: '0deg', rotateX: '0deg', rotateY: '0deg' }
+
+            animate(layerEl, { ...targets, duration, delay, ease })
+            autoStagger += 60  // 60ms stagger between layers
+          }
+        },
+        { threshold: 0.1 }
+      )
+      entranceObserver.observe(el)
+
+      // Store cleanup ref so we can disconnect if the component unmounts before firing
+      ;(el as HTMLElement & { _voltEntranceObs?: IntersectionObserver })._voltEntranceObs = entranceObserver
+    }
+
     // ── 3D Tilt + parallax depth ─────────────────────────────────────────────
     // Only active on non-flip cards (flip cards already have 3D perspective from the flip itself)
     let tiltRafId = 0
@@ -330,6 +383,9 @@ export default function VoltRenderer({ voltElement, slots = {}, instanceOverride
         isTiltingRef.current = false
         cancelAnimationFrame(tiltRafId)
       }
+      // Disconnect entrance observer if component unmounts before it fires
+      const obs = (el as HTMLElement & { _voltEntranceObs?: IntersectionObserver })._voltEntranceObs
+      if (obs) obs.disconnect()
     }
   }, [voltElement, isFlip, flipAnimType, flipTrigger, flipAxis, flipDuration, flipEase, flipDirection, flipPerspective, flipAutoInterval, tiltEnabled, tiltMaxDeg, tiltPerspective, layers, states])
 
