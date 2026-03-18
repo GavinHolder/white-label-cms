@@ -2245,12 +2245,47 @@
       cTa.addEventListener('input',function(){updT('content',cTa.value);if(cTa.value.slice(0,24)&&(layer.name==='Text'||!layer.name)){var i=state.element.layers.findIndex(function(l){return l.id===layer.id;});if(i>=0)state.element.layers[i].name=cTa.value.slice(0,24);markDirty();renderLayers();}});
       cTa.addEventListener('change',function(){pushHistory();markDirty();});
       cSec.appendChild(cTa);body.appendChild(cSec);
-      // Font Family
+      // Font Family (with Google Fonts dynamic loader)
       var fSec=mkSec();fSec.appendChild(mkLbl('Font Family'));
       var fSel=document.createElement('select');fSel.className='form-select form-select-sm';fSel.style.fontSize='11px';
-      var _fonts=['Inter, system-ui, sans-serif','system-ui, sans-serif','Georgia, serif','Playfair Display, serif','Roboto, sans-serif','Montserrat, sans-serif','Poppins, sans-serif','Raleway, sans-serif','DM Sans, sans-serif','Space Grotesk, sans-serif','JetBrains Mono, monospace','Courier New, monospace'];
-      _fonts.forEach(function(f){var o=document.createElement('option');o.value=f;o.textContent=f.split(',')[0];if((td.fontFamily||'Inter, system-ui, sans-serif')===f)o.selected=true;fSel.appendChild(o);});
-      fSel.addEventListener('change',function(){pushHistory();updT('fontFamily',fSel.value);});
+      // [cssValue, display label, google font slug or null if system]
+      var _fonts=[
+        ['Inter, system-ui, sans-serif','Inter','Inter'],
+        ['system-ui, sans-serif','System UI',null],
+        ['Georgia, serif','Georgia',null],
+        ['Playfair Display, serif','Playfair Display','Playfair+Display'],
+        ['Roboto, sans-serif','Roboto','Roboto'],
+        ['Montserrat, sans-serif','Montserrat','Montserrat'],
+        ['Poppins, sans-serif','Poppins','Poppins'],
+        ['Raleway, sans-serif','Raleway','Raleway'],
+        ['DM Sans, sans-serif','DM Sans','DM+Sans'],
+        ['Space Grotesk, sans-serif','Space Grotesk','Space+Grotesk'],
+        ['Lato, sans-serif','Lato','Lato'],
+        ['Nunito, sans-serif','Nunito','Nunito'],
+        ['Rubik, sans-serif','Rubik','Rubik'],
+        ['Outfit, sans-serif','Outfit','Outfit'],
+        ['Plus Jakarta Sans, sans-serif','Plus Jakarta Sans','Plus+Jakarta+Sans'],
+        ['Sora, sans-serif','Sora','Sora'],
+        ['Bricolage Grotesque, sans-serif','Bricolage Grotesque','Bricolage+Grotesque'],
+        ['Cormorant Garamond, serif','Cormorant Garamond','Cormorant+Garamond'],
+        ['Libre Baskerville, serif','Libre Baskerville','Libre+Baskerville'],
+        ['Merriweather, serif','Merriweather','Merriweather'],
+        ['Crimson Text, serif','Crimson Text','Crimson+Text'],
+        ['JetBrains Mono, monospace','JetBrains Mono','JetBrains+Mono'],
+        ['Fira Code, monospace','Fira Code','Fira+Code'],
+        ['Courier New, monospace','Courier New',null],
+      ];
+      var _loadedFonts={};
+      function _ensureFont(slug){if(!slug||_loadedFonts[slug])return;_loadedFonts[slug]=true;var lnk=document.createElement('link');lnk.rel='stylesheet';lnk.href='https://fonts.googleapis.com/css2?family='+slug+':wght@100;200;300;400;500;600;700;800;900&display=swap';document.head.appendChild(lnk);}
+      // Pre-load current font
+      var _curFontEntry=_fonts.find(function(f){return f[0]===(td.fontFamily||'Inter, system-ui, sans-serif');});
+      if(_curFontEntry&&_curFontEntry[2])_ensureFont(_curFontEntry[2]);
+      _fonts.forEach(function(f){var o=document.createElement('option');o.value=f[0];o.textContent=f[1];if((td.fontFamily||'Inter, system-ui, sans-serif')===f[0])o.selected=true;fSel.appendChild(o);});
+      fSel.addEventListener('change',function(){
+        var sel=_fonts.find(function(f){return f[0]===fSel.value;});
+        if(sel&&sel[2])_ensureFont(sel[2]);
+        pushHistory();updT('fontFamily',fSel.value);
+      });
       fSec.appendChild(fSel);body.appendChild(fSec);
       // Font Size + Weight row
       var fwRow=mkSec();fwRow.appendChild(mkLbl('Size & Weight'));
