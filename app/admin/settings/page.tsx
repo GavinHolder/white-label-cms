@@ -355,22 +355,23 @@ export default function SettingsPage() {
                         The admin panel remains fully accessible.
                       </div>
                     </div>
-                    <div className="flex-shrink-0 pt-1">
+                    <div className="flex-shrink-0">
                       {maintenanceLoading ? (
                         <span className="spinner-border spinner-border-sm text-secondary" />
                       ) : (
-                        <div className="form-check form-switch mb-0">
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            role="switch"
-                            id="maintenanceToggle"
-                            style={{ width: "3rem", height: "1.5rem", cursor: maintenanceSaving ? "not-allowed" : "pointer" }}
-                            checked={maintenanceEnabled}
-                            disabled={maintenanceSaving}
-                            onChange={(e) => handleToggleMaintenance(e.target.checked)}
-                          />
-                        </div>
+                        <button
+                          className={`btn btn-sm fw-semibold px-3 ${maintenanceEnabled ? "btn-warning" : "btn-outline-secondary"}`}
+                          disabled={maintenanceSaving}
+                          onClick={() => handleToggleMaintenance(!maintenanceEnabled)}
+                        >
+                          {maintenanceSaving ? (
+                            <span className="spinner-border spinner-border-sm" />
+                          ) : maintenanceEnabled ? (
+                            <><i className="bi bi-toggle-on me-1" />On — Click to Disable</>
+                          ) : (
+                            <><i className="bi bi-toggle-off me-1" />Off — Click to Enable</>
+                          )}
+                        </button>
                       )}
                     </div>
                   </div>
