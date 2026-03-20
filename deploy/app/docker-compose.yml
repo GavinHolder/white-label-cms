@@ -56,6 +56,16 @@ services:
       - "traefik.http.routers.${APP_NAME:-cms}-www.tls=true"
       - "traefik.http.routers.${APP_NAME:-cms}-www.tls.certresolver=letsencrypt"
       - "traefik.http.routers.${APP_NAME:-cms}-www.service=${APP_NAME:-cms}-svc"
+      # Apex → www redirect: https://${BASE_DOMAIN} → https://www.${BASE_DOMAIN}
+      - "traefik.http.routers.${APP_NAME:-cms}-apex.rule=Host(`${BASE_DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME:-cms}-apex.entrypoints=websecure"
+      - "traefik.http.routers.${APP_NAME:-cms}-apex.tls=true"
+      - "traefik.http.routers.${APP_NAME:-cms}-apex.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.${APP_NAME:-cms}-apex.middlewares=${APP_NAME:-cms}-apex-redirect"
+      - "traefik.http.routers.${APP_NAME:-cms}-apex.service=${APP_NAME:-cms}-svc"
+      - "traefik.http.middlewares.${APP_NAME:-cms}-apex-redirect.redirectregex.regex=^https://${BASE_DOMAIN}/(.*)"
+      - "traefik.http.middlewares.${APP_NAME:-cms}-apex-redirect.redirectregex.replacement=https://www.${BASE_DOMAIN}/$${1}"
+      - "traefik.http.middlewares.${APP_NAME:-cms}-apex-redirect.redirectregex.permanent=true"
       # CMS admin backend: https://backend.${BASE_DOMAIN} → redirects to /admin/login
       - "traefik.http.routers.${APP_NAME:-cms}-backend.rule=Host(`backend.${BASE_DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME:-cms}-backend.entrypoints=websecure"
