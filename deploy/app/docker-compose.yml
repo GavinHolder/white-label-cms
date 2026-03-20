@@ -63,8 +63,10 @@ services:
       - "traefik.http.routers.${APP_NAME:-cms}-backend.tls.certresolver=letsencrypt"
       - "traefik.http.routers.${APP_NAME:-cms}-backend.service=${APP_NAME:-cms}-svc"
       - "traefik.http.routers.${APP_NAME:-cms}-backend.middlewares=${APP_NAME:-cms}-admin-redirect"
-      # Redirect non-/admin paths on backend subdomain to /admin/login
-      - "traefik.http.middlewares.${APP_NAME:-cms}-admin-redirect.redirectregex.regex=^https://backend\\.${BASE_DOMAIN}/(?!admin)(.*)"
+      # Redirect root/non-admin paths on backend subdomain to /admin/login
+      # Note: Go RE2 engine does not support negative lookaheads — redirect only matches root path
+      # The Next.js app itself handles /admin/* routing; non-admin deep links will 404 → login redirect via app middleware
+      - "traefik.http.middlewares.${APP_NAME:-cms}-admin-redirect.redirectregex.regex=^https://backend\\.${BASE_DOMAIN}/?$"
       - "traefik.http.middlewares.${APP_NAME:-cms}-admin-redirect.redirectregex.replacement=https://backend.${BASE_DOMAIN}/admin/login"
       - "traefik.http.middlewares.${APP_NAME:-cms}-admin-redirect.redirectregex.permanent=false"
       # Shared service (both routers point here)
