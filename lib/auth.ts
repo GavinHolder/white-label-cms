@@ -9,11 +9,17 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { UserRole } from "@prisma/client";
 
-// Environment variables — fail fast if required secrets are missing
-if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET environment variable is not set");
-if (!process.env.JWT_REFRESH_SECRET) throw new Error("JWT_REFRESH_SECRET environment variable is not set");
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+// Lazy accessors — checked at call time, not module load (avoids Next.js build failures)
+function getJwtSecret(): string {
+  const s = process.env.JWT_SECRET;
+  if (!s) throw new Error("JWT_SECRET environment variable is not set");
+  return s;
+}
+function getJwtRefreshSecret(): string {
+  const s = process.env.JWT_REFRESH_SECRET;
+  if (!s) throw new Error("JWT_REFRESH_SECRET environment variable is not set");
+  return s;
+}
 const SESSION_TIMEOUT = process.env.SESSION_TIMEOUT || "14400000"; // 4 hours
 
 // JWT payload interface
@@ -50,7 +56,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  * @returns JWT access token
  */
 export function generateAccessToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, {
+  return jwt.sign(payload, getJwtSecret(), {
     expiresIn: "8h", // 8 hours (working day)
   });
 }
@@ -61,7 +67,7 @@ export function generateAccessToken(payload: JWTPayload): string {
  * @returns JWT refresh token
  */
 export function generateRefreshToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_REFRESH_SECRET, {
+  return jwt.sign(payload, getJwtRefreshSecret(), {
     expiresIn: "30d", // 30 days - long-lived for persistent sessions
   });
 }
@@ -73,7 +79,7 @@ export function generateRefreshToken(payload: JWTPayload): string {
  */
 export function verifyAccessToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload;
+    return jwt.verify(token, getJwtSecret()) as JWTPayload;
   } catch (error) {
     return null;
   }
@@ -86,7 +92,7 @@ export function verifyAccessToken(token: string): JWTPayload | null {
  */
 export function verifyRefreshToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_REFRESH_SECRET) as JWTPayload;
+    return jwt.verify(token, getJwtRefreshSecret()) as JWTPayload;
   } catch (error) {
     return null;
   }
