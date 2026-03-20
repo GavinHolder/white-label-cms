@@ -56,12 +56,17 @@ services:
       - "traefik.http.routers.${APP_NAME:-cms}-www.tls=true"
       - "traefik.http.routers.${APP_NAME:-cms}-www.tls.certresolver=letsencrypt"
       - "traefik.http.routers.${APP_NAME:-cms}-www.service=${APP_NAME:-cms}-svc"
-      # CMS admin backend: https://backend.${BASE_DOMAIN}
+      # CMS admin backend: https://backend.${BASE_DOMAIN} → redirects to /admin/login
       - "traefik.http.routers.${APP_NAME:-cms}-backend.rule=Host(`backend.${BASE_DOMAIN}`)"
       - "traefik.http.routers.${APP_NAME:-cms}-backend.entrypoints=websecure"
       - "traefik.http.routers.${APP_NAME:-cms}-backend.tls=true"
       - "traefik.http.routers.${APP_NAME:-cms}-backend.tls.certresolver=letsencrypt"
       - "traefik.http.routers.${APP_NAME:-cms}-backend.service=${APP_NAME:-cms}-svc"
+      - "traefik.http.routers.${APP_NAME:-cms}-backend.middlewares=${APP_NAME:-cms}-admin-redirect"
+      # Redirect non-/admin paths on backend subdomain to /admin/login
+      - "traefik.http.middlewares.${APP_NAME:-cms}-admin-redirect.redirectregex.regex=^https://backend\\.${BASE_DOMAIN}/(?!admin)(.*)"
+      - "traefik.http.middlewares.${APP_NAME:-cms}-admin-redirect.redirectregex.replacement=https://backend.${BASE_DOMAIN}/admin/login"
+      - "traefik.http.middlewares.${APP_NAME:-cms}-admin-redirect.redirectregex.permanent=false"
       # Shared service (both routers point here)
       - "traefik.http.services.${APP_NAME:-cms}-svc.loadbalancer.server.port=3000"
 
