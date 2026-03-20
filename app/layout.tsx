@@ -12,6 +12,7 @@ import ScrollRestoration from "@/components/ScrollRestoration";
 import { headers } from "next/headers";
 import { fetchSeoConfig, buildStructuredData } from "@/lib/metadata-generator";
 import prisma from "@/lib/prisma";
+import MaintenancePage from "@/components/MaintenancePage";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -66,6 +67,18 @@ export default async function RootLayout({
   const isAdminRoute = pathname.startsWith("/admin");
   const isIsolatedRoute = pathname.startsWith("/volt-preview");
 
+  // Maintenance mode — check DB only for public routes (skip admin, api, volt-preview)
+  const isPublicRoute = !isAdminRoute && !isIsolatedRoute && !pathname.startsWith("/api");
+  let maintenanceMode = false;
+  if (isPublicRoute) {
+    try {
+      const row = await prisma.systemSettings.findUnique({ where: { key: "maintenance_mode" } });
+      maintenanceMode = row?.value === "true";
+    } catch {
+      // DB unavailable during startup — don't block the site
+    }
+  }
+
   // JSON-LD structured data — only injected when admin has configured it
   // buildStructuredData() returns null when disabled or business name is empty
   // Output uses JSON.stringify with </script> escaped — safe to inline
@@ -99,7 +112,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         style={{ margin: 0, padding: 0 }}
       >
-        {isIsolatedRoute ? children : (
+        {maintenanceMode ? <MaintenancePage /> : isIsolatedRoute ? children : (
           <>
             <ScrollRestoration />
             <ClientLayout showNavigation={!isAdminRoute}>

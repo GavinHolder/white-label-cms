@@ -12,6 +12,7 @@ import {
 } from "@/lib/cms-settings";
 
 type SettingsCategory =
+  | "site"
   | "ui"
   | "editor"
   | "preview"
@@ -27,6 +28,7 @@ const BASE_CATEGORIES: Array<{
   label: string;
   icon: string;
 }> = [
+  { id: "site", label: "Site", icon: "bi-globe2" },
   { id: "ui", label: "UI Preferences", icon: "bi-palette" },
   { id: "editor", label: "Editor", icon: "bi-pencil-square" },
   { id: "preview", label: "Preview", icon: "bi-eye" },
@@ -41,7 +43,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<CMSSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState<SettingsCategory>("ui");
+  const [activeCategory, setActiveCategory] = useState<SettingsCategory>("site");
   const [userRole, setUserRole] = useState<string | null>(null);
 
   // Email settings state (stored in DB via /api/settings/email)
@@ -59,6 +61,12 @@ export default function SettingsPage() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailTesting, setEmailTesting] = useState(false);
 
+  // Maintenance mode
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
+  const [maintenanceLoading, setMaintenanceLoading] = useState(true);
+  const [maintenanceSaving, setMaintenanceSaving] = useState(false);
+  const [maintenanceMsg, setMaintenanceMsg] = useState<string | null>(null);
+
   // Calculator settings
   const [calcSettings, setCalcSettings] = useState({ quote_ref_prefix: "CE", quote_ref_counter: "1001" });
   const [calcSaving, setCalcSaving] = useState(false);
@@ -67,6 +75,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setSettings(getCMSSettings());
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/admin/maintenance")
+      .then((r) => r.json())
+      .then((d) => { setMaintenanceEnabled(Boolean(d.enabled)); })
+      .catch(() => {})
+      .finally(() => setMaintenanceLoading(false));
   }, []);
 
   useEffect(() => {
@@ -127,6 +143,26 @@ export default function SettingsPage() {
       alert("Failed to save settings. Please try again.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggleMaintenance = async (enabled: boolean) => {
+    setMaintenanceSaving(true);
+    setMaintenanceMsg(null);
+    try {
+      const res = await fetch("/api/admin/maintenance", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setMaintenanceEnabled(enabled);
+      setMaintenanceMsg(enabled ? "Maintenance mode enabled." : "Maintenance mode disabled.");
+      setTimeout(() => setMaintenanceMsg(null), 3000);
+    } catch {
+      setMaintenanceMsg("Failed to update maintenance mode.");
+    } finally {
+      setMaintenanceSaving(false);
     }
   };
 
@@ -296,6 +332,68 @@ export default function SettingsPage() {
 
         {/* Content Area */}
         <div className="flex-grow-1" style={{ minWidth: 0 }}>
+          {/* Site */}
+          {activeCategory === "site" && (
+            <div>
+              <h5 className="fw-semibold mb-4">
+                <i className="bi bi-globe2 me-2 text-primary"></i>
+                Site
+              </h5>
+
+              <div className="card shadow-sm">
+                <div className="card-body">
+                  <div className="d-flex align-items-start justify-content-between gap-3">
+                    <div className="flex-grow-1">
+                      <div className="d-flex align-items-center gap-2 mb-1">
+                        <strong>Maintenance Mode</strong>
+                        {maintenanceEnabled && (
+                          <span className="badge bg-warning text-dark">Active</span>
+                        )}
+                      </div>
+                      <div className="form-text mb-0">
+                        When enabled, all public-facing pages show a maintenance screen.
+                        The admin panel remains fully accessible.
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 pt-1">
+                      {maintenanceLoading ? (
+                        <span className="spinner-border spinner-border-sm text-secondary" />
+                      ) : (
+                        <div className="form-check form-switch mb-0">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            id="maintenanceToggle"
+                            style={{ width: "3rem", height: "1.5rem", cursor: maintenanceSaving ? "not-allowed" : "pointer" }}
+                            checked={maintenanceEnabled}
+                            disabled={maintenanceSaving}
+                            onChange={(e) => handleToggleMaintenance(e.target.checked)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {maintenanceMsg && (
+                    <div className={`alert py-2 small mt-3 mb-0 ${maintenanceEnabled ? "alert-warning" : "alert-success"}`}>
+                      <i className={`bi ${maintenanceEnabled ? "bi-cone-striped" : "bi-check-circle"} me-2`}></i>
+                      {maintenanceMsg}
+                    </div>
+                  )}
+
+                  {maintenanceEnabled && (
+                    <div className="alert alert-warning py-2 small mt-3 mb-0">
+                      <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                      <strong>Site is in maintenance mode.</strong> Visitors see the maintenance page.
+                      Disable this toggle when your site is ready.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* UI Preferences */}
           {activeCategory === "ui" && (
             <div>
