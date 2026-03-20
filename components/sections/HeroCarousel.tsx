@@ -258,7 +258,14 @@ export default function HeroCarousel({ section }: HeroCarouselProps) {
               className={`position-absolute top-0 start-0 w-100 h-100 d-flex ${getPositionClasses(slide.overlay.position)}`}
               style={getOverlayOffsetStyle(slide.overlay)}
             >
-              <div className="text-center" style={{ maxWidth: "800px", zIndex: 10 }}>
+              <div
+                className={
+                  slide.overlay.position?.includes("Left") ? "text-start" :
+                  slide.overlay.position?.includes("Right") ? "text-end" :
+                  "text-center"
+                }
+                style={{ maxWidth: "860px", zIndex: 10, padding: slide.overlay.position?.includes("Left") ? "0 0 60px 60px" : slide.overlay.position?.includes("Right") ? "0 60px 60px 0" : undefined }}
+              >
                 <AnimatePresence>
                   {/* Heading */}
                   <motion.h1

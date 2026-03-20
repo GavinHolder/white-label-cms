@@ -291,8 +291,8 @@ async function main() {
                 { text: 'Get a Quote', href: '#contact', backgroundColor: '#4a7c59', textColor: '#ffffff', variant: 'filled', animation: 'slideUp', animationDelay: 600 },
                 { text: 'Calculate Your Concrete', href: '/calculator', backgroundColor: 'transparent', textColor: '#ffffff', variant: 'outline', animation: 'slideUp', animationDelay: 720 },
               ],
-              position: 'center',
-              spacing: { betweenHeadingSubheading: 24, betweenSubheadingButtons: 44, betweenButtons: 16 },
+              position: 'bottomLeft',
+              spacing: { betweenHeadingSubheading: 20, betweenSubheadingButtons: 36, betweenButtons: 16 },
             },
           },
           {
@@ -317,8 +317,8 @@ async function main() {
               buttons: [
                 { text: 'View Our Mixes', href: '#mixes', backgroundColor: '#4a7c59', textColor: '#ffffff', variant: 'filled', animation: 'fade', animationDelay: 400 },
               ],
-              position: 'center',
-              spacing: { betweenHeadingSubheading: 24, betweenSubheadingButtons: 44, betweenButtons: 16 },
+              position: 'bottomLeft',
+              spacing: { betweenHeadingSubheading: 20, betweenSubheadingButtons: 36, betweenButtons: 16 },
             },
           },
           {
@@ -343,8 +343,8 @@ async function main() {
               buttons: [
                 { text: 'Our Delivery Area', href: '#delivery', backgroundColor: '#4a7c59', textColor: '#ffffff', variant: 'filled', animation: 'slideUp', animationDelay: 500 },
               ],
-              position: 'center',
-              spacing: { betweenHeadingSubheading: 24, betweenSubheadingButtons: 44, betweenButtons: 16 },
+              position: 'bottomLeft',
+              spacing: { betweenHeadingSubheading: 20, betweenSubheadingButtons: 36, betweenButtons: 16 },
             },
           },
         ],

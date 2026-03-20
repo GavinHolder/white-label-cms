@@ -434,17 +434,21 @@ export default function LandingPageManager() {
                       <SortableItem key={section.id} section={section}>
                         {({ listeners, attributes }) => (
                         <div
-                          className="list-group-item d-flex align-items-center gap-2 gap-md-3"
-                          style={
-                            section.type === "HERO" || section.type === "FOOTER"
+                          className="list-group-item"
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "24px auto 1fr auto auto 1fr",
+                            alignItems: "center",
+                            gap: "0.5rem 0.5rem",
+                            ...(section.type === "HERO" || section.type === "FOOTER"
                               ? { backgroundColor: "#e8f4fd" }
-                              : undefined
-                          }
+                              : undefined),
+                          }}
                         >
                     {/* Drag Handle */}
                     {isSectionMovable(section.type) ? (
                       <div
-                        className="text-muted d-flex align-items-center flex-shrink-0"
+                        className="text-muted d-flex align-items-center"
                         style={{ cursor: "grab", touchAction: "none" }}
                         title="Drag to reorder"
                         {...listeners}
@@ -453,55 +457,49 @@ export default function LandingPageManager() {
                         <i className="bi bi-grip-vertical fs-5"></i>
                       </div>
                     ) : (
-                      <div style={{ width: "20px", flexShrink: 0 }}></div>
+                      <div></div>
                     )}
 
-                    {/* Section Info — stacks on mobile, single row on md+ */}
-                    <div className="flex-grow-1 d-flex flex-column flex-md-row align-items-start align-items-md-center gap-1 gap-md-3" style={{ minWidth: 0 }}>
-                      {/* Name + order (mobile: same line, order right-aligned) */}
-                      <div className="d-flex align-items-center gap-2 w-100 w-md-auto">
-                        <strong
-                          className="text-truncate"
-                          style={{ minWidth: "100px", maxWidth: "200px", flexShrink: 0 }}
-                          title={section.displayName || section.type}
-                        >
-                          {section.displayName || section.type}
-                        </strong>
-                        <small className="text-muted ms-auto d-md-none" style={{ flexShrink: 0 }}>
-                          Order: {section.order}
-                        </small>
-                      </div>
+                    {/* Order # */}
+                    <small className="text-muted fw-semibold" style={{ fontVariantNumeric: "tabular-nums", paddingRight: "0.5rem" }}>
+                      #{section.order}
+                    </small>
 
-                      {/* Badges */}
-                      <div className="d-flex align-items-center gap-1 flex-wrap flex-shrink-0">
-                        <span className="badge rounded-pill text-secondary border border-secondary-subtle">
-                          {section.type}
-                        </span>
-                        {!section.enabled && (
-                          <span className="badge rounded-pill text-warning border border-warning-subtle">
-                            Hidden
-                          </span>
-                        )}
-                        {(section.type === "HERO" || section.type === "FOOTER") && (
-                          <span className="badge rounded-pill text-primary border border-primary-subtle">
-                            Fixed
-                          </span>
-                        )}
-                        {(section.type === "FLEXIBLE" || (section.type as string) === "flexible") && (
-                          <span className="badge rounded-pill text-info border border-info-subtle">
-                            {((section as any).contentMode || (section as any).content?.contentMode || "single") === "multi" ? "multi-block" : "single-block"}
-                          </span>
-                        )}
-                      </div>
+                    {/* Section Name */}
+                    <strong
+                      className="text-truncate"
+                      title={section.displayName || section.type}
+                      style={{ minWidth: 0, paddingLeft: "1rem" }}
+                    >
+                      {section.displayName || section.type}
+                    </strong>
 
-                      {/* Order — desktop only (shown inline on mobile above) */}
-                      <small className="text-muted flex-shrink-0 d-none d-md-block" style={{ minWidth: "60px" }}>
-                        Order: {section.order}
-                      </small>
+                    {/* Type Badge — fixed-width container so all rows align */}
+                    <div style={{ width: "80px", textAlign: "center" }}>
+                      <span className="badge rounded-pill text-secondary border border-secondary-subtle">
+                        {section.type}
+                      </span>
                     </div>
 
-                    {/* Actions */}
-                    <div className="d-flex gap-1 flex-shrink-0">
+                    {/* Sub-type Badge — fixed-width container so Fixed/single/multi align */}
+                    <div style={{ width: "62px", textAlign: "center" }}>
+                      {!section.enabled ? (
+                        <span className="badge rounded-pill text-warning border border-warning-subtle">
+                          Hidden
+                        </span>
+                      ) : (section.type === "HERO" || section.type === "FOOTER") ? (
+                        <span className="badge rounded-pill text-primary border border-primary-subtle">
+                          Fixed
+                        </span>
+                      ) : (section.type === "FLEXIBLE" || (section.type as string) === "flexible") ? (
+                        <span className="badge rounded-pill text-info border border-info-subtle">
+                          {((section as any).contentMode || (section as any).content?.contentMode || "single") === "multi" ? "multi" : "single"}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {/* Actions — right-justified in the 1fr zone */}
+                    <div className="d-flex gap-1 justify-content-end">
                       {isSectionMovable(section.type) && movableSectionCount > 1 && (
                         <>
                           <button

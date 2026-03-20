@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Bootstrap script — sonicweb.dedicated.co.za
+Bootstrap script — web.ovbreadymix.co.za
 Runs ONCE as root (password auth) to fully configure the production server.
 
 Usage:
@@ -8,8 +8,8 @@ Usage:
     python deploy/bootstrap.py
 
 What it does:
-    1. Generates Ed25519 SSH keypair at ~/.ssh/sonic_cloud (if not exists)
-    2. Creates 'sonic' OS user on the server
+    1. Generates Ed25519 SSH keypair at ~/.ssh/ovb_cms (if not exists)
+    2. Creates 'cms' OS user on the server
     3. Installs SSH public key for passwordless login
     4. Hardens SSH: disables root login and password auth
     5. Installs Docker CE
@@ -35,20 +35,21 @@ except ImportError:
     sys.exit(1)
 
 # ── Config ─────────────────────────────────────────────────────────────────────
-SERVER_IP      = "165.73.86.236"
-SERVER_HOST    = "sonicweb.dedicated.co.za"
-ROOT_PASSWORD  = "3ZfEcVgj?JNQ"
-SONIC_USER     = "sonic"
-DEPLOY_DIR     = f"/home/{SONIC_USER}/sonic-deploy"
-ACME_EMAIL     = "admin@sonicdns.co.za"
-DOMAIN         = "sonicweb.dedicated.co.za"
-SSH_KEY_NAME   = "sonic_cloud"
+SERVER_IP      = "154.66.197.168"
+SERVER_HOST    = "web.ovbreadymix.co.za"
+ROOT_PASSWORD  = "B3rryP0rtal@5524"
+CMS_USER       = "cms"
+DEPLOY_DIR     = f"/home/{CMS_USER}/cms-deploy"
+ACME_EMAIL     = "admin@ovbreadymix.co.za"
+DOMAIN         = "web.ovbreadymix.co.za"
+SSH_KEY_NAME   = "ovb_cms"
 SSH_KEY_PATH   = Path.home() / ".ssh" / SSH_KEY_NAME
 
 # Paths to local compose files (relative to this script's directory)
 SCRIPT_DIR         = Path(__file__).parent
 TRAEFIK_COMPOSE    = SCRIPT_DIR / "traefik" / "docker-compose.yml"
 PORTAINER_COMPOSE  = SCRIPT_DIR / "portainer" / "docker-compose.yml"
+
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -80,7 +81,7 @@ def generate_ssh_key() -> str:
             [
                 "ssh-keygen", "-t", "ed25519",
                 "-f", str(SSH_KEY_PATH),
-                "-C", "sonic-cloud-deploy",
+                "-C", "ovb-cms-deploy",
                 "-N", "",
             ],
             check=True,
@@ -149,11 +150,11 @@ class SSH:
 
 def main():
     """
-    Full server bootstrap: connect as root, set up sonic user + SSH key,
+    Full server bootstrap: connect as root, set up cms user + SSH key,
     harden SSH, install Docker + UFW, upload stacks, start services.
     """
     print("=" * 60)
-    print("Sonic Website — Production Server Bootstrap")
+    print("White-Label CMS — Production Server Bootstrap")
     print(f"Target: {SERVER_HOST} ({SERVER_IP})")
     print("=" * 60)
 
@@ -173,17 +174,17 @@ def main():
     print(f"\n[3/10] Connecting as root@{SERVER_IP}...")
     s = SSH(SERVER_IP, "root", password=ROOT_PASSWORD)
 
-    # Step 4: Create sonic user (idempotent — skips if exists)
-    print("\n[4/10] Creating user 'sonic'...")
-    s.run(f"id {SONIC_USER} 2>/dev/null || adduser --disabled-password --gecos '' {SONIC_USER}")
-    s.run(f"usermod -aG sudo {SONIC_USER}")
+    # Step 4: Create cms user (idempotent — skips if exists)
+    print(f"\n[4/10] Creating user '{CMS_USER}'...")
+    s.run(f"id {CMS_USER} 2>/dev/null || adduser --disabled-password --gecos '' {CMS_USER}")
+    s.run(f"usermod -aG sudo {CMS_USER}")
 
-    # Step 5: Install SSH public key for sonic user
-    print("\n[5/10] Installing SSH authorized key for sonic...")
-    s.run(f"mkdir -p /home/{SONIC_USER}/.ssh && chmod 700 /home/{SONIC_USER}/.ssh")
-    s.run(f"echo '{public_key}' > /home/{SONIC_USER}/.ssh/authorized_keys")
-    s.run(f"chmod 600 /home/{SONIC_USER}/.ssh/authorized_keys")
-    s.run(f"chown -R {SONIC_USER}:{SONIC_USER} /home/{SONIC_USER}/.ssh")
+    # Step 5: Install SSH public key for cms user
+    print(f"\n[5/10] Installing SSH authorized key for {CMS_USER}...")
+    s.run(f"mkdir -p /home/{CMS_USER}/.ssh && chmod 700 /home/{CMS_USER}/.ssh")
+    s.run(f"echo '{public_key}' > /home/{CMS_USER}/.ssh/authorized_keys")
+    s.run(f"chmod 600 /home/{CMS_USER}/.ssh/authorized_keys")
+    s.run(f"chown -R {CMS_USER}:{CMS_USER} /home/{CMS_USER}/.ssh")
 
     # Step 6: Harden SSH — disable root login and password auth
     # Ubuntu 24 renamed ChallengeResponseAuthentication to KbdInteractiveAuthentication
@@ -202,10 +203,12 @@ def main():
     print("\n[7/10] Installing Docker CE...")
     s.run("apt-get update -qq")
     s.run("curl -fsSL https://get.docker.com | sh")
-    s.run(f"usermod -aG docker {SONIC_USER}")
+    s.run(f"usermod -aG docker {CMS_USER}")
     s.run("systemctl enable docker && systemctl start docker")
 
     # Step 8: Install UFW and open only required ports
+    # All services (Traefik dashboard, Portainer, app) are served via port 443
+    # subdomains — no separate management ports needed.
     print("\n[8/10] Configuring UFW firewall...")
     ufw_cmds = [
         "apt-get install -y ufw",
@@ -214,9 +217,7 @@ def main():
         "ufw default allow outgoing",
         "ufw allow 22/tcp comment 'SSH'",
         "ufw allow 80/tcp comment 'HTTP and Lets Encrypt'",
-        "ufw allow 443/tcp comment 'HTTPS website'",
-        "ufw allow 8443/tcp comment 'Traefik dashboard HTTPS'",
-        "ufw allow 9443/tcp comment 'Portainer HTTPS'",
+        "ufw allow 443/tcp comment 'HTTPS — all services via subdomains'",
         "ufw --force enable",
     ]
     for cmd in ufw_cmds:
@@ -227,7 +228,7 @@ def main():
 
     for d in [f"{DEPLOY_DIR}/traefik/acme", f"{DEPLOY_DIR}/portainer"]:
         s.run(f"mkdir -p {d}")
-    s.run(f"chown -R {SONIC_USER}:{SONIC_USER} {DEPLOY_DIR}")
+    s.run(f"chown -R {CMS_USER}:{CMS_USER} {DEPLOY_DIR}")
     s.run(
         f"touch {DEPLOY_DIR}/traefik/acme/acme.json && "
         f"chmod 600 {DEPLOY_DIR}/traefik/acme/acme.json"
@@ -236,7 +237,7 @@ def main():
     # Upload Traefik compose + generated .env
     s.upload_file(TRAEFIK_COMPOSE, f"{DEPLOY_DIR}/traefik/docker-compose.yml")
     traefik_env = (
-        f"DOMAIN={DOMAIN}\n"
+        f"MANAGEMENT_DOMAIN={DOMAIN}\n"
         f"ACME_EMAIL={ACME_EMAIL}\n"
         # Docker Compose .env files treat values as literal strings — no $ escaping needed
         f"TRAEFIK_ADMIN_AUTH={traefik_auth}\n"
@@ -246,7 +247,7 @@ def main():
 
     # Upload Portainer compose + generated .env
     s.upload_file(PORTAINER_COMPOSE, f"{DEPLOY_DIR}/portainer/docker-compose.yml")
-    s.upload_str(f"DOMAIN={DOMAIN}\n", f"{DEPLOY_DIR}/portainer/.env")
+    s.upload_str(f"MANAGEMENT_DOMAIN={DOMAIN}\n", f"{DEPLOY_DIR}/portainer/.env")
 
     # Step 10: Create Docker network and start stacks
     print("\n[10/10] Starting stacks...")
@@ -270,20 +271,22 @@ def main():
     print("\n" + "=" * 60)
     print("BOOTSTRAP COMPLETE")
     print("=" * 60)
-    print(f"\n  Website    : https://{SERVER_HOST}  (deploy app stack via Portainer)")
-    print(f"  Traefik    : https://{SERVER_HOST}:8443")
+    print(f"\n  Traefik    : https://traefik.{SERVER_HOST}")
     print(f"               Login: admin / {traefik_password}")
-    print(f"  Portainer  : https://{SERVER_HOST}:9443")
+    print(f"  Portainer  : https://portainer.{SERVER_HOST}")
     print(f"               Set admin password on first login: {portainer_password}")
-    print(f"\n  SSH        : ssh -i {SSH_KEY_PATH} {SONIC_USER}@{SERVER_IP}")
+    print(f"\n  Website (deploy via Portainer stack):")
+    print(f"    Public   : https://www.{SERVER_HOST}")
+    print(f"    Admin    : https://backend.{SERVER_HOST}")
+    print(f"\n  SSH        : ssh -i {SSH_KEY_PATH} {CMS_USER}@{SERVER_IP}")
     print(f"\n  Add to ~/.ssh/config:")
-    print(f"    Host sonic-cloud")
+    print(f"    Host ovb-cms")
     print(f"        HostName {SERVER_IP}")
-    print(f"        User {SONIC_USER}")
+    print(f"        User {CMS_USER}")
     print(f"        IdentityFile {SSH_KEY_PATH}")
     print(f"        ServerAliveInterval 60")
     print(f"        ServerAliveCountMax 3")
-    print(f"\n  >>> Save credentials to docs/PRODUCTION_CREDENTIALS.md <<<")
+    print(f"\n  >>> Save credentials to docs/server.md <<<")
     print("=" * 60)
 
 

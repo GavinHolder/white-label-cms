@@ -30,25 +30,30 @@ export function useClientFeature(slug: string): ClientFeatureResult {
   });
 
   useEffect(() => {
-    fetch(`/api/features/${slug}`)
-      .then((res) => {
-        if (!res.ok) return null;
-        return res.json();
-      })
-      .then((data) => {
+    // Try admin endpoint first (returns full data when authenticated);
+    // fall back to public endpoint for unauthenticated visitors on public pages.
+    const fetchFeature = async () => {
+      try {
+        let res = await fetch(`/api/features/${slug}`);
+        if (res.status === 401 || res.status === 403) {
+          // Not an admin — use the public endpoint
+          res = await fetch(`/api/features/public/${slug}`);
+        }
+        if (!res.ok) {
+          setResult({ enabled: false, config: {}, loading: false });
+          return;
+        }
+        const data = await res.json();
         if (data?.success && data.data) {
-          setResult({
-            enabled: data.data.enabled,
-            config: data.data.config ?? {},
-            loading: false,
-          });
+          setResult({ enabled: data.data.enabled, config: data.data.config ?? {}, loading: false });
         } else {
           setResult({ enabled: false, config: {}, loading: false });
         }
-      })
-      .catch(() => {
+      } catch {
         setResult({ enabled: false, config: {}, loading: false });
-      });
+      }
+    };
+    fetchFeature();
   }, [slug]);
 
   return result;

@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
 
 interface SubMenuItem {
   id: string;
@@ -49,12 +48,6 @@ const menuItems: MenuItem[] = [
         label: "Navbar",
         icon: "bi-compass",
         href: "/admin/content/navbar",
-      },
-      {
-        id: "navbar-links",
-        label: "Navbar Links",
-        icon: "bi-layout-navbar",
-        href: "/admin/settings/navbar-links",
       },
       {
         id: "seo",
@@ -151,6 +144,21 @@ interface SidebarProps {
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const [expandedItems, setExpandedItems] = useState<string[]>(["content"]);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/site-config")
+      .then((r) => r.json())
+      .then(({ data }) => {
+        setLogoUrl(data?.logoUrl ?? "");
+        setCompanyName(data?.companyName ?? "Your Company");
+      })
+      .catch(() => {
+        setLogoUrl("");
+        setCompanyName("Your Company");
+      });
+  }, []);
 
   // Close sidebar when route changes on mobile
   useEffect(() => {
@@ -217,7 +225,12 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         className="d-flex align-items-center px-3 mb-0 text-decoration-none border-bottom"
         style={{ minHeight: "72px" }}
       >
-        <img src="/images/logo-placeholder.svg" alt="CMS" style={{ height: "36px" }} />
+        {companyName === null ? null : logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt={companyName} style={{ height: "36px", maxWidth: "180px", objectFit: "contain" }} />
+        ) : (
+          <span className="fw-semibold text-body-emphasis" style={{ fontSize: "0.9375rem" }}>{companyName}</span>
+        )}
       </Link>
 
       {/* Navigation */}

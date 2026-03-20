@@ -1,10 +1,12 @@
 # =============================================================================
 # Portainer CE — Docker Management UI
 # =============================================================================
-# Access: https://${DOMAIN}:9443  (routed through Traefik, no direct port)
+# Access: https://portainer.${MANAGEMENT_DOMAIN}  (via Traefik HTTPS)
 #
 # Note: Set admin password within 5 minutes of first start.
 #       If you miss the window: docker restart portainer
+#
+# MANAGEMENT_DOMAIN must match what is set in the Traefik stack .env
 # =============================================================================
 
 services:
@@ -14,7 +16,6 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    # No direct port — Traefik handles TLS termination on :9443
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - portainer_data:/data
@@ -22,8 +23,8 @@ services:
       - traefik-public
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.portainer.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.portainer.entrypoints=portainer-secure"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.${MANAGEMENT_DOMAIN}`)"
+      - "traefik.http.routers.portainer.entrypoints=websecure"
       - "traefik.http.routers.portainer.tls=true"
       - "traefik.http.routers.portainer.tls.certresolver=letsencrypt"
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"

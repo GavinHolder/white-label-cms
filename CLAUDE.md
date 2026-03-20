@@ -6,6 +6,21 @@
 
 ---
 
+## ⛔ NON-NEGOTIABLE: CHANGES MUST NOT BREAK EXISTING FUNCTIONALITY
+
+**Every change — no matter how small or unrelated — must be verified not to break existing working features.**
+
+Rules:
+1. **Scope your changes tightly.** Only touch files directly related to the request. Do NOT refactor adjacent code, change shared utilities, or "clean up" things nearby.
+2. **Before touching shared code** (layout, CSS, globals, Navbar, DynamicSection, etc.) — identify ALL features that use it and verify your change won't affect them.
+3. **After every change** — use Playwright to visually verify the modified feature AND the most likely affected areas (navbar, footer, sections, admin sidebar).
+4. **If a change requires modifying shared infrastructure** — pause and confirm with the user what might be affected first.
+5. **No change is "safe by default."** Treat every edit to shared/layout/global files as HIGH RISK.
+
+**This rule exists because:** unrelated changes have repeatedly broken working features (navbar social icons, multi-select, back-to-library button, section padding). Each of those was caused by an edit that seemed unrelated but had side effects.
+
+---
+
 ## MCP Servers
 
 **Figma** (`https://mcp.figma.com/mcp`):
@@ -43,6 +58,20 @@
 | Features not in Designer yet | Any visual layout change |
 
 **Seeding scripts:** Must write `designerData` in the exact schema the Designer produces. After seeding, every section MUST open and be editable in the Designer. That is the test.
+
+### ⛔ VOLT-FIRST RULE FOR GRAPHICAL ELEMENTS (PERMANENT)
+
+**Cards, visual components, graphical UI elements, and interactive elements with hover effects MUST be built as Volt designs in Volt Studio — NEVER as hardcoded React components.**
+
+- **All cards** → build in Volt Studio, use `volt` block type in Flexible Designer
+- **Graphical UI elements** (hero cards, product cards, feature cards, showcase cards) → Volt
+- **Hover animations** (peek-a-boo, slide-in shapes, reveals) → Volt states (hover/rest) with layer overrides
+- **3D showcase cards** → Volt with `3d-object` layer type
+- **Layout of cards on a page** → Flexible Designer with `volt` blocks, NOT a custom React component
+
+**If Volt doesn't yet support a required interaction** (e.g. hover-connected 3D controls): STOP, tell the user what Volt enhancement is needed first, then build the enhancement, THEN build the card in Volt. Do NOT bypass Volt by creating a custom component.
+
+**This rule exists because:** building hardcoded React components for visual cards circumvents the entire CMS authoring system — the user can't edit them in the Designer, they can't be reused across pages, and they don't appear in Volt Studio library.
 
 **Override:** Only when user and Claude explicitly agree that a code change is needed and state why.
 

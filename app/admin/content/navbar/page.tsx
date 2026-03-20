@@ -6,6 +6,7 @@ import ImageFieldWithUpload from "@/components/admin/ImageFieldWithUpload";
 import { getPages } from "@/lib/page-manager";
 import type { PageType } from "@/types/page";
 import type { NavbarConfig, NavbarCtaButton } from "@/lib/navbar-config";
+import NavbarLinksEditor from "@/components/admin/NavbarLinksEditor";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -845,6 +846,20 @@ export default function NavbarEditorPage() {
                 </div>
 
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Navbar Links ──────────────────────────────────────────────────── */}
+        <div className="col-12">
+          <div className="card shadow-sm">
+            <div className="card-header d-flex align-items-center gap-2 py-2">
+              <i className="bi bi-layout-navbar text-secondary" />
+              <strong className="small">Navbar Links</strong>
+              <span className="ms-2 text-muted small">Choose which sections and pages appear in the navigation bar</span>
+            </div>
+            <div className="card-body">
+              <NavbarLinksEditor />
             </div>
           </div>
         </div>

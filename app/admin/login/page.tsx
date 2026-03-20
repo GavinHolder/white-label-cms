@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { AUTH_CONFIG, MOCK_USER, type Session } from "@/lib/auth-config";
 
@@ -11,6 +11,19 @@ export default function AdminLoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [logoUrl, setLogoUrl] = useState<string>("");
+  const [companyName, setCompanyName] = useState<string>("Your Company");
+
+  useEffect(() => {
+    fetch("/api/site-config")
+      .then((r) => r.json())
+      .then((data) => {
+        const config = data?.data || data;
+        if (config?.logoUrl) setLogoUrl(config.logoUrl);
+        if (config?.companyName) setCompanyName(config.companyName);
+      })
+      .catch(() => {/* keep defaults */});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,11 +101,17 @@ export default function AdminLoginPage() {
           <div className="col-12 col-md-6 col-lg-4">
             {/* Logo and Title */}
             <div className="text-center mb-4">
-              <img
-                src="/images/logo-placeholder.svg"
-                alt="Your Company"
-                style={{ height: "60px", marginBottom: "1.5rem" }}
-              />
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt={companyName}
+                  style={{ height: "60px", marginBottom: "1.5rem" }}
+                />
+              ) : (
+                <div style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "1.5rem", color: "#111827" }}>
+                  {companyName}
+                </div>
+              )}
               <h1 className="h3 mb-2 fw-normal">Admin Portal</h1>
               <p className="text-muted">Please sign in to continue</p>
             </div>

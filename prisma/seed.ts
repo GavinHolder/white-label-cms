@@ -132,13 +132,15 @@ async function main() {
   console.log('✅ Wipe complete');
 
   // ── Admin user ─────────────────────────────────────────────────────────────
-  const admin = await prisma.user.create({
-    data: {
-      username: 'admin',
-      email: 'admin@yourcompany.co.za',
-      passwordHash: await hashPassword('admin2026'),
-      firstName: 'Admin',
-      lastName: 'User',
+  const admin = await prisma.user.upsert({
+    where: { username: 'support' },
+    update: {},
+    create: {
+      username: 'support',
+      email: 'admin@ovbreadymix.co.za',
+      passwordHash: await hashPassword('B3rryP0rtal@5'),
+      firstName: 'Support',
+      lastName: 'Admin',
       role: 'SUPER_ADMIN',
       isActive: true,
     },
@@ -776,7 +778,7 @@ async function main() {
   console.log(`   ✓ FLEXIBLE single: aurora animBg + 3 motion elements + lower-third arch`);
   console.log(`   ✓ FLEXIBLE multi:  stats grid + feature cards (contentMode="multi", grows past 100vh)`);
   console.log(`   ✓ Concrete Calculator feature enabled`);
-  console.log(`\n🔐 Login: admin / admin2026`);
+  console.log(`\n🔐 Login: support / B3rryP0rtal@5`);
   console.log('   URL: http://localhost:3000/admin/login');
 }
 

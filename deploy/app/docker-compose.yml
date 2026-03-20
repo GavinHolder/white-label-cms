@@ -1,13 +1,25 @@
 # =============================================================================
-# White-Label CMS — App Stack
+# White-Label CMS — App Stack (Multi-Site Ready)
 # =============================================================================
 # Managed via Portainer. Create this stack using the Repository method:
 #   Repository URL: https://github.com/GavinHolder/white-label-cms.git
 #   Branch:         refs/heads/main
 #   Compose path:   deploy/app/docker-compose.yml
 #
-# Set all environment variables in Portainer's "Environment variables" editor.
-# See docs/DEPLOY_REFERENCE.md for the full list of required env vars.
+# REQUIRED environment variables in Portainer's "Environment variables" editor:
+#   APP_NAME        — unique slug, e.g. "ovb-cms" (unique across ALL sites)
+#   BASE_DOMAIN     — base domain, e.g. "ovbreadymix.co.za"
+#                     App is served on two subdomains of BASE_DOMAIN:
+#                       www.${BASE_DOMAIN}      → public website
+#                       backend.${BASE_DOMAIN}  → CMS admin panel
+#   DATABASE_URL    — full postgresql:// URL
+#   POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
+#   JWT_SECRET, JWT_REFRESH_SECRET
+#   NEXT_PUBLIC_API_URL — https://www.${BASE_DOMAIN}
+#   MEDIA_URL           — https://www.${BASE_DOMAIN}/uploads
+#
+# Multiple CMS sites: deploy separate stacks with unique APP_NAME + BASE_DOMAIN.
+# Traefik auto-routes each domain — no Traefik config changes needed per site.
 # =============================================================================
 
 services:
@@ -16,9 +28,9 @@ services:
     build:
       context: ../../       # Repo root — where Dockerfile lives
       dockerfile: Dockerfile
-    image: white-label-cms:latest
+    image: white-label-cms:${APP_NAME:-cms}
     pull_policy: build      # Always rebuild from source on deploy
-    container_name: app
+    container_name: ${APP_NAME:-cms}-app
     restart: unless-stopped
     depends_on:
       db:
@@ -41,16 +53,25 @@ services:
       - internal
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.app.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.app.entrypoints=websecure"
-      - "traefik.http.routers.app.tls=true"
-      - "traefik.http.routers.app.tls.certresolver=letsencrypt"
-      - "traefik.http.services.app.loadbalancer.server.port=3000"
+      # Public website: https://www.${BASE_DOMAIN}
+      - "traefik.http.routers.${APP_NAME:-cms}-www.rule=Host(`www.${BASE_DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME:-cms}-www.entrypoints=websecure"
+      - "traefik.http.routers.${APP_NAME:-cms}-www.tls=true"
+      - "traefik.http.routers.${APP_NAME:-cms}-www.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.${APP_NAME:-cms}-www.service=${APP_NAME:-cms}-svc"
+      # CMS admin backend: https://backend.${BASE_DOMAIN}
+      - "traefik.http.routers.${APP_NAME:-cms}-backend.rule=Host(`backend.${BASE_DOMAIN}`)"
+      - "traefik.http.routers.${APP_NAME:-cms}-backend.entrypoints=websecure"
+      - "traefik.http.routers.${APP_NAME:-cms}-backend.tls=true"
+      - "traefik.http.routers.${APP_NAME:-cms}-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.${APP_NAME:-cms}-backend.service=${APP_NAME:-cms}-svc"
+      # Shared service (both routers point here)
+      - "traefik.http.services.${APP_NAME:-cms}-svc.loadbalancer.server.port=3000"
 
   # ── PostgreSQL Database ──────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
-    container_name: db
+    container_name: ${APP_NAME:-cms}-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-cms}

@@ -223,8 +223,8 @@ function QuoteModal({ show, onClose, calcType, strength, inputs, result, currenc
 
   return (
     <>
-      <div className="modal-backdrop fade show" style={{ zIndex: 1040 }} onClick={onClose} />
-      <div className="modal fade show d-block" style={{ zIndex: 1050 }} tabIndex={-1}>
+      <div className="modal-backdrop fade show" style={{ zIndex: 2040 }} onClick={onClose} />
+      <div className="modal fade show d-block" style={{ zIndex: 2050 }} tabIndex={-1}>
         <div className="modal-dialog modal-dialog-scrollable modal-fullscreen-sm-down" style={{ marginTop: 90, marginBottom: 24 }}>
           <div className="modal-content border-0 shadow-lg">
             <div className="modal-header border-0 pb-0" style={{ background: "#1e3a5f", borderRadius: "12px 12px 0 0" }}>
@@ -454,8 +454,8 @@ function EstimateModal({ show, onClose, ...reportProps }: EstimateModalProps) {
   if (!show) return null;
   return (
     <>
-      <div className="modal-backdrop fade show" style={{ zIndex: 1040 }} onClick={onClose} />
-      <div className="modal fade show d-block" style={{ zIndex: 1050 }} tabIndex={-1}>
+      <div className="modal-backdrop fade show" style={{ zIndex: 2040 }} onClick={onClose} />
+      <div className="modal fade show d-block" style={{ zIndex: 2050 }} tabIndex={-1}>
         {/* fullscreen on mobile, large dialog on desktop with top margin to clear navbar */}
         <div
           className="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down"
@@ -660,8 +660,8 @@ export default function CalculatorPage() {
   }
 
   return (
-    /* pt clears fixed navbar (~70px) + breathing room; px-3 keeps content off screen edges on mobile */
-    <div className="container px-3 px-md-4 pb-5" style={{ maxWidth: 1000, paddingTop: 100 }}>
+    /* pt clears fixed navbar — uses CSS var so it works with both standard and tall navbar */
+    <div className="container px-3 px-md-4 pb-5" style={{ maxWidth: 1000, paddingTop: "calc(var(--navbar-height, 100px) + 24px)" }}>
       <div className="mb-4">
         <h1 className="fw-bold mb-1 fs-3 fs-md-1" style={{ color: "#1e3a5f" }}>
           <i className="bi bi-calculator me-2" />Concrete Calculator

@@ -47,6 +47,7 @@ export default function Navbar() {
   const [companyName, setCompanyName]     = useState("Your Company");
   const [logoUrl, setLogoUrl]             = useState("");
   const [navbarStyle, setNavbarStyle]     = useState<"standard" | "tall">("standard");
+  const [navbarStyleLoaded, setNavbarStyleLoaded] = useState(false);
   const [phone, setPhone]                 = useState("");
   const [socials, setSocials]             = useState<Record<string, string>>({});
   const toolsRef = useRef<HTMLDivElement>(null);
@@ -54,10 +55,13 @@ export default function Navbar() {
   const isTall = navbarStyle === "tall";
   const navbarHeight = isTall ? TALL_HEIGHT : STANDARD_HEIGHT;
 
-  // Sync --navbar-height CSS variable so sections automatically compensate
+  // Sync --navbar-height CSS variable so sections automatically compensate.
+  // Only update AFTER the site config has loaded — preserves the server-side
+  // value set on <html> until we know the real style (prevents 140→100→140 flash).
   useEffect(() => {
+    if (!navbarStyleLoaded) return;
     document.documentElement.style.setProperty("--navbar-height", `${navbarHeight}px`);
-  }, [navbarHeight]);
+  }, [navbarHeight, navbarStyleLoaded]);
 
   // Load all dynamic data
   useEffect(() => {
@@ -112,7 +116,12 @@ export default function Navbar() {
         const s: Record<string, string> = {};
         TALL_SOCIALS.forEach(({ key }) => { if (data?.[key]) s[key] = data[key]; });
         setSocials(s);
-      } catch {}
+        // Mark style as loaded so --navbar-height useEffect can safely update the CSS var
+        setNavbarStyleLoaded(true);
+      } catch {
+        // Even on error, mark loaded so the CSS var reflects the default state
+        setNavbarStyleLoaded(true);
+      }
     };
 
     loadNavLinks();
@@ -238,7 +247,7 @@ export default function Navbar() {
               <ToolsDropdown enabledFeatures={enabledFeatures} effectiveScrolled={effectiveScrolled}
                 mobileOpen={mobileOpen} navTransition={navTransition} toolsOpen={toolsOpen}
                 setToolsOpen={setToolsOpen} toolsRef={toolsRef} />
-              {ctaConfig.show && (
+              {navbarStyleLoaded && ctaConfig.show && (
                 <div className="d-none d-md-block">
                   <Button href={ctaConfig.href} variant={ctaStyleToVariant(ctaConfig.style)} size="sm">
                     {ctaConfig.text}
@@ -420,7 +429,7 @@ export default function Navbar() {
                         })}
                       </>
                     )}
-                    {ctaConfig.show && (
+                    {navbarStyleLoaded && ctaConfig.show && (
                       <motion.div className="px-4 py-2 text-center"
                         initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.2, delay: navLinks.length * 0.05 }}>
