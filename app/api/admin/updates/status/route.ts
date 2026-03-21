@@ -15,10 +15,6 @@ import { getLatestWorkflowRun } from "@/lib/github-actions";
 
 export const dynamic = "force-dynamic";
 
-const HEALTH_TIMEOUT_MS = 15_000;
-const HEALTH_MAX_ATTEMPTS = 10;
-const HEALTH_ATTEMPT_DELAY_MS = 15_000;
-
 async function upsert(key: string, value: string) {
   await prisma.systemSettings.upsert({
     where: { key },
@@ -32,25 +28,6 @@ async function getSettings(keys: string[]) {
   return Object.fromEntries(rows.map(r => [r.key, r.value]));
 }
 
-async function healthCheck(siteUrl: string): Promise<{ ok: boolean; error?: string }> {
-  for (let attempt = 0; attempt < HEALTH_MAX_ATTEMPTS; attempt++) {
-    if (attempt > 0) await new Promise(r => setTimeout(r, HEALTH_ATTEMPT_DELAY_MS));
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
-      const res = await fetch(`${siteUrl}/api/health`, { signal: controller.signal });
-      clearTimeout(timer);
-      if (!res.ok) continue;
-      const data = await res.json() as { status: string };
-      if (data.status === "ok") {
-        return { ok: true };
-      }
-    } catch {
-      // timeout or network error — retry
-    }
-  }
-  return { ok: false, error: `Site did not respond with status "ok" after ${HEALTH_MAX_ATTEMPTS} attempts` };
-}
 
 export async function GET(req: NextRequest) {
   const auth = requireRole(req, UserRole.SUPER_ADMIN);
@@ -129,17 +106,13 @@ export async function GET(req: NextRequest) {
         } catch { /* ignore */ }
       }
 
-      // Health check — wait for new container to come up (migrations + Next.js startup can take 2+ min)
-      await new Promise(r => setTimeout(r, 15_000));
-      const siteUrl = process.env.SITE_URL ?? req.nextUrl.origin;
-      const health = await healthCheck(siteUrl);
-
-      // Regardless of health check result: build succeeded → disable maintenance mode.
-      // Health check failure is a warning, not a blocker — never leave the site stuck in maintenance.
+      // Build + deploy succeeded — disable maintenance mode immediately.
+      // No blocking health check: the deploy script ran successfully, trust it.
+      // The container may still be starting but the site will come up on its own.
       await Promise.all([
         upsert("cms_update_status", "idle"),
         upsert("maintenance_mode", "false"),
-        upsert("cms_update_error", health.ok ? "" : (health.error ?? "Health check timed out — site may need a moment to finish starting")),
+        upsert("cms_update_error", ""),
       ]);
 
       return NextResponse.json({
@@ -148,7 +121,6 @@ export async function GET(req: NextRequest) {
         conclusion: "success",
         githubRunUrl: run.html_url,
         newVersion: targetVersion,
-        healthWarning: health.ok ? undefined : health.error,
       });
     } else {
       // failure / cancelled / timed_out
