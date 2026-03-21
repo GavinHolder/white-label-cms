@@ -333,10 +333,11 @@ export default function SeoSettingsPage() {
                     type="url"
                     className="form-control"
                     value={config.canonicalBase}
-                    onChange={(e) => setField("canonicalBase", e.target.value.replace(/\/$/, ""))}
+                    onChange={(e) => setField("canonicalBase", e.target.value)}
+                    onBlur={(e) => setField("canonicalBase", e.target.value.replace(/\/+$/, ""))}
                     placeholder="https://www.yourcompany.co.za"
                   />
-                  <div className="form-text">Used for canonical tags and sitemap. No trailing slash. Required for sitemap.xml to work correctly.</div>
+                  <div className="form-text">Used for canonical tags and sitemap. No trailing slash (e.g. <code>https://www.yourcompany.co.za</code>). Required for sitemap.xml to work correctly.</div>
                 </div>
               </div>
             </div>
