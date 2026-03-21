@@ -15,9 +15,9 @@ import { getLatestWorkflowRun } from "@/lib/github-actions";
 
 export const dynamic = "force-dynamic";
 
-const HEALTH_TIMEOUT_MS = 10_000;
-const HEALTH_MAX_ATTEMPTS = 3;
-const HEALTH_ATTEMPT_DELAY_MS = 3_000;
+const HEALTH_TIMEOUT_MS = 15_000;
+const HEALTH_MAX_ATTEMPTS = 10;
+const HEALTH_ATTEMPT_DELAY_MS = 15_000;
 
 async function upsert(key: string, value: string) {
   await prisma.systemSettings.upsert({
@@ -129,38 +129,27 @@ export async function GET(req: NextRequest) {
         } catch { /* ignore */ }
       }
 
-      // Health check — allow 30s for new container to start
-      await new Promise(r => setTimeout(r, 30_000));
+      // Health check — wait for new container to come up (migrations + Next.js startup can take 2+ min)
+      await new Promise(r => setTimeout(r, 15_000));
       const siteUrl = process.env.SITE_URL ?? req.nextUrl.origin;
       const health = await healthCheck(siteUrl);
 
-      if (health.ok) {
-        await Promise.all([
-          upsert("cms_update_status", "idle"),
-          upsert("maintenance_mode", "false"),
-          upsert("cms_update_error", ""),
-        ]);
-        return NextResponse.json({
-          updateStatus: "completed",
-          githubRunStatus: "completed",
-          conclusion: "success",
-          githubRunUrl: run.html_url,
-          newVersion: targetVersion,
-        });
-      } else {
-        await Promise.all([
-          upsert("cms_update_status", "failed"),
-          upsert("cms_update_error", health.error ?? "Health check failed after successful build"),
-        ]);
-        return NextResponse.json({
-          updateStatus: "failed",
-          githubRunStatus: "completed",
-          conclusion: "success",
-          githubRunUrl: run.html_url,
-          error: health.error,
-          message: "Build succeeded but health check failed. Maintenance mode is still active.",
-        });
-      }
+      // Regardless of health check result: build succeeded → disable maintenance mode.
+      // Health check failure is a warning, not a blocker — never leave the site stuck in maintenance.
+      await Promise.all([
+        upsert("cms_update_status", "idle"),
+        upsert("maintenance_mode", "false"),
+        upsert("cms_update_error", health.ok ? "" : (health.error ?? "Health check timed out — site may need a moment to finish starting")),
+      ]);
+
+      return NextResponse.json({
+        updateStatus: "completed",
+        githubRunStatus: "completed",
+        conclusion: "success",
+        githubRunUrl: run.html_url,
+        newVersion: targetVersion,
+        healthWarning: health.ok ? undefined : health.error,
+      });
     } else {
       // failure / cancelled / timed_out
       const errorMsg = `GitHub Actions run ${run.conclusion ?? "failed"}. See: ${run.html_url}`;
