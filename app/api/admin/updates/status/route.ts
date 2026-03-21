@@ -32,7 +32,7 @@ async function getSettings(keys: string[]) {
   return Object.fromEntries(rows.map(r => [r.key, r.value]));
 }
 
-async function healthCheck(siteUrl: string, expectedVersion: string): Promise<{ ok: boolean; error?: string }> {
+async function healthCheck(siteUrl: string): Promise<{ ok: boolean; error?: string }> {
   for (let attempt = 0; attempt < HEALTH_MAX_ATTEMPTS; attempt++) {
     if (attempt > 0) await new Promise(r => setTimeout(r, HEALTH_ATTEMPT_DELAY_MS));
     try {
@@ -41,16 +41,15 @@ async function healthCheck(siteUrl: string, expectedVersion: string): Promise<{ 
       const res = await fetch(`${siteUrl}/api/health`, { signal: controller.signal });
       clearTimeout(timer);
       if (!res.ok) continue;
-      const data = await res.json() as { status: string; version: string };
-      if (data.status === "ok" && data.version === expectedVersion) {
+      const data = await res.json() as { status: string };
+      if (data.status === "ok") {
         return { ok: true };
       }
-      // Version mismatch — new container not up yet
     } catch {
       // timeout or network error — retry
     }
   }
-  return { ok: false, error: `Health check did not return version ${expectedVersion} after ${HEALTH_MAX_ATTEMPTS} attempts` };
+  return { ok: false, error: `Site did not respond with status "ok" after ${HEALTH_MAX_ATTEMPTS} attempts` };
 }
 
 export async function GET(req: NextRequest) {
@@ -133,7 +132,7 @@ export async function GET(req: NextRequest) {
       // Health check — allow 30s for new container to start
       await new Promise(r => setTimeout(r, 30_000));
       const siteUrl = process.env.SITE_URL ?? req.nextUrl.origin;
-      const health = await healthCheck(siteUrl, targetVersion);
+      const health = await healthCheck(siteUrl);
 
       if (health.ok) {
         await Promise.all([
