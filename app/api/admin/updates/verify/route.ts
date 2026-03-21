@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/api-middleware";
 import { UserRole } from "@prisma/client";
+import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -114,7 +115,13 @@ export async function POST(req: NextRequest) {
     upstreamVersionUrl?: string;
   };
 
-  const pat = body.githubPat ?? "";
+  // If no PAT in body (user has saved PAT, didn't retype it), load from DB
+  let pat = body.githubPat ?? "";
+  if (!pat) {
+    const row = await prisma.systemSettings.findUnique({ where: { key: "github_pat" } });
+    pat = row?.value ?? "";
+  }
+
   const owner = body.githubRepoOwner ?? "";
   const name = body.githubRepoName ?? "";
   const workflowId = body.githubWorkflowId ?? "";

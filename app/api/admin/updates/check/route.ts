@@ -23,6 +23,15 @@ function semverGt(a: string, b: string): boolean {
   return false;
 }
 
+function semverDistance(from: string, to: string): { major: number; minor: number; patch: number; total: number } {
+  const [fMaj, fMin, fPat] = from.split(".").map(Number);
+  const [tMaj, tMin, tPat] = to.split(".").map(Number);
+  const major = (tMaj ?? 0) - (fMaj ?? 0);
+  const minor = (tMin ?? 0) - (fMin ?? 0);
+  const patch = (tPat ?? 0) - (fPat ?? 0);
+  return { major, minor, patch, total: major * 10000 + minor * 100 + patch };
+}
+
 async function getSettings(keys: string[]) {
   const rows = await prisma.systemSettings.findMany({ where: { key: { in: keys } } });
   return Object.fromEntries(rows.map(r => [r.key, r.value]));
@@ -70,6 +79,8 @@ export async function GET(req: NextRequest) {
     };
 
     const updateAvailable = semverGt(upstream.version, localVersion.version);
+    const gap = semverDistance(localVersion.version, upstream.version);
+    const largeJump = gap.major > 0 || gap.minor >= 2;
 
     // If scheduled time has passed and status is still "scheduled", auto-trigger
     const scheduled = settings["cms_update_scheduled"];
@@ -97,6 +108,8 @@ export async function GET(req: NextRequest) {
       scheduledTime: scheduled ?? null,
       targetVersion: settings["cms_update_target_version"] ?? null,
       lastError: settings["cms_update_error"] ?? null,
+      versionGap: gap,
+      largeJump,
     });
   } catch (err) {
     return NextResponse.json({

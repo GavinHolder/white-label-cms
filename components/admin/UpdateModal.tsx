@@ -11,6 +11,8 @@ interface UpdateInfo {
   updateStatus: "idle" | "in_progress" | "scheduled" | "failed" | "completed";
   scheduledTime: string | null;
   lastError: string | null;
+  largeJump?: boolean;
+  versionGap?: { major: number; minor: number; patch: number };
 }
 
 interface StatusResult {
@@ -234,6 +236,16 @@ export default function UpdateModal({ show, info, onClose }: Props) {
                     <p className="text-muted">No changelog available.</p>
                   )}
                   <hr />
+                  {info.largeJump && (
+                    <div className="alert alert-warning mb-2 small">
+                      <i className="bi bi-exclamation-triangle-fill me-1" />
+                      <strong>Large version jump detected</strong> ({info.localVersion} → {info.upstreamVersion}).
+                      {(info.versionGap?.major ?? 0) > 0
+                        ? " This includes a major version change — review the breaking changes above carefully."
+                        : ` Jumping ${info.versionGap?.minor ?? 0} minor versions — all Prisma migrations will run in sequence automatically.`}
+                      {" "}Database schema migrations are applied in order on startup, so this is safe — but review the changelogs for any config changes you may need to apply manually.
+                    </div>
+                  )}
                   <div className="alert alert-warning mb-0 small">
                     <i className="bi bi-shield-exclamation me-1" />
                     The site will enter <strong>maintenance mode</strong> during the update (~5 min). If anything goes wrong, maintenance mode stays on until you investigate.
