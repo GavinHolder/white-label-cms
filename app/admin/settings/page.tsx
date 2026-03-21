@@ -63,6 +63,8 @@ export default function SettingsPage() {
 
   // Maintenance mode
   const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
+  const [maintenanceTemplate, setMaintenanceTemplate] = useState<"plain" | "construction" | "custom">("plain");
+  const [maintenanceCustomImage, setMaintenanceCustomImage] = useState("");
   const [maintenanceLoading, setMaintenanceLoading] = useState(true);
   const [maintenanceSaving, setMaintenanceSaving] = useState(false);
   const [maintenanceMsg, setMaintenanceMsg] = useState<string | null>(null);
@@ -80,7 +82,11 @@ export default function SettingsPage() {
   useEffect(() => {
     fetch("/api/admin/maintenance")
       .then((r) => r.json())
-      .then((d) => { setMaintenanceEnabled(Boolean(d.enabled)); })
+      .then((d) => {
+        setMaintenanceEnabled(Boolean(d.enabled));
+        if (d.template) setMaintenanceTemplate(d.template);
+        if (d.customImage) setMaintenanceCustomImage(d.customImage);
+      })
       .catch(() => {})
       .finally(() => setMaintenanceLoading(false));
   }, []);
@@ -161,6 +167,30 @@ export default function SettingsPage() {
       setTimeout(() => setMaintenanceMsg(null), 3000);
     } catch {
       setMaintenanceMsg("Failed to update maintenance mode.");
+    } finally {
+      setMaintenanceSaving(false);
+    }
+  };
+
+  const handleSaveMaintenanceTemplate = async (
+    template: "plain" | "construction" | "custom",
+    customImage?: string,
+  ) => {
+    setMaintenanceSaving(true);
+    setMaintenanceMsg(null);
+    try {
+      const res = await fetch("/api/admin/maintenance", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template, customImage: customImage ?? maintenanceCustomImage }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setMaintenanceTemplate(template);
+      if (customImage !== undefined) setMaintenanceCustomImage(customImage);
+      setMaintenanceMsg("Maintenance template saved.");
+      setTimeout(() => setMaintenanceMsg(null), 3000);
+    } catch {
+      setMaintenanceMsg("Failed to save template.");
     } finally {
       setMaintenanceSaving(false);
     }
@@ -388,6 +418,118 @@ export default function SettingsPage() {
                       <i className="bi bi-exclamation-triangle-fill me-2"></i>
                       <strong>Site is in maintenance mode.</strong> Visitors see the maintenance page.
                       Disable this toggle when your site is ready.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Maintenance Template Picker ── */}
+              <div className="card shadow-sm mt-3">
+                <div className="card-body">
+                  <div className="mb-3">
+                    <strong>Maintenance Page Template</strong>
+                    <div className="form-text mb-0">
+                      Choose what visitors see during maintenance. The logo from Site Config is shown on all templates.
+                    </div>
+                  </div>
+
+                  <div className="row g-3 mb-3">
+                    {/* Plain */}
+                    <div className="col-sm-4">
+                      <button
+                        type="button"
+                        className={`w-100 p-0 border rounded-2 overflow-hidden text-start ${maintenanceTemplate === "plain" ? "border-primary border-2" : "border-secondary-subtle"}`}
+                        style={{ background: "none", cursor: "pointer" }}
+                        onClick={() => handleSaveMaintenanceTemplate("plain")}
+                        disabled={maintenanceSaving}
+                      >
+                        {/* Mini preview */}
+                        <div style={{ background: "#0d1117", padding: "16px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid #4d9fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#4d9fff" }} />
+                          </div>
+                          <div style={{ width: 60, height: 6, background: "#f0f0f0", borderRadius: 3 }} />
+                          <div style={{ width: 40, height: 3, background: "#4d9fff", borderRadius: 2 }} />
+                        </div>
+                        <div className="px-2 py-2 d-flex align-items-center gap-2">
+                          {maintenanceTemplate === "plain" && <i className="bi bi-check-circle-fill text-primary" />}
+                          <span className="small fw-semibold">Plain</span>
+                          <span className="badge bg-secondary-subtle text-secondary ms-auto" style={{ fontSize: "0.65rem" }}>Default</span>
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Construction */}
+                    <div className="col-sm-4">
+                      <button
+                        type="button"
+                        className={`w-100 p-0 border rounded-2 overflow-hidden text-start ${maintenanceTemplate === "construction" ? "border-primary border-2" : "border-secondary-subtle"}`}
+                        style={{ background: "none", cursor: "pointer" }}
+                        onClick={() => handleSaveMaintenanceTemplate("construction")}
+                        disabled={maintenanceSaving}
+                      >
+                        {/* Mini preview */}
+                        <div style={{ background: "#0f0f0f", padding: "10px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                          <div style={{ width: "100%", height: 6, background: "repeating-linear-gradient(-45deg,#78BE20 0,#78BE20 5px,#111 5px,#111 10px)", borderRadius: 2 }} />
+                          <div style={{ display: "flex", gap: 8, alignItems: "flex-end", margin: "4px 0" }}>
+                            <div style={{ width: 22, height: 16, background: "#f59e0b", borderRadius: "3px 2px 0 0" }} />
+                            <div style={{ width: 34, height: 20, background: "#53565A", borderRadius: "8px 14px 14px 8px" }} />
+                          </div>
+                          <div style={{ width: "100%", height: 6, background: "repeating-linear-gradient(-45deg,#78BE20 0,#78BE20 5px,#111 5px,#111 10px)", borderRadius: 2 }} />
+                        </div>
+                        <div className="px-2 py-2 d-flex align-items-center gap-2">
+                          {maintenanceTemplate === "construction" && <i className="bi bi-check-circle-fill text-primary" />}
+                          <span className="small fw-semibold">Construction</span>
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Custom */}
+                    <div className="col-sm-4">
+                      <button
+                        type="button"
+                        className={`w-100 p-0 border rounded-2 overflow-hidden text-start ${maintenanceTemplate === "custom" ? "border-primary border-2" : "border-secondary-subtle"}`}
+                        style={{ background: "none", cursor: "pointer" }}
+                        onClick={() => handleSaveMaintenanceTemplate("custom")}
+                        disabled={maintenanceSaving}
+                      >
+                        {/* Mini preview */}
+                        <div style={{ background: maintenanceCustomImage ? `url(${maintenanceCustomImage}) center/cover` : "#1a1a1a", padding: "16px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+                          <div style={{ background: "rgba(0,0,0,0.55)", padding: "4px 8px", borderRadius: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                            <i className="bi bi-image" style={{ color: "#fff", fontSize: "0.7rem" }} />
+                            <div style={{ width: 30, height: 4, background: "#fff", borderRadius: 2, opacity: 0.7 }} />
+                          </div>
+                          <div style={{ width: 50, height: 5, background: "rgba(255,255,255,0.8)", borderRadius: 2 }} />
+                        </div>
+                        <div className="px-2 py-2 d-flex align-items-center gap-2">
+                          {maintenanceTemplate === "custom" && <i className="bi bi-check-circle-fill text-primary" />}
+                          <span className="small fw-semibold">Custom Image</span>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Custom image URL input — only shown when custom is selected */}
+                  {maintenanceTemplate === "custom" && (
+                    <div className="mt-2">
+                      <label className="form-label small fw-semibold">Background Image URL</label>
+                      <div className="d-flex gap-2">
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          placeholder="https://... or /uploads/your-image.jpg"
+                          value={maintenanceCustomImage}
+                          onChange={(e) => setMaintenanceCustomImage(e.target.value)}
+                        />
+                        <button
+                          className="btn btn-sm btn-primary flex-shrink-0"
+                          onClick={() => handleSaveMaintenanceTemplate("custom", maintenanceCustomImage)}
+                          disabled={maintenanceSaving}
+                        >
+                          Save
+                        </button>
+                      </div>
+                      <div className="form-text">Paste any uploaded image URL from the Media Library.</div>
                     </div>
                   )}
                 </div>

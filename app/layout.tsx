@@ -73,15 +73,19 @@ export default async function RootLayout({
   let maintenanceTheme: import("@/components/MaintenancePage").MaintenanceTheme = {};
   if (isPublicRoute) {
     try {
-      const [mRow, siteConfig] = await Promise.all([
+      const [mRow, tplRow, imgRow, siteConfig] = await Promise.all([
         prisma.systemSettings.findUnique({ where: { key: "maintenance_mode" } }),
+        prisma.systemSettings.findUnique({ where: { key: "maintenance_template" } }),
+        prisma.systemSettings.findUnique({ where: { key: "maintenance_custom_img" } }),
         prisma.siteConfig.findUnique({ where: { id: "singleton" }, select: { logoUrl: true, companyName: true } }),
       ]);
       maintenanceMode = mRow?.value === "true";
-      if (maintenanceMode && siteConfig) {
+      if (maintenanceMode) {
         maintenanceTheme = {
-          logoUrl: siteConfig.logoUrl || undefined,
-          companyName: siteConfig.companyName || undefined,
+          logoUrl:     siteConfig?.logoUrl     || undefined,
+          companyName: siteConfig?.companyName || undefined,
+          template:    (tplRow?.value as import("@/components/MaintenancePage").MaintenanceTemplate) || "plain",
+          customImage: imgRow?.value || undefined,
         };
       }
     } catch {
