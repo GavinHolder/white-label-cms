@@ -3364,7 +3364,7 @@ Put your entire public-facing website on hold with a single toggle — no code c
 ## What It Does
 
 When **Maintenance Mode** is enabled:
-- Every public URL (home page, all pages, blog posts, etc.) shows a full-screen animated maintenance page
+- Every public URL (home page, all pages, blog posts, etc.) shows a full-screen maintenance page
 - The **admin panel remains fully accessible** at \`/admin/*\` — you can keep editing content while the site is down
 - All admin APIs continue to function normally
 - The state is stored in the database so it persists across server restarts and re-deploys
@@ -3373,26 +3373,41 @@ When **Maintenance Mode** is enabled:
 
 1. Go to **Settings → Site** (the default tab when you open Settings)
 2. Find the **Maintenance Mode** card
-3. Toggle the switch — changes are saved instantly (no save button needed)
+3. Click the toggle button — changes are saved instantly
 4. An **Active** badge appears next to the label, plus a yellow warning banner when enabled
 
-## The Maintenance Page
+## Maintenance Page Templates
 
-Visitors see a full-screen animated page with:
-- Dark navy starfield background
-- Animated CSS construction worker with shovel, hard hat, traffic cone, and barrier
-- **"MAINTENANCE MODE"** heading in orange
-- **"Be back soon… making things awesome"** subtitle in italic
-- Three bouncing dots
+Below the toggle you'll find a **Maintenance Page Template** picker with three options:
 
-No external images are used — everything is CSS/HTML for zero load time.
+### Plain (Default)
+- Dark neutral background — appropriate for any industry
+- Animated spinner icon
+- "We'll Be Right Back" heading
+- Animated progress bar
+- Shows your site logo (from Site Config) at the top
+
+### Construction
+- Full CSS animated concrete mixer truck with rotating drum, exhaust smoke, spinning wheels
+- Industrial hazard-tape stripes top and bottom
+- "Under Construction" heading
+- Colours default to **Pantone 2290 C (#78BE20)** / **Cool Gray 11 C (#53565A)** / **Cool Gray 4 C (#BBBCBC)**
+- Best suited to civil engineering, construction, and concrete companies
+
+### Custom Image
+- Full-screen background image of your choice with a dark overlay
+- Clean "Be Back Soon" heading and your logo centred on top
+- Paste any image URL (from the Media Library or external) into the URL field that appears when this template is selected
+- Works for any brand/industry
+
+Clicking a template card saves it immediately — no extra save button.
 
 ## Technical Notes
 
-- The flag is stored as a row in \`system_settings\` with key \`maintenance_mode\` and value \`"true"/"false"\`
-- The check runs **server-side** in the root layout before any client-side code executes
-- Routes skipped by maintenance check: \`/admin/*\`, \`/api/*\`, \`/volt-preview/*\`
-- The API endpoint is \`PUT /api/admin/maintenance\` and requires SUPER_ADMIN role
+- \`maintenance_mode\`, \`maintenance_template\`, \`maintenance_custom_img\` are all stored in \`system_settings\` key-value table
+- The check and template selection both run **server-side** in the root layout — visitors never see a flash of the real site
+- Routes skipped: \`/admin/*\`, \`/api/*\`, \`/volt-preview/*\`
+- API: \`GET/PUT /api/admin/maintenance\` — requires SUPER_ADMIN role
 
 ## When to Use
 
