@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 import type { MetadataRoute } from "next";
 import prisma from "@/lib/prisma";
@@ -6,29 +6,31 @@ import { fetchSeoConfig } from "@/lib/metadata-generator";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const seoConfig = await fetchSeoConfig();
-  const base = seoConfig.canonicalBase?.replace(/\/$/, "") || "";
 
-  // All published, indexable pages (exclude the landing page — already listed above)
+  // Sitemaps require absolute URLs — prefer canonical base, fall back to env
+  const base = (
+    seoConfig.canonicalBase ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    ""
+  ).replace(/\/$/, "");
+
+  // Without an absolute base we can't produce a valid sitemap
+  if (!base) return [];
+
+  // All published, indexable pages — including homepage slug "/"
   const pages = await prisma.page.findMany({
-    where: { status: "PUBLISHED", noindex: false, NOT: { slug: "/" } },
+    where: { status: "PUBLISHED", noindex: false },
     select: { slug: true, updatedAt: true },
     orderBy: { updatedAt: "desc" },
   });
 
-  const pageUrls: MetadataRoute.Sitemap = pages.map((p) => ({
-    url: base ? `${base}/${p.slug}`.replace(/\/$/, "") : `/${p.slug}`,
-    lastModified: p.updatedAt,
-    changeFrequency: "monthly",
-    priority: 0.7,
-  }));
-
-  return [
-    {
-      url: base || "/",
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 1.0,
-    },
-    ...pageUrls,
-  ];
+  return pages.map((p) => {
+    const isHome = p.slug === "/" || p.slug === "";
+    return {
+      url: isHome ? base : `${base}/${p.slug.replace(/^\//, "")}`,
+      lastModified: p.updatedAt,
+      changeFrequency: (isHome ? "weekly" : "monthly") as MetadataRoute.Sitemap[0]["changeFrequency"],
+      priority: isHome ? 1.0 : 0.7,
+    };
+  });
 }

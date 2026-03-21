@@ -453,6 +453,14 @@ export default function SeoSettingsPage() {
       {/* ── Tab: Robots & Sitemap ─────────────────────────────────────────── */}
       {activeTab === "robots" && (
         <div className="row g-4">
+          {!config.canonicalBase && (
+            <div className="col-12">
+              <div className="alert alert-warning mb-0 py-2 small">
+                <i className="bi bi-exclamation-triangle-fill me-2" />
+                <strong>Canonical Base URL is not set.</strong> The sitemap will use <code>NEXT_PUBLIC_API_URL</code> as fallback. Set the Canonical Base in the <button className="btn btn-link btn-sm p-0 align-baseline" onClick={() => setActiveTab("site")}>Site Settings tab</button> for fully correct robots.txt and sitemap URLs.
+              </div>
+            </div>
+          )}
           <div className="col-lg-7">
             <div className="card border-0 shadow-sm">
               <div className="card-header border-bottom bg-transparent py-3">
