@@ -31,7 +31,6 @@ const BASE_CATEGORIES: Array<{
   label: string;
   icon: string;
 }> = [
-  { id: "cms-updates", label: "CMS Updates", icon: "bi-arrow-up-circle" },
   { id: "site", label: "Site", icon: "bi-globe2" },
   { id: "ui", label: "UI Preferences", icon: "bi-palette" },
   { id: "editor", label: "Editor", icon: "bi-pencil-square" },
@@ -433,7 +432,10 @@ export default function SettingsPage() {
             {[
               ...BASE_CATEGORIES,
               ...(userRole === "SUPER_ADMIN"
-                ? [{ id: "features" as SettingsCategory, label: "Features", icon: "bi-toggles" }]
+                ? [
+                    { id: "features" as SettingsCategory, label: "Features", icon: "bi-toggles" },
+                    { id: "cms-updates" as SettingsCategory, label: "CMS Updates", icon: "bi-arrow-up-circle" },
+                  ]
                 : []),
             ].map((cat) => (
               <button
