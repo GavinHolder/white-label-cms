@@ -2526,8 +2526,8 @@ export const FEATURE_FLAGS_DOCS = `
 <h5 class="mt-4">How to Access</h5>
 <ol>
   <li>Log in as SUPER_ADMIN</li>
-  <li>Go to <strong>Settings</strong> (top navigation)</li>
-  <li>Click the <strong>Features</strong> tab (only visible to SUPER_ADMIN)</li>
+  <li>Click <strong>Features</strong> in the sidebar (dedicated management page at <code>/admin/features</code>)</li>
+  <li>Enabled features automatically appear as sub-items in the sidebar for quick access</li>
 </ol>
 
 <h5 class="mt-4">Current Features</h5>
@@ -3418,6 +3418,107 @@ Clicking a template card saves it immediately — no extra save button.
 `;
 
 // ─────────────────────────────────────────────
+// CMS UPDATE SYSTEM
+// ─────────────────────────────────────────────
+
+export const CMS_UPDATES_DOCS = `
+<h4>CMS Update System</h4>
+<p class="lead">Keep client CMS instances up to date with upstream white-label-cms improvements — directly from the admin panel.</p>
+
+<div class="alert alert-warning">
+  <i class="bi bi-shield-lock me-1"></i>
+  <strong>SUPER_ADMIN only.</strong> CMS Updates settings are hidden from all other roles.
+</div>
+
+<h5 class="mt-4">How It Works</h5>
+<ol>
+  <li>The admin badge polls the upstream <code>cms-version.json</code> URL every 60 seconds.</li>
+  <li>When the upstream version is higher than the deployed version, an <strong>Update Available</strong> badge appears in Settings.</li>
+  <li>Click the badge to open the Update Modal — view the changelog, then choose <strong>Update Now</strong> or <strong>Schedule for Midnight</strong>.</li>
+  <li>Update Now: enables maintenance mode → triggers the client repo's GitHub Actions workflow → monitors build progress → verifies the new version is live → disables maintenance mode.</li>
+  <li>If the build fails, maintenance mode stays active until you investigate and disable it manually.</li>
+</ol>
+
+<h5 class="mt-4">Configuring GitHub Settings</h5>
+<p>Go to <strong>Settings → CMS Updates</strong> and fill in:</p>
+<table class="table table-sm">
+  <thead class="table-light"><tr><th>Field</th><th>Description</th><th>Example</th></tr></thead>
+  <tbody>
+    <tr><td>GitHub PAT</td><td>Personal Access Token with <code>repo</code> + <code>workflow</code> scopes</td><td><code>ghp_xxx...</code></td></tr>
+    <tr><td>Repo Owner</td><td>GitHub username or org that owns the client repo</td><td><code>GavinHolder</code></td></tr>
+    <tr><td>Repo Name</td><td>Client repository name</td><td><code>ovbreadymix-cms</code></td></tr>
+    <tr><td>Workflow ID</td><td>Filename of the deploy workflow</td><td><code>deploy.yml</code></td></tr>
+    <tr><td>Upstream Version URL</td><td>Raw URL to master's <code>cms-version.json</code></td><td><code>https://raw.githubusercontent.com/GavinHolder/white-label-cms/main/public/cms-version.json</code></td></tr>
+  </tbody>
+</table>
+
+<p>Click <strong>Test &amp; Verify</strong> before saving — it checks PAT validity, repo access, workflow existence, and the upstream URL all at once.</p>
+
+<h5 class="mt-4">Auto-Versioning on Master</h5>
+<p>Every push to the <code>white-label-cms</code> master repo automatically bumps the version via GitHub Actions:</p>
+<ul>
+  <li><code>feat:</code> commits → <strong>minor bump</strong> (1.1.0 → 1.2.0)</li>
+  <li><code>fix:</code> commits → <strong>patch bump</strong> (1.1.0 → 1.1.1)</li>
+  <li><code>feat!:</code> or <code>BREAKING CHANGE</code> → <strong>major bump</strong> (1.0.0 → 2.0.0)</li>
+  <li>Changelog is built automatically from commit messages</li>
+</ul>
+<p>You never need to manually edit <code>public/cms-version.json</code>.</p>
+
+<h5 class="mt-4">Scheduled Updates</h5>
+<p><strong>Schedule for Midnight</strong> stores the scheduled time in the database. The next visit to Settings triggers the update automatically when midnight passes — no cron daemon required.</p>
+
+<h5 class="mt-4">Update Pipeline Flow</h5>
+<ol>
+  <li>Admin clicks <strong>Update Now</strong></li>
+  <li>Maintenance mode enabled (public sees maintenance page)</li>
+  <li>GitHub Actions <code>workflow_dispatch</code> triggered on client repo</li>
+  <li>Client workflow merges upstream/main → builds Docker image → deploys to VPS</li>
+  <li>Admin modal polls every 8 seconds — shows live GitHub Actions URL</li>
+  <li>On success: health check verifies new version → maintenance mode disabled → page reloads</li>
+  <li>On failure: maintenance mode stays on → admin investigates → disable manually in Settings → Site</li>
+</ol>
+`;
+
+// ─────────────────────────────────────────────
+// SEO WIZARD DOCS
+// ─────────────────────────────────────────────
+
+export const SEO_WIZARD_DOCS = `
+<h4>SEO Wizard</h4>
+<p class="lead">Auto-populate all SEO fields from a short guided questionnaire — no SEO knowledge required.</p>
+
+<h5 class="mt-4">How to Use</h5>
+<ol>
+  <li>Go to <strong>Content → SEO</strong></li>
+  <li>Click the <strong>SEO Wizard</strong> button (top right)</li>
+  <li>Complete the 4-step wizard:
+    <ul>
+      <li><strong>Business Info</strong> — name, type, optional tagline</li>
+      <li><strong>Location &amp; Contact</strong> — URL, phone, address, Twitter handle</li>
+      <li><strong>Keywords &amp; Description</strong> — comma-separated keywords; preview the generated meta description live</li>
+      <li><strong>Review &amp; Apply</strong> — SERP preview + field summary before committing</li>
+    </ul>
+  </li>
+  <li>Click <strong>Apply to SEO</strong> — all fields are populated in memory</li>
+  <li>Review the fields on each tab, then click <strong>Save Settings</strong></li>
+</ol>
+
+<h5 class="mt-4">What Gets Populated</h5>
+<table class="table table-sm">
+  <thead class="table-light"><tr><th>Field</th><th>Source</th></tr></thead>
+  <tbody>
+    <tr><td>Site Name</td><td>Business Name</td></tr>
+    <tr><td>Default Meta Description</td><td>Auto-generated from tagline + keywords + location</td></tr>
+    <tr><td>Canonical Base URL</td><td>Website URL</td></tr>
+    <tr><td>Twitter Handle</td><td>Twitter / X Handle</td></tr>
+    <tr><td>Structured Data (JSON-LD)</td><td>All business fields (enabled automatically)</td></tr>
+  </tbody>
+</table>
+
+<p class="text-muted small">All fields can be manually edited after the wizard applies them. The wizard does not save automatically — you must click Save Settings.</p>
+`;
+
+// ─────────────────────────────────────────────
 // TOPIC TREE
 // ─────────────────────────────────────────────
 
@@ -3546,6 +3647,7 @@ export const DOC_TOPICS: DocTopic[] = [
     icon: "bi-search",
     children: [
       { id: "seo-overview", label: "Site Settings & Per-Page SEO", icon: "bi-search", content: SEO_MANAGEMENT },
+      { id: "seo-wizard", label: "SEO Wizard", icon: "bi-magic", content: SEO_WIZARD_DOCS },
     ],
   },
   {
@@ -3571,6 +3673,7 @@ export const DOC_TOPICS: DocTopic[] = [
     children: [
       { id: "settings", label: "Settings", icon: "bi-gear", content: SETTINGS_PAGE },
       { id: "maintenance-mode", label: "Maintenance Mode", icon: "bi-cone-striped", content: MAINTENANCE_MODE_DOCS },
+      { id: "cms-updates", label: "CMS Update System", icon: "bi-arrow-up-circle", content: CMS_UPDATES_DOCS },
       { id: "media", label: "Media Library", icon: "bi-image", content: MEDIA_LIBRARY },
       { id: "users", label: "Users & Roles", icon: "bi-people", content: USERS },
     ],

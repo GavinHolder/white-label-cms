@@ -100,6 +100,13 @@ export default function SettingsPage() {
   const [ghMsg, setGhMsg] = useState<string | null>(null);
   const [ghError, setGhError] = useState<string | null>(null);
   const [showPat, setShowPat] = useState(false);
+  const [ghVerifying, setGhVerifying] = useState(false);
+  const [ghVerifyResults, setGhVerifyResults] = useState<{
+    pat: { ok: boolean; detail: string };
+    repo: { ok: boolean; detail: string };
+    workflow: { ok: boolean; detail: string };
+    upstream: { ok: boolean; detail: string };
+  } | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/updates/config")
@@ -107,6 +114,32 @@ export default function SettingsPage() {
       .then(d => { if (d) setGhConfig(d); })
       .catch(() => {});
   }, []);
+
+  async function handleVerifyGhConfig() {
+    setGhVerifying(true);
+    setGhVerifyResults(null);
+    try {
+      const body: Record<string, string> = {
+        githubRepoOwner: ghConfig.githubRepoOwner,
+        githubRepoName: ghConfig.githubRepoName,
+        githubWorkflowId: ghConfig.githubWorkflowId,
+        upstreamVersionUrl: ghConfig.upstreamVersionUrl,
+      };
+      if (ghPat) body.githubPat = ghPat;
+      const res = await fetch("/api/admin/updates/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.results) setGhVerifyResults(data.results);
+      else setGhError(data.error ?? "Verification failed");
+    } catch {
+      setGhError("Network error during verification");
+    } finally {
+      setGhVerifying(false);
+    }
+  }
 
   async function handleSaveGhConfig() {
     setGhSaving(true); setGhMsg(null); setGhError(null);
@@ -1471,8 +1504,34 @@ export default function SettingsPage() {
                     <p className="form-text">Raw URL to the master repo&apos;s <code>cms-version.json</code>.</p>
                   </div>
 
-                  <div>
-                    <button className="btn btn-primary" onClick={handleSaveGhConfig} disabled={ghSaving}>
+                  {/* Verify results */}
+                  {ghVerifyResults && (
+                    <div className="border rounded p-3 bg-body-tertiary">
+                      <p className="fw-semibold mb-2 small">Verification Results</p>
+                      <div className="vstack gap-1">
+                        {(["pat", "repo", "workflow", "upstream"] as const).map((key) => {
+                          const labels: Record<string, string> = { pat: "GitHub PAT", repo: "Repository", workflow: "Workflow file", upstream: "Upstream version URL" };
+                          const r = ghVerifyResults[key];
+                          return (
+                            <div key={key} className="d-flex align-items-start gap-2 small">
+                              <i className={`bi ${r.ok ? "bi-check-circle-fill text-success" : "bi-x-circle-fill text-danger"} mt-1 flex-shrink-0`} />
+                              <div>
+                                <span className="fw-medium">{labels[key]}</span>
+                                {" — "}
+                                <span className={r.ok ? "text-success" : "text-danger"}>{r.detail}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="d-flex gap-2">
+                    <button className="btn btn-outline-secondary" onClick={handleVerifyGhConfig} disabled={ghVerifying || ghSaving}>
+                      {ghVerifying ? <><span className="spinner-border spinner-border-sm me-1" />Verifying...</> : <><i className="bi bi-shield-check me-1" />Test & Verify</>}
+                    </button>
+                    <button className="btn btn-primary" onClick={handleSaveGhConfig} disabled={ghSaving || ghVerifying}>
                       {ghSaving ? <><span className="spinner-border spinner-border-sm me-2" />Saving...</> : <><i className="bi bi-floppy me-1" />Save GitHub Config</>}
                     </button>
                   </div>
