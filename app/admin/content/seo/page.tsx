@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import type { SeoConfig } from "@/lib/seo-config";
 import { defaultSeoConfig } from "@/lib/seo-config";
+import SeoWizardModal from "@/components/admin/SeoWizardModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ export default function SeoSettingsPage() {
   const [activeTab, setActiveTab] = useState<"site" | "social" | "robots" | "schema" | "audit">("site");
   const [alert, setAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [audit, setAudit] = useState<AuditResult | null>(null);
+  const [showWizard, setShowWizard] = useState(false);
 
   // ── Load config + last audit on mount ──────────────────────────────────────
   useEffect(() => {
@@ -100,6 +102,18 @@ export default function SeoSettingsPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // ── Wizard apply ─────────────────────────────────────────────────────────────
+  const handleWizardApply = (patch: Partial<SeoConfig>) => {
+    setConfig((prev) => ({
+      ...prev,
+      ...patch,
+      social: { ...prev.social, ...(patch.social ?? {}) },
+      structuredData: { ...prev.structuredData, ...(patch.structuredData ?? {}) },
+    }));
+    setAlert({ type: "success", message: "SEO fields populated from wizard. Review and save when ready." });
+    setActiveTab("site");
   };
 
   // ── Run Audit ───────────────────────────────────────────────────────────────
@@ -179,6 +193,12 @@ export default function SeoSettingsPage() {
       subtitle="Manage site-wide search engine optimisation"
       actions={
         <div className="d-flex gap-2">
+          <button
+            className="btn btn-outline-primary btn-sm"
+            onClick={() => setShowWizard(true)}
+          >
+            <i className="bi bi-magic me-1" />SEO Wizard
+          </button>
           <button
             className="btn btn-outline-secondary btn-sm"
             onClick={handleRunAudit}
@@ -737,6 +757,11 @@ export default function SeoSettingsPage() {
           )}
         </div>
       )}
+      <SeoWizardModal
+        show={showWizard}
+        onClose={() => setShowWizard(false)}
+        onApply={handleWizardApply}
+      />
     </AdminLayout>
   );
 }
