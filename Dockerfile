@@ -78,8 +78,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
 RUN chmod +x ./docker-entrypoint.sh
 
-# Create uploads directory (use a Docker volume in production)
-RUN mkdir -p ./public/uploads && chown -R nextjs:nodejs ./public/uploads
+# Create upload directories (Docker volumes shadow these in production — ownership must be set here first)
+RUN mkdir -p ./public/uploads ./public/images/uploads \
+    && chown -R nextjs:nodejs ./public/uploads ./public/images/uploads
 
 USER nextjs
 
