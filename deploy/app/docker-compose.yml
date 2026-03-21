@@ -45,6 +45,7 @@ services:
       MEDIA_URL: ${MEDIA_URL}
     volumes:
       - uploads:/app/public/uploads
+      - images_uploads:/app/public/images/uploads
     networks:
       - traefik-public
       - internal
@@ -105,6 +106,8 @@ volumes:
   postgres_data:
     driver: local
   uploads:
+    driver: local
+  images_uploads:
     driver: local
 
 networks:
