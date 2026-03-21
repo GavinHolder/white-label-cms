@@ -94,6 +94,7 @@ export default function SettingsPage() {
     githubRepoName: "",
     githubWorkflowId: "deploy.yml",
     upstreamVersionUrl: "",
+    updateChannel: "latest",
   });
   const [ghPat, setGhPat] = useState(""); // only set when user is changing it
   const [ghSaving, setGhSaving] = useState(false);
@@ -124,6 +125,7 @@ export default function SettingsPage() {
         githubRepoName: ghConfig.githubRepoName,
         githubWorkflowId: ghConfig.githubWorkflowId,
         upstreamVersionUrl: ghConfig.upstreamVersionUrl,
+        updateChannel: ghConfig.updateChannel,
       };
       if (ghPat) body.githubPat = ghPat;
       const res = await fetch("/api/admin/updates/verify", {
@@ -149,6 +151,7 @@ export default function SettingsPage() {
         githubRepoName: ghConfig.githubRepoName,
         githubWorkflowId: ghConfig.githubWorkflowId,
         upstreamVersionUrl: ghConfig.upstreamVersionUrl,
+        updateChannel: ghConfig.updateChannel,
       };
       if (ghPat) body.githubPat = ghPat;
       const res = await fetch("/api/admin/updates/config", {
@@ -1491,6 +1494,43 @@ export default function SettingsPage() {
                     <p className="form-text">The workflow filename in <code>.github/workflows/</code> that has <code>workflow_dispatch</code> trigger.</p>
                   </div>
 
+                  {/* Update Channel */}
+                  <div>
+                    <label className="form-label fw-medium">Update Channel</label>
+                    <select
+                      className="form-select"
+                      style={{ maxWidth: 280 }}
+                      value={ghConfig.updateChannel}
+                      onChange={e => {
+                        const ch = e.target.value;
+                        setGhConfig(c => {
+                          // Auto-suggest upstream URL when switching channels
+                          const base = c.upstreamVersionUrl
+                            .replace(/\/public\/versions\/\w+\.json$/, "")
+                            .replace(/\/public\/cms-version\.json$/, "");
+                          const channelUrls: Record<string, string> = {
+                            latest:       base ? `${base}/public/cms-version.json` : c.upstreamVersionUrl,
+                            stable:       base ? `${base}/public/versions/stable.json` : c.upstreamVersionUrl,
+                            lts:          base ? `${base}/public/versions/lts.json` : c.upstreamVersionUrl,
+                            bugfix:       base ? `${base}/public/versions/bugfix.json` : c.upstreamVersionUrl,
+                            experimental: base ? `${base}/public/versions/experimental.json` : c.upstreamVersionUrl,
+                          };
+                          return { ...c, updateChannel: ch, upstreamVersionUrl: channelUrls[ch] ?? c.upstreamVersionUrl };
+                        });
+                      }}
+                    >
+                      <option value="latest">Latest — every push to master (default)</option>
+                      <option value="stable">Stable — manually tagged stable releases</option>
+                      <option value="lts">LTS — long-term support releases</option>
+                      <option value="bugfix">Bugfix — fix: commits only, no new features</option>
+                      <option value="experimental">Experimental — cutting-edge, may be unstable</option>
+                    </select>
+                    <p className="form-text">
+                      Controls which update stream this instance tracks.
+                      Channels other than <em>Latest</em> require the master repo to publish channel manifest files.
+                    </p>
+                  </div>
+
                   {/* Upstream version URL */}
                   <div>
                     <label className="form-label fw-medium">Upstream Version URL</label>
@@ -1501,7 +1541,7 @@ export default function SettingsPage() {
                       value={ghConfig.upstreamVersionUrl}
                       onChange={e => setGhConfig(c => ({ ...c, upstreamVersionUrl: e.target.value }))}
                     />
-                    <p className="form-text">Raw URL to the master repo&apos;s <code>cms-version.json</code>.</p>
+                    <p className="form-text">Raw URL to the master repo&apos;s version manifest. Auto-updated when you change the channel above.</p>
                   </div>
 
                   {/* Verify results */}

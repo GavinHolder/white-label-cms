@@ -17,6 +17,7 @@ const CONFIG_KEYS = [
   "github_repo_name",
   "github_workflow_id",
   "cms_upstream_version_url",
+  "cms_update_channel",
 ];
 
 async function upsert(key: string, value: string) {
@@ -43,6 +44,7 @@ export async function GET(req: NextRequest) {
     githubRepoName: settings["github_repo_name"] ?? "",
     githubWorkflowId: settings["github_workflow_id"] ?? "deploy.yml",
     upstreamVersionUrl: settings["cms_upstream_version_url"] ?? "",
+    updateChannel: settings["cms_update_channel"] ?? "latest",
   });
 }
 
@@ -56,14 +58,16 @@ export async function PUT(req: NextRequest) {
     githubRepoName?: string;
     githubWorkflowId?: string;
     upstreamVersionUrl?: string;
+    updateChannel?: string;
   };
 
   await Promise.all([
-    body.githubPat                       ? upsert("github_pat",                body.githubPat)               : Promise.resolve(),
-    body.githubRepoOwner !== undefined   ? upsert("github_repo_owner",          body.githubRepoOwner)         : Promise.resolve(),
-    body.githubRepoName !== undefined    ? upsert("github_repo_name",           body.githubRepoName)          : Promise.resolve(),
-    body.githubWorkflowId !== undefined  ? upsert("github_workflow_id",         body.githubWorkflowId)        : Promise.resolve(),
-    body.upstreamVersionUrl !== undefined ? upsert("cms_upstream_version_url",  body.upstreamVersionUrl)      : Promise.resolve(),
+    body.githubPat                        ? upsert("github_pat",                body.githubPat)               : Promise.resolve(),
+    body.githubRepoOwner !== undefined    ? upsert("github_repo_owner",          body.githubRepoOwner)         : Promise.resolve(),
+    body.githubRepoName !== undefined     ? upsert("github_repo_name",           body.githubRepoName)          : Promise.resolve(),
+    body.githubWorkflowId !== undefined   ? upsert("github_workflow_id",         body.githubWorkflowId)        : Promise.resolve(),
+    body.upstreamVersionUrl !== undefined ? upsert("cms_upstream_version_url",   body.upstreamVersionUrl)      : Promise.resolve(),
+    body.updateChannel !== undefined      ? upsert("cms_update_channel",         body.updateChannel)           : Promise.resolve(),
   ]);
 
   // Return masked config
@@ -79,5 +83,6 @@ export async function PUT(req: NextRequest) {
     githubRepoName: settings["github_repo_name"] ?? "",
     githubWorkflowId: settings["github_workflow_id"] ?? "deploy.yml",
     upstreamVersionUrl: settings["cms_upstream_version_url"] ?? "",
+    updateChannel: settings["cms_update_channel"] ?? "latest",
   });
 }
