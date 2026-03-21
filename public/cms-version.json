@@ -1,12 +1,11 @@
 {
-  "version": "1.2.0",
+  "version": "1.1.0",
   "date": "2026-03-21",
   "changelog": {
     "features": [
-      "SEO Wizard: multi-step modal to auto-populate all SEO fields from business info",
-      "Features sidebar: only enabled features appear as sub-items",
-      "Dedicated Features management page at /admin/features",
-      "CMS version number shown in sidebar below logout"
+      "Maintenance mode templates: Plain, Construction, Custom",
+      "Light/dark theme support for all maintenance templates",
+      "CMS Update system: check, install, and schedule updates from admin"
     ],
     "bugfixes": [],
     "breaking": []
