@@ -83,6 +83,7 @@ export function buildMetadata(page: PageSeoData | null, seoConfig: SeoConfig): M
   robotsParts.push(page?.nofollow ? "nofollow" : "follow");
 
   const metadata: Metadata = {
+    ...(base ? { metadataBase: new URL(base) } : {}),
     title,
     description,
     ...(page?.metaKeywords ? { keywords: page.metaKeywords } : {}),

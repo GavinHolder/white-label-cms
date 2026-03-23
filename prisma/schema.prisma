@@ -1,6 +1,3 @@
-// Prisma Schema for White Label CMS
-// PostgreSQL database with flexible JSONB storage
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,81 +7,56 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// USER MANAGEMENT
-// ============================================
-
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  username     String    @unique
+  id           String        @id @default(uuid())
+  email        String        @unique
+  username     String        @unique
   passwordHash String
   firstName    String?
   lastName     String?
-  role         UserRole  @default(EDITOR)
-  isActive     Boolean   @default(true)
+  role         UserRole      @default(EDITOR)
+  isActive     Boolean       @default(true)
   lastLoginAt  DateTime?
-
-  // Relations
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  apiKeys      ApiKey[]
+  mediaAssets  MediaAsset[]
   pages        Page[]
   sections     Section[]
-  mediaAssets  MediaAsset[]
-  voltElements VoltElement[]
-  apiKeys      ApiKey[]
   volt3DAssets Volt3DAsset[]
-
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  voltElements VoltElement[]
 
   @@map("users")
 }
 
-enum UserRole {
-  SUPER_ADMIN
-  PUBLISHER
-  EDITOR
-  VIEWER
-}
-
-// ============================================
-// PAGE MANAGEMENT
-// ============================================
-
 model Page {
-  id              String      @id @default(uuid())
-  slug            String      @unique
+  id              String           @id @default(uuid())
+  slug            String           @unique
   title           String
-  type            PageType    @default(LANDING)
-  enabled         Boolean     @default(true)
+  type            PageType         @default(LANDING)
   metaDescription String?
-  metaTitle       String?
-  metaKeywords    String?
   ogImage         String?
-  ogTitle         String?
-  ogDescription   String?
-  canonicalUrl    String?
-  noindex         Boolean     @default(false)
-  nofollow        Boolean     @default(false)
-  status          PageStatus  @default(DRAFT)
+  status          PageStatus       @default(DRAFT)
   publishedAt     DateTime?
   publishedBy     String?
-
-  // Form-specific config (fields, submitAction, submitConfig)
-  formConfig      Json?
-
-  // Navbar link management
-  navLabel        String?
-  showOnNavbar    Boolean     @default(false)
-  navOrder        Int?
-
-  // Relations
-  sections        Section[]
-  submissions     FormSubmission[]
-
   createdBy       String
-  createdByUser   User        @relation(fields: [createdBy], references: [id])
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  canonicalUrl    String?
+  metaKeywords    String?
+  metaTitle       String?
+  nofollow        Boolean          @default(false)
+  noindex         Boolean          @default(false)
+  ogDescription   String?
+  ogTitle         String?
+  enabled         Boolean          @default(true)
+  formConfig      Json?
+  navLabel        String?
+  navOrder        Int?
+  showOnNavbar    Boolean          @default(false)
+  submissions     FormSubmission[]
+  createdByUser   User             @relation(fields: [createdBy], references: [id])
+  sections        Section[]
 
   @@index([slug])
   @@index([status])
@@ -92,286 +64,146 @@ model Page {
   @@map("pages")
 }
 
-enum PageType {
-  LANDING
-  TAB_PAGE
-  FULL_PAGE
-  FORM
-  PDF
-  DESIGNER
-}
-
-// ============================================
-// FORM SUBMISSIONS
-// ============================================
-
 model FormSubmission {
   id        String   @id @default(uuid())
   pageId    String
-  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
   pageSlug  String
-  data      Json     // { fieldName: value, ... }
+  data      Json
   userEmail String   @default("")
-  status    String   @default("received") // received | sent | failed
+  status    String   @default("received")
   createdAt DateTime @default(now())
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
   @@index([pageId])
   @@index([createdAt])
   @@map("form_submissions")
 }
 
-enum PageStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
-}
-
-// ============================================
-// SECTION MANAGEMENT
-// ============================================
-
 model Section {
-  id            String          @id @default(uuid())
-  pageId        String
-  page          Page            @relation(fields: [pageId], references: [id], onDelete: Cascade)
-
-  type          SectionType
-  enabled       Boolean         @default(true)
-  order         Float           @default(0) // Float for fractional ordering
-
-  // Display name for admin panel
-  displayName   String?
-
-  // Short label for navbar (single word, e.g., "About", "Plans", "Coverage")
-  navLabel      String?
-
-  // Navbar link management
-  showOnNavbar  Boolean         @default(false)
-  navOrder      Int?
-
-  // Spacing (direct pixel values)
-  paddingTop          Int             @default(80)
-  paddingBottom       Int             @default(80)
-  // Mobile overrides — null means "use smart default (100px top, 80px bottom)"
-  paddingTopMobile    Int?
-  paddingBottomMobile Int?
-
-  // Background color (white, gray, blue, lightblue, transparent)
-  background    String          @default("white")
-
-  // Banner configuration
-  banner        Json?
-
-  // Section content (flexible JSON for all section types)
-  // For hero: slides, autoPlay, showDots, etc.
-  // For normal: heading, subheading, body, layout, layoutPreset, imageSrc, etc.
-  // For cta: heading, subheading, buttons, style, etc.
-  // For footer: logo, columns, socialLinks, etc.
-  content       Json            @default("{}")
-
-  // Draft version (used in editor before publishing)
-  contentDraft  Json?
-
-  // Triangle overlay configuration
-  triangleEnabled      Boolean   @default(false)
-  triangleSide         String?   // "left" | "right"
-  triangleShape        String?   @default("classic") // "classic" | "modern"
-  triangleHeight       Int?      @default(200)
-  triangleTargetId     String?   // ID of section to navigate to
-
-  // Triangle styling
-  triangleGradientType String?   @default("solid") // "solid" | "linear" | "radial"
-  triangleColor1       String?   @default("#4ecdc4")
-  triangleColor2       String?   @default("#6a82fb")
-  triangleAlpha1       Int?      @default(100)
-  triangleAlpha2       Int?      @default(100)
-  triangleAngle        Int?      @default(45)
-
-  // Triangle image
+  id                   String           @id @default(uuid())
+  pageId               String
+  type                 SectionType
+  enabled              Boolean          @default(true)
+  order                Float            @default(0)
+  displayName          String?
+  navLabel             String?
+  paddingTop           Int              @default(80)
+  paddingBottom        Int              @default(80)
+  background           String           @default("white")
+  banner               Json?
+  content              Json             @default("{}")
+  contentDraft         Json?
+  triangleEnabled      Boolean          @default(false)
+  triangleSide         String?
+  triangleShape        String?          @default("classic")
+  triangleHeight       Int?             @default(200)
+  triangleTargetId     String?
+  triangleGradientType String?          @default("solid")
+  triangleColor1       String?          @default("#4ecdc4")
+  triangleColor2       String?          @default("#6a82fb")
+  triangleAlpha1       Int?             @default(100)
+  triangleAlpha2       Int?             @default(100)
+  triangleAngle        Int?             @default(45)
   triangleImageUrl     String?
-  triangleImageSize    String?   @default("cover") // "cover" | "contain" | "auto"
-  triangleImagePos     String?   @default("center")
-  triangleImageOpacity Int?      @default(100)
-
-  // Hover text configuration
-  hoverTextEnabled     Boolean   @default(false)
+  triangleImageSize    String?          @default("cover")
+  triangleImagePos     String?          @default("center")
+  triangleImageOpacity Int?             @default(100)
+  hoverTextEnabled     Boolean          @default(false)
   hoverText            String?
-  hoverTextStyle       Int?      @default(1) // 1=inside, 2=outside
-  hoverFontSize        Int?      @default(18)
-  hoverFontFamily      String?   @default("Arial")
-  hoverAnimationType   String?   @default("slide") // "slide" | "fade" | "scale" | "sweep"
-  hoverAnimateBehind   Boolean   @default(true)
-  hoverAlwaysShow      Boolean   @default(false)
-  hoverOffsetX         Int?      @default(0)
-
-  // Background image configuration
+  hoverTextStyle       Int?             @default(1)
+  hoverFontSize        Int?             @default(18)
+  hoverFontFamily      String?          @default("Arial")
+  hoverAnimationType   String?          @default("slide")
+  hoverAnimateBehind   Boolean          @default(true)
+  hoverAlwaysShow      Boolean          @default(false)
+  hoverOffsetX         Int?             @default(0)
   bgImageUrl           String?
-  bgImageSize          String?   @default("cover") // "cover" | "contain" | "auto"
-  bgImagePosition      String?   @default("center")
-  bgImageRepeat        String?   @default("no-repeat") // "no-repeat" | "repeat" | "repeat-x" | "repeat-y"
-  bgImageOpacity       Int?      @default(100)
-  bgParallax           Boolean   @default(false)
-
-  // Lower third decorative graphic (z-index 10, SVG preset or image)
-  lowerThird    Json?
-  // Motion/parallax overlay elements (z-index 20, anime.js animated images)
-  motionElements Json?
-
-  // Volt Studio element link
-  voltElementId  String?
-  voltElement    VoltElement? @relation("SectionVolt", fields: [voltElementId], references: [id], onDelete: SetNull)
-  voltSlotMap    Json?
-
-  // Custom elements (for freeform sections only)
-  elements      CustomElement[]
-
-  // Version history
-  versions      SectionVersion[]
-
-  createdBy     String
-  createdByUser User            @relation(fields: [createdBy], references: [id])
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  bgImageSize          String?          @default("cover")
+  bgImagePosition      String?          @default("center")
+  bgImageRepeat        String?          @default("no-repeat")
+  bgImageOpacity       Int?             @default(100)
+  bgParallax           Boolean          @default(false)
+  createdBy            String
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  lowerThird           Json?
+  motionElements       Json?
+  voltElementId        String?
+  voltSlotMap          Json?
+  paddingBottomMobile  Int?
+  paddingTopMobile     Int?
+  navOrder             Int?
+  showOnNavbar         Boolean          @default(false)
+  elements             CustomElement[]
+  versions             SectionVersion[]
+  createdByUser        User             @relation(fields: [createdBy], references: [id])
+  page                 Page             @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  voltElement          VoltElement?     @relation("SectionVolt", fields: [voltElementId], references: [id])
 
   @@index([pageId, order])
   @@index([enabled])
   @@map("sections")
 }
 
-enum SectionType {
-  HERO
-  NORMAL
-  CTA
-  FOOTER
-  FLEXIBLE
-}
-
-// ============================================
-// CUSTOM ELEMENTS (Freeform Layout)
-// ============================================
-
 model CustomElement {
-  id            String          @id @default(uuid())
-  sectionId     String
-  section       Section         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-
-  // Nested element support (containers within containers)
-  parentId      String?
-  parent        CustomElement?  @relation("ElementHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children      CustomElement[] @relation("ElementHierarchy")
-
-  type          ElementType
-  order         Int
-
-  // Element-specific content
-  // For HEADING: { text, level }
-  // For IMAGE: { src, alt, width, height }
-  // For BUTTON: { text, href, variant }
-  // For CONTAINER/ROW/COLUMN: { justify, align, gap }
-  content       Json?
-
-  // Layout & positioning (optional for absolute positioning)
-  // For future use: { x, y, width, height }
-  position      Json?
-
-  // Spacing (pixel-perfect control)
-  // { marginTop, marginRight, marginBottom, marginLeft, paddingTop, ... }
-  spacing       Json
-
-  // Styling (colors, fonts, borders, etc.)
-  // { color, fontSize, fontWeight, backgroundColor, border, borderRadius, ... }
-  styles        Json?
-
-  // Responsive overrides (optional, for future enhancement)
-  // { mobile: {...}, tablet: {...}, desktop: {...} }
+  id               String          @id @default(uuid())
+  sectionId        String
+  parentId         String?
+  type             ElementType
+  order            Int
+  content          Json?
+  position         Json?
+  spacing          Json
+  styles           Json?
   responsiveStyles Json?
-
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  parent           CustomElement?  @relation("ElementHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children         CustomElement[] @relation("ElementHierarchy")
+  section          Section         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@index([sectionId, order])
   @@index([parentId])
   @@map("custom_elements")
 }
 
-enum ElementType {
-  // Text elements
-  TEXT
-  HEADING
-  PARAGRAPH
-
-  // Media elements
-  IMAGE
-  VIDEO
-  ICON
-
-  // Interactive elements
-  BUTTON
-  LINK
-
-  // Layout elements
-  CONTAINER
-  ROW
-  COLUMN
-  SPACER
-  DIVIDER
-
-  // Advanced elements
-  HTML
-}
-
-// ============================================
-// MEDIA ASSET MANAGEMENT
-// ============================================
-
 model MediaAsset {
-  id              String    @id @default(uuid())
-  filename        String
-  originalName    String
-  mimeType        String
-  fileSize        Int
-  width           Int?
-  height          Int?
-  url             String
-  thumbnailUrl    String?
-
-  altText         String?
-  caption         String?
-  tags            String[]
-
-  uploadedBy      String
-  uploadedByUser  User      @relation(fields: [uploadedBy], references: [id])
-  usageCount      Int       @default(0)
-
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id             String   @id @default(uuid())
+  filename       String
+  originalName   String
+  mimeType       String
+  fileSize       Int
+  width          Int?
+  height         Int?
+  url            String
+  thumbnailUrl   String?
+  altText        String?
+  caption        String?
+  tags           String[]
+  uploadedBy     String
+  usageCount     Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  uploadedByUser User     @relation(fields: [uploadedBy], references: [id])
 
   @@index([mimeType])
   @@index([tags])
   @@map("media_assets")
 }
 
-// ============================================
-// VERSION HISTORY (Optional)
-// ============================================
-
 model SectionVersion {
-  id          String    @id @default(uuid())
-  sectionId   String
-  section     Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  version     Int
-  config      Json
-  createdBy   String
-  createdAt   DateTime  @default(now())
+  id        String   @id @default(uuid())
+  sectionId String
+  version   Int
+  config    Json
+  createdBy String
+  createdAt DateTime @default(now())
+  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@unique([sectionId, version])
   @@index([sectionId])
   @@map("section_versions")
 }
-
-// ============================================
-// SYSTEM SETTINGS (key-value store)
-// ============================================
 
 model SystemSettings {
   id        String   @id @default(cuid())
@@ -382,15 +214,11 @@ model SystemSettings {
   @@map("system_settings")
 }
 
-// ============================================
-// OTP TOKENS (email verification)
-// ============================================
-
 model OtpToken {
   id        String   @id @default(uuid())
   email     String
   code      String
-  purpose   String   // "cta-form" | "form-page"
+  purpose   String
   used      Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())
@@ -398,10 +226,6 @@ model OtpToken {
   @@index([email, purpose])
   @@map("otp_tokens")
 }
-
-// ============================================
-// CLIENT FEATURES (feature flag system)
-// ============================================
 
 model ClientFeature {
   id        String   @id @default(cuid())
@@ -414,40 +238,31 @@ model ClientFeature {
   @@map("client_features")
 }
 
-// ============================================
-// VOLT STUDIO
-// ============================================
-
 model VoltElement {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  mood        String?
-  elementType String   @default("custom")
-  isPublic    Boolean  @default(false)
-  authorId    String
-  author      User     @relation(fields: [authorId], references: [id])
-
-  layers      Json     @default("[]")
-  slots       Json     @default("[]")
-  states      Json     @default("[]")
-  flipCard    Json?
-  canvasWidth  Int     @default(800)
-  canvasHeight Int     @default(500)
-  has3D       Boolean  @default(false)
-
-  thumbnail   String?
-
-  tags        String[]
-  isPaid      Boolean  @default(false)
-  price       Float?
-  downloads   Int      @default(0)
-
-  assets      VoltAsset[]
-  sections    Section[]   @relation("SectionVolt")
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String      @id @default(cuid())
+  name         String
+  description  String?
+  mood         String?
+  elementType  String      @default("custom")
+  isPublic     Boolean     @default(false)
+  authorId     String
+  layers       Json        @default("[]")
+  slots        Json        @default("[]")
+  states       Json        @default("[]")
+  canvasWidth  Int         @default(800)
+  canvasHeight Int         @default(500)
+  has3D        Boolean     @default(false)
+  tags         String[]
+  isPaid       Boolean     @default(false)
+  price        Float?
+  downloads    Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  thumbnail    String?
+  flipCard     Json?
+  sections     Section[]   @relation("SectionVolt")
+  assets       VoltAsset[]
+  author       User        @relation(fields: [authorId], references: [id])
 
   @@index([authorId])
   @@index([isPublic])
@@ -455,24 +270,19 @@ model VoltElement {
 }
 
 model VoltAsset {
-  id         String      @id @default(cuid())
-  voltId     String
-  volt       VoltElement @relation(fields: [voltId], references: [id], onDelete: Cascade)
-  type       String
-  filename   String
-  url        String
-  fileSize   Int
-  metadata   Json?
-
-  createdAt  DateTime    @default(now())
+  id        String      @id @default(cuid())
+  voltId    String
+  type      String
+  filename  String
+  url       String
+  fileSize  Int
+  metadata  Json?
+  createdAt DateTime    @default(now())
+  volt      VoltElement @relation(fields: [voltId], references: [id], onDelete: Cascade)
 
   @@index([voltId])
   @@map("volt_assets")
 }
-
-// ============================================
-// API KEYS
-// ============================================
 
 model ApiKey {
   id         String    @id @default(cuid())
@@ -480,28 +290,26 @@ model ApiKey {
   keyPrefix  String
   label      String
   userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@map("api_keys")
 }
-
-// ============================================
-// VOLT 3D PIPELINE
-// ============================================
 
 model Volt3DAsset {
   id              String          @id @default(cuid())
   name            String
   authorId        String
-  author          User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  versions        Volt3DVersion[]
   activeVersionId String?
   triggerConfig   Json?
   thumbnail       String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
+  author          User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  versions        Volt3DVersion[]
+
   @@index([authorId])
   @@map("volt_3d_assets")
 }
@@ -509,35 +317,32 @@ model Volt3DAsset {
 model Volt3DVersion {
   id          String      @id @default(cuid())
   assetId     String
-  asset       Volt3DAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
   versionNum  Int
   glbPath     String
   blendPath   String?
   animClips   Json
   isConfirmed Boolean     @default(false)
   syncedAt    DateTime    @default(now())
+  asset       Volt3DAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
   @@unique([assetId, versionNum])
   @@index([assetId])
   @@map("volt_3d_versions")
 }
-
-// ============================================
-// COVERAGE MAPS
-// ============================================
 
 model CoverageMap {
   id          String           @id @default(cuid())
   name        String
   slug        String           @unique
   description String?
-  centerLat   Float            @default(-34.4187)   // Hermanus default
+  centerLat   Float            @default(-34.4187)
   centerLng   Float            @default(19.2345)
   defaultZoom Int              @default(10)
   isActive    Boolean          @default(true)
-  regions     CoverageRegion[]
-  labels      CoverageLabel[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+  labels      CoverageLabel[]
+  regions     CoverageRegion[]
 
   @@map("coverage_maps")
 }
@@ -545,9 +350,7 @@ model CoverageMap {
 model CoverageRegion {
   id          String      @id @default(cuid())
   mapId       String
-  map         CoverageMap @relation(fields: [mapId], references: [id], onDelete: Cascade)
   name        String
-  // Array of {lat, lng} coordinate pairs forming the polygon
   polygon     Json        @default("[]")
   color       String      @default("#22c55e")
   opacity     Float       @default(0.4)
@@ -558,6 +361,7 @@ model CoverageRegion {
   order       Int         @default(0)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  map         CoverageMap @relation(fields: [mapId], references: [id], onDelete: Cascade)
 
   @@index([mapId])
   @@map("coverage_regions")
@@ -566,7 +370,6 @@ model CoverageRegion {
 model CoverageLabel {
   id         String      @id @default(cuid())
   mapId      String
-  map        CoverageMap @relation(fields: [mapId], references: [id], onDelete: Cascade)
   text       String
   lat        Float
   lng        Float
@@ -577,64 +380,98 @@ model CoverageLabel {
   bold       Boolean     @default(false)
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+  map        CoverageMap @relation(fields: [mapId], references: [id], onDelete: Cascade)
 
   @@index([mapId])
   @@map("coverage_labels")
 }
 
-// ============================================
-// PROJECTS & GALLERY
-// ============================================
-
 model Project {
-  id           String   @id @default(cuid())
-  title        String
-  location     String?
-  description  String?
+  id            String   @id @default(cuid())
+  title         String
+  location      String?
+  description   String?
   coverImageUrl String?
-  // Array of image URLs for the project gallery
-  images       Json     @default("[]")
+  images        Json     @default("[]")
   completedDate String?
-  isActive     Boolean  @default(true)
-  order        Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isActive      Boolean  @default(true)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([isActive])
   @@map("projects")
 }
 
-// ============================================
-// SITE CONFIGURATION (singleton)
-// ============================================
-
 model SiteConfig {
-  id            String   @id @default("singleton")
-  // Company
-  companyName   String   @default("Your Company")
-  tagline       String   @default("")
-  logoUrl       String   @default("")
-  faviconUrl    String   @default("")
-  // Contact
-  phone         String   @default("")
-  email         String   @default("")
-  address       String   @default("")
-  city          String   @default("")
-  postalCode    String   @default("")
-  country       String   @default("")
-  // Socials
-  facebook      String   @default("")
-  instagram     String   @default("")
-  twitter       String   @default("")
-  linkedin      String   @default("")
-  youtube       String   @default("")
-  tiktok        String   @default("")
-  // Navbar
-  navbarStyle   String   @default("standard")
-  // Footer
-  copyrightText String   @default("")
-  showRegulatory Boolean @default(false)
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default("singleton")
+  companyName    String   @default("Your Company")
+  tagline        String   @default("")
+  logoUrl        String   @default("")
+  faviconUrl     String   @default("")
+  phone          String   @default("")
+  email          String   @default("")
+  address        String   @default("")
+  city           String   @default("")
+  postalCode     String   @default("")
+  country        String   @default("")
+  facebook       String   @default("")
+  instagram      String   @default("")
+  twitter        String   @default("")
+  linkedin       String   @default("")
+  youtube        String   @default("")
+  copyrightText  String   @default("")
+  showRegulatory Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
+  navbarStyle    String   @default("standard")
+  tiktok         String   @default("")
 
   @@map("site_config")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  PUBLISHER
+  EDITOR
+  VIEWER
+}
+
+enum PageType {
+  LANDING
+  TAB_PAGE
+  FULL_PAGE
+  FORM
+  PDF
+  DESIGNER
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SectionType {
+  HERO
+  NORMAL
+  CTA
+  FOOTER
+  FLEXIBLE
+}
+
+enum ElementType {
+  TEXT
+  HEADING
+  PARAGRAPH
+  IMAGE
+  VIDEO
+  ICON
+  BUTTON
+  LINK
+  CONTAINER
+  ROW
+  COLUMN
+  SPACER
+  DIVIDER
+  HTML
 }
