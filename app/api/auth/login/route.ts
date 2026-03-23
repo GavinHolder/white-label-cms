@@ -136,17 +136,17 @@ export async function POST(request: NextRequest) {
       path: "/",
     };
 
-    // Access token: 15 minutes
+    // Remember Me: persistent cookies (30 days) vs session cookies (expire on browser close)
+    const persistentMaxAge = 30 * 24 * 60 * 60; // 30 days
+
     response.cookies.set("access_token", accessToken, {
       ...cookieOptions,
-      maxAge: 8 * 60 * 60, // 8 hours
+      ...(rememberMe ? { maxAge: persistentMaxAge } : {}),
     });
 
-    // Refresh token: 30 days (automatically refreshes access token)
-    const refreshTokenMaxAge = 30 * 24 * 60 * 60; // 30 days
     response.cookies.set("refresh_token", refreshToken, {
       ...cookieOptions,
-      maxAge: refreshTokenMaxAge,
+      ...(rememberMe ? { maxAge: persistentMaxAge } : {}),
     });
 
     return response;
