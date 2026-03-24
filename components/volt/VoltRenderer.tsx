@@ -64,6 +64,10 @@ export default function VoltRenderer({ voltElement, slots = {}, instanceOverride
 
     // ── Layer state transitions (hover/rest/focus) ─────────────────────────────
     async function transitionToState(targetStateName: string) {
+      // Cancel any in-flight animations before starting new transition
+      activeAnimationsRef.current.forEach(a => a.cancel())
+      activeAnimationsRef.current = []
+
       const { animate } = await import('animejs')
       const targetState = states.find(s => s.name === targetStateName)
       if (!targetState && targetStateName !== 'rest') return
@@ -91,20 +95,42 @@ export default function VoltRenderer({ voltElement, slots = {}, instanceOverride
         const { duration, ease, delay } = personalityToAnimeConfig(layer.animation)
         const targets: Record<string, unknown> = {}
 
-        if (animates.opacity)  targets.opacity   = isRest ? (override?.opacity   ?? layer.opacity)     : (override?.opacity   ?? layer.opacity)
-        if (animates.scale)    targets.scale      = isRest ? (override?.scale     ?? 1)                 : (override?.scale     ?? 1)
-        if (animates.position) { targets.translateX = isRest ? (override?.translateX ?? 0) : (override?.translateX ?? 0); targets.translateY = isRest ? (override?.translateY ?? 0) : (override?.translateY ?? 0) }
-        if (animates.rotation) targets.rotate     = isRest ? `${override?.rotation ?? 0}deg`            : `${override?.rotation ?? 0}deg`
+        // REST: animate back to base layer values (ignore overrides)
+        // HOVER: animate to override values (the hover state target)
+        if (animates.opacity)  targets.opacity   = isRest ? layer.opacity       : (override?.opacity   ?? layer.opacity)
+        if (animates.scale)    targets.scale      = isRest ? 1                  : (override?.scale     ?? 1)
+        if (animates.position) {
+          targets.translateX = isRest ? 0 : (override?.translateX ?? 0)
+          targets.translateY = isRest ? 0 : (override?.translateY ?? 0)
+        }
+        if (animates.rotation) targets.rotate     = isRest ? '0deg'             : `${override?.rotation ?? 0}deg`
 
         // Apply fill override directly on the SVG path (no animation — instant colour swap)
         if (layer.type === 'vector' && layer.vectorData) {
           const pathEl = layerEl.querySelector('path')
           if (pathEl) {
-            const overrideFills = isRest ? null : (override?.fills ?? null)
-            const activeFill = (overrideFills && overrideFills.length > 0) ? overrideFills[0] : layer.vectorData.fills?.[0]
-            if (activeFill?.type === 'solid' && activeFill.color) {
-              pathEl.setAttribute('fill', activeFill.color)
-              pathEl.setAttribute('fill-opacity', String(activeFill.opacity ?? 1))
+            if (isRest) {
+              // Restore base fill — could be solid, gradient, or glass
+              const baseFill = layer.vectorData.fills?.[0]
+              if (baseFill) {
+                if (baseFill.type === 'solid' && baseFill.color) {
+                  pathEl.setAttribute('fill', baseFill.color)
+                  pathEl.setAttribute('fill-opacity', String(baseFill.opacity ?? 1))
+                } else if (baseFill.type === 'linear-gradient' || baseFill.type === 'radial-gradient' || baseFill.type === 'angular-gradient') {
+                  // Restore gradient reference — gradient defs use layer id as part of the id
+                  const gradId = `volt-grad-${layer.id}`
+                  pathEl.setAttribute('fill', `url(#${gradId})`)
+                  pathEl.removeAttribute('fill-opacity')
+                }
+              }
+            } else {
+              // Apply hover override fill (if any)
+              const overrideFills = override?.fills ?? null
+              const activeFill = (overrideFills && overrideFills.length > 0) ? overrideFills[0] : null
+              if (activeFill?.type === 'solid' && activeFill.color) {
+                pathEl.setAttribute('fill', activeFill.color)
+                pathEl.setAttribute('fill-opacity', String(activeFill.opacity ?? 1))
+              }
             }
           }
         }
@@ -489,9 +515,11 @@ export default function VoltRenderer({ voltElement, slots = {}, instanceOverride
       .map(layer => {
         const td = layer.textLayerData!
         // fontSize scaled by cqw: stored as px at canvasWidth → renders proportionally
-        const fontSizeCqw = `${(td.fontSize / canvasWidth) * 100}cqw`
+        const safeCanvasWidth = Math.max(canvasWidth, 1)
+        const safeFontSize = Math.max(td.fontSize ?? 16, 6)
+        const fontSizeCqw = `${Math.min((safeFontSize / safeCanvasWidth) * 100, 50)}cqw`
         const letterSpacingCqw = td.letterSpacing
-          ? `${(td.letterSpacing / canvasWidth) * 100}cqw`
+          ? `${(td.letterSpacing / safeCanvasWidth) * 100}cqw`
           : undefined
         const alignItems =
           td.verticalAlign === 'center' ? 'center' :
