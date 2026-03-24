@@ -16,13 +16,15 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { typeSlug, slug } = await params;
-  const result = await getPublishedEntry(typeSlug, slug);
+  const [result, seoConfig] = await Promise.all([
+    getPublishedEntry(typeSlug, slug),
+    import('@/lib/metadata-generator').then(m => m.fetchSeoConfig()),
+  ]);
   if (!result) return {};
-  return buildMetadata(null, {
-    siteTitle: result.entry.title,
-    defaultDescription: result.entry.excerpt || `${result.entry.title} — ${result.contentType.name}`,
-    ogImage: result.entry.coverImage || undefined,
-  });
+  return buildMetadata(
+    { title: result.entry.title, metaDescription: result.entry.excerpt || undefined, ogImage: result.entry.coverImage || undefined },
+    seoConfig
+  );
 }
 
 export default async function ContentDetailPage({ params }: Props) {

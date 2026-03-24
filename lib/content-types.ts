@@ -196,7 +196,7 @@ export async function updateEntry(
     publishedAt?: Date | null
     scheduledAt?: Date | null
     tags?: string[]
-    excerpt?: string
+    excerpt?: string | null
     coverImage?: string | null
   },
   userId: string

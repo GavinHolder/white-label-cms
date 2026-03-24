@@ -329,6 +329,8 @@ export interface VoltLayer {
   entranceAnim?: VoltEntranceAnim
   /** Timeline animation — keyframe-based, opt-in per layer */
   timeline?: VoltTimelineConfig
+  /** Clip mask — this layer is clipped to the shape of the referenced vector layer */
+  clipMaskLayerId?: string
   vectorData?: VoltVectorData
   slotData?: VoltSlotData
   imageData?: VoltImageData

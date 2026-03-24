@@ -482,6 +482,9 @@
   <div class="ctx-sep"></div>
   <div class="ctx-item" id="ctx-duplicate"><i class="bi bi-copy"></i> Duplicate</div>
   <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-clip-mask"><i class="bi bi-mask"></i> Set Clip Mask</div>
+  <div class="ctx-item" id="ctx-release-mask"><i class="bi bi-x-circle"></i> Release Mask</div>
+  <div class="ctx-sep"></div>
   <div class="ctx-item danger" id="ctx-delete"><i class="bi bi-trash"></i> Delete</div>
 </div>
   <script>
@@ -3878,6 +3881,23 @@
     document.getElementById('ctx-backward').addEventListener('click',function(){closeCtxMenu();ctxSendBackward();});
     document.getElementById('ctx-to-back').addEventListener('click',function(){closeCtxMenu();ctxSendToBack();});
     document.getElementById('ctx-duplicate').addEventListener('click',function(){closeCtxMenu();ctxDuplicate();});
+    document.getElementById('ctx-clip-mask').addEventListener('click',function(){
+      closeCtxMenu();
+      // Clip mask: selected layer gets clipped to the next vector layer below it in z-order
+      var sel=state.element.layers.find(function(l){return l.id===state.selectedLayerId;});
+      if(!sel||sel.type==='vector')return; // only non-vector layers can be masked
+      // Find the nearest vector layer below the selected layer's z-index
+      var vectors=state.element.layers.filter(function(l){return l.type==='vector'&&l.id!==sel.id&&(l.zIndex||0)<(sel.zIndex||0);});
+      vectors.sort(function(a,b){return(b.zIndex||0)-(a.zIndex||0);}); // highest z first
+      if(!vectors.length){alert('No vector shape below this layer to use as mask. Create a shape first.');return;}
+      pushHistory();sel.clipMaskLayerId=vectors[0].id;markDirty();renderAll();
+    });
+    document.getElementById('ctx-release-mask').addEventListener('click',function(){
+      closeCtxMenu();
+      var sel=state.element.layers.find(function(l){return l.id===state.selectedLayerId;});
+      if(!sel||!sel.clipMaskLayerId)return;
+      pushHistory();delete sel.clipMaskLayerId;markDirty();renderAll();
+    });
     document.getElementById('ctx-delete').addEventListener('click',function(){closeCtxMenu();ctxDelete();});
     applyToolMode('auto'); // default on init
     // ── Slot type dropdown ────────────────────────────────────────────────────

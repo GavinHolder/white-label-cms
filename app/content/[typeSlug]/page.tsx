@@ -17,10 +17,14 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { typeSlug } = await params;
-  const result = await getPublishedEntries(typeSlug, { page: 1, limit: 1 });
+  const [result, seoConfig] = await Promise.all([
+    getPublishedEntries(typeSlug, { page: 1, limit: 1 }),
+    import('@/lib/metadata-generator').then(m => m.fetchSeoConfig()),
+  ]);
   if (!result) return {};
   return buildMetadata(null, {
-    siteTitle: result.contentType.pluralName,
+    ...seoConfig,
+    siteName: result.contentType.pluralName,
     defaultDescription: result.contentType.description || `Browse ${result.contentType.pluralName.toLowerCase()}`,
   });
 }

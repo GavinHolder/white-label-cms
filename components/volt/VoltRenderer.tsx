@@ -570,6 +570,15 @@ export default function VoltRenderer({ voltElement, slots = {}, instanceOverride
    * Converts a VoltLayerEffects object into CSS box-shadow + filter strings.
    * Returns an object with `boxShadow` and `filter` ready to spread into a style prop.
    */
+  /** Build clip-path CSS from a mask layer's SVG path data (percentage coords). */
+  function getClipPath(layer: typeof sortedLayers[0]): string | undefined {
+    if (!layer.clipMaskLayerId) return undefined
+    const maskLayer = layers.find(l => l.id === layer.clipMaskLayerId)
+    if (!maskLayer || maskLayer.type !== 'vector' || !maskLayer.vectorData?.pathData) return undefined
+    // SVG path data is in 0-100% coordinate space — use it directly as CSS clip-path
+    return `path('${maskLayer.vectorData.pathData}')`
+  }
+
   function layerEffectStyles(layer: typeof sortedLayers[0]): React.CSSProperties {
     const fx = layer.effects
     if (!fx) return {}
@@ -694,6 +703,7 @@ export default function VoltRenderer({ voltElement, slots = {}, instanceOverride
               transform: baseRot || undefined,
               overflow: 'hidden',
               willChange: z !== 0 ? 'transform' : undefined,
+              clipPath: getClipPath(layer),
               ...layerEffectStyles(layer),
             }}
           >

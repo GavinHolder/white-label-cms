@@ -13,7 +13,7 @@ import type { JWTPayload } from "@/lib/auth"
 const updateSchema = z.object({
   title: z.string().min(1).max(500).optional(),
   slug: z.string().min(1).max(200).optional(),
-  data: z.record(z.unknown()).optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
   status: z.enum(["draft", "published", "archived"]).optional(),
   publishedAt: z.string().datetime().optional().nullable(),
   scheduledAt: z.string().datetime().optional().nullable(),

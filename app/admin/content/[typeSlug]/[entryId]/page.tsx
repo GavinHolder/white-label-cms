@@ -145,8 +145,8 @@ export default function ContentEntryEditorPage() {
               onChange={e => updateData(key, e.target.value)}
               placeholder="Image URL or /uploads/..."
             />
-            {value && (
-              <img src={value as string} alt="" className="mt-2 rounded" style={{ maxWidth: 200, maxHeight: 120, objectFit: "cover" }} />
+            {typeof value === 'string' && value && (
+              <img src={value} alt="" className="mt-2 rounded" style={{ maxWidth: 200, maxHeight: 120, objectFit: "cover" }} />
             )}
           </div>
         );
