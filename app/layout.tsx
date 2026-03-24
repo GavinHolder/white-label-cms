@@ -106,10 +106,12 @@ export default async function RootLayout({
   // JSON-LD structured data — only injected when admin has configured it
   // buildStructuredData() returns null when disabled or business name is empty
   // Output uses JSON.stringify with </script> escaped — safe to inline
-  const [seoConfig, navbarHeight, brandTokens] = await Promise.all([
+  const [seoConfig, navbarHeight, brandTokens, customHeadScripts, customBodyScripts] = await Promise.all([
     fetchSeoConfig(),
     isAdminRoute ? Promise.resolve(100) : getNavbarHeight(),
     getBrandTokens(),
+    isAdminRoute ? Promise.resolve("") : prisma.systemSettings.findUnique({ where: { key: "custom_head_scripts" } }).then(r => r?.value || "").catch(() => ""),
+    isAdminRoute ? Promise.resolve("") : prisma.systemSettings.findUnique({ where: { key: "custom_body_scripts" } }).then(r => r?.value || "").catch(() => ""),
   ]);
   const jsonLd = isAdminRoute ? null : buildStructuredData(seoConfig);
   const brandCss = brandTokensToCss(brandTokens);
@@ -132,6 +134,8 @@ export default async function RootLayout({
           href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css"
           rel="stylesheet"
         />
+        {/* Custom head scripts (analytics, chat widgets, etc.) */}
+        {customHeadScripts && <div dangerouslySetInnerHTML={{ __html: customHeadScripts }} />}
         {jsonLd && (
           <script
             type="application/ld+json"
@@ -160,6 +164,8 @@ export default async function RootLayout({
             </ClientLayout>
           </>
         )}
+        {/* Custom body scripts (tracking pixels, chat widgets at bottom) */}
+        {customBodyScripts && <div dangerouslySetInnerHTML={{ __html: customBodyScripts }} />}
       </body>
     </html>
   );

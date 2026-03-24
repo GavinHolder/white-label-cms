@@ -94,6 +94,18 @@ const menuItems: MenuItem[] = [
     subItems: [], // populated dynamically from enabledFeatures state
   },
   {
+    id: "activity",
+    label: "Activity Log",
+    icon: "bi-clock-history",
+    href: "/admin/activity",
+  },
+  {
+    id: "redirects",
+    label: "Redirects",
+    icon: "bi-signpost-split",
+    href: "/admin/redirects",
+  },
+  {
     id: "settings",
     label: "Settings",
     icon: "bi-gear",

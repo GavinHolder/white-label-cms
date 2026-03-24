@@ -13,6 +13,8 @@ import {
   generateRefreshToken,
   type JWTPayload,
 } from "@/lib/auth";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { auditLog } from "@/lib/audit-log";
 
 // Request body validation schema
 const loginSchema = z.object({
@@ -23,6 +25,16 @@ const loginSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 login attempts per minute per IP
+    const ip = getClientIp(request);
+    const rl = checkRateLimit(ip, 'login');
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { success: false, error: { code: "RATE_LIMITED", message: `Too many login attempts. Try again in ${rl.retryAfterSec}s.` } },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+      );
+    }
+
     // Parse and validate request body
     const body = await request.json();
     const validation = loginSchema.safeParse(body);
@@ -103,11 +115,12 @@ export async function POST(request: NextRequest) {
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
-    // Update last login timestamp
+    // Update last login timestamp + audit log
     await prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
+    auditLog(request, payload, { action: 'login', resource: 'auth', details: { username } });
 
     // Create response
     const response = NextResponse.json(

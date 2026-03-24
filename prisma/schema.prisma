@@ -557,3 +557,36 @@ model ContentEntryVersion {
 
   @@map("content_entry_versions")
 }
+
+// ── Security & Operations ────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  username  String?
+  action    String
+  resource  String
+  resourceId String?
+  details   Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([resource])
+  @@map("audit_logs")
+}
+
+model Redirect {
+  id          String   @id @default(cuid())
+  fromPath    String   @unique
+  toPath      String
+  statusCode  Int      @default(301)
+  isActive    Boolean  @default(true)
+  hitCount    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([fromPath])
+  @@map("redirects")
+}
