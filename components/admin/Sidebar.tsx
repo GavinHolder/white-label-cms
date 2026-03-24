@@ -138,6 +138,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [enabledFeatures, setEnabledFeatures] = useState<string[]>([]);
+  const [contentTypes, setContentTypes] = useState<{ slug: string; pluralName: string; icon: string }[]>([]);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [updateModalInfo, setUpdateModalInfo] = useState<Parameters<typeof UpdateModal>[0]["info"]>(null);
 
@@ -169,6 +170,20 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       .catch(() => {});
   }, [pathname]); // re-fetch on nav so toggling a feature updates sidebar immediately
 
+  // Fetch content types for dynamic sidebar entries
+  useEffect(() => {
+    fetch("/api/admin/content-types")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.success && Array.isArray(d.data)) {
+          setContentTypes(d.data.map((ct: { slug: string; pluralName: string; icon: string }) => ({
+            slug: ct.slug, pluralName: ct.pluralName, icon: ct.icon,
+          })));
+        }
+      })
+      .catch(() => {});
+  }, [pathname]);
+
   // Close sidebar when route changes on mobile
   useEffect(() => {
     onClose?.();
@@ -193,6 +208,30 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     if (!subItems) return false;
     return subItems.some((item) => isActive(item.href));
   };
+
+  // Build resolved menu items with dynamic content types injected into Content submenu
+  const resolvedMenuItems = menuItems.map(item => {
+    if (item.id === "content" && contentTypes.length > 0) {
+      const dynamicItems: SubMenuItem[] = contentTypes.map(ct => ({
+        id: `ct-${ct.slug}`,
+        label: ct.pluralName,
+        icon: ct.icon,
+        href: `/admin/content/${ct.slug}`,
+      }));
+      // Add separator-like "Content Types" management link at the end
+      const manageItem: SubMenuItem = {
+        id: "content-types-manage",
+        label: "Manage Types",
+        icon: "bi-gear",
+        href: "/admin/content-types",
+      };
+      return {
+        ...item,
+        subItems: [...(item.subItems || []), ...dynamicItems, manageItem],
+      };
+    }
+    return item;
+  });
 
   return (
     <>
@@ -244,7 +283,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
       {/* Navigation */}
       <ul className="nav nav-pills flex-column mb-auto p-2">
-        {menuItems.map((item) => {
+        {resolvedMenuItems.map((item) => {
           // Dynamically inject enabled feature sub-items
           const effectiveItem = item.id === "features"
             ? {
