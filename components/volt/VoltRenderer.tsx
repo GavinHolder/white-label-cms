@@ -360,6 +360,84 @@ export default function VoltRenderer({ voltElement, slots = {}, instanceOverride
       ;(el as HTMLElement & { _voltEntranceObs?: IntersectionObserver })._voltEntranceObs = entranceObserver
     }
 
+    // ── Timeline keyframe animations ──────────────────────────────────────────
+    const layersWithTimeline = layers.filter(l => l.timeline && l.timeline.keyframes.length >= 2)
+    if (layersWithTimeline.length > 0) {
+      const playTimelines = async () => {
+        const { animate } = await import('animejs')
+        for (const layer of layersWithTimeline) {
+          const tl = layer.timeline!
+          const layerEl = el.querySelector<HTMLElement>(`#volt-layer-${layer.id}`)
+          if (!layerEl) continue
+
+          const sortedKf = [...tl.keyframes].sort((a, b) => a.time - b.time)
+
+          // Animate through each keyframe segment sequentially
+          for (let i = 0; i < sortedKf.length - 1; i++) {
+            const from = sortedKf[i]
+            const to = sortedKf[i + 1]
+            const segDuration = to.time - from.time
+            if (segDuration <= 0) continue
+
+            const targets: Record<string, unknown> = {}
+            if (to.props.opacity !== undefined) targets.opacity = to.props.opacity
+            if (to.props.translateX !== undefined) targets.translateX = to.props.translateX
+            if (to.props.translateY !== undefined) targets.translateY = to.props.translateY
+            if (to.props.scaleX !== undefined || to.props.scaleY !== undefined) {
+              const sx = to.props.scaleX ?? 1
+              const sy = to.props.scaleY ?? 1
+              targets.scale = sx === sy ? sx : sx // uniform scale for now
+            }
+            if (to.props.rotate !== undefined) targets.rotate = `${to.props.rotate}deg`
+
+            if (Object.keys(targets).length === 0) continue
+
+            // Set initial state from first keyframe
+            if (i === 0) {
+              if (from.props.opacity !== undefined) layerEl.style.opacity = String(from.props.opacity)
+              if (from.props.translateX !== undefined || from.props.translateY !== undefined) {
+                layerEl.style.transform = `translate(${from.props.translateX ?? 0}px, ${from.props.translateY ?? 0}px) scale(${from.props.scaleX ?? 1}) rotate(${from.props.rotate ?? 0}deg)`
+              }
+            }
+
+            const anim = animate(layerEl, {
+              ...targets,
+              duration: segDuration,
+              ease: to.ease ?? 'easeInOutQuad',
+              delay: i === 0 ? from.time : 0,
+            }) as AnimeAnimation
+            activeAnimationsRef.current.push(anim)
+          }
+
+          // Loop: replay from start after last keyframe
+          if (tl.loop) {
+            const totalDuration = sortedKf[sortedKf.length - 1].time
+            const loopTimer = setInterval(() => {
+              // Re-run all keyframe animations
+              playTimelines()
+            }, totalDuration + 100) // small gap between loops
+            // Store for cleanup
+            const origCleanup = autoTimerRef.current
+            autoTimerRef.current = loopTimer
+            if (origCleanup) clearInterval(origCleanup)
+          }
+        }
+      }
+
+      if (layersWithTimeline.some(l => l.timeline!.autoplay !== false)) {
+        // Use IntersectionObserver to trigger on viewport entry
+        const timelineObserver = new IntersectionObserver(
+          (entries) => {
+            if (!entries[0].isIntersecting) return
+            timelineObserver.disconnect()
+            playTimelines()
+          },
+          { threshold: 0.1 }
+        )
+        timelineObserver.observe(el)
+      }
+    }
+
     // ── 3D Tilt + parallax depth ─────────────────────────────────────────────
     // Only active on non-flip cards (flip cards already have 3D perspective from the flip itself)
     let tiltRafId = 0

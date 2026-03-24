@@ -106,6 +106,37 @@ export interface VoltEntranceAnim {
   distance?: number
 }
 
+// ── Timeline Keyframes ───────────────────────────────────────────────────────
+
+/** A single keyframe in a layer's animation timeline. */
+export interface VoltKeyframe {
+  /** Time position in milliseconds from start */
+  time: number
+  /** Animated property values at this keyframe */
+  props: {
+    opacity?: number
+    translateX?: number
+    translateY?: number
+    scaleX?: number
+    scaleY?: number
+    rotate?: number
+  }
+  /** Per-segment easing (from this keyframe to the next) */
+  ease?: string
+}
+
+/** Timeline configuration on a VoltLayer (opt-in per layer). */
+export interface VoltTimelineConfig {
+  /** Keyframe array — if present, timeline mode is active for this layer */
+  keyframes: VoltKeyframe[]
+  /** Total timeline duration in ms (default: 3000) */
+  duration: number
+  /** Loop after completion (default: false) */
+  loop: boolean
+  /** Auto-play when component enters viewport (default: true) */
+  autoplay: boolean
+}
+
 export interface VoltVectorData {
   pathData: string
   fills: VoltFill[]
@@ -296,6 +327,8 @@ export interface VoltLayer {
   effects?: VoltLayerEffects
   /** On-enter animation played once when the card enters the viewport */
   entranceAnim?: VoltEntranceAnim
+  /** Timeline animation — keyframe-based, opt-in per layer */
+  timeline?: VoltTimelineConfig
   vectorData?: VoltVectorData
   slotData?: VoltSlotData
   imageData?: VoltImageData

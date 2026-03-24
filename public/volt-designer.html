@@ -329,6 +329,8 @@
           <button id="btn-face-back" class="btn btn-sm btn-outline-secondary" style="font-size:10px;padding:2px 10px;" title="Show Back face layers">BACK</button>
         </div>
         <div class="ms-auto d-flex gap-1 align-items-center">
+          <button id="btn-toggle-timeline" class="btn btn-sm btn-outline-secondary px-2" title="Toggle Timeline (Ctrl+T)"><i class="bi bi-film"></i></button>
+          <div style="width:1px;height:14px;background:#dee2e6;margin:0 2px;"></div>
           <button id="btn-zoom-out" class="btn btn-sm btn-outline-secondary px-2"><i class="bi bi-zoom-out"></i></button>
           <span id="zoom-label" style="font-size:11px;min-width:40px;text-align:center;">100%</span>
           <button id="btn-zoom-in" class="btn btn-sm btn-outline-secondary px-2"><i class="bi bi-zoom-in"></i></button>
@@ -423,6 +425,37 @@
       <span style="font-size:10px;color:#6c757d;">Or paste URL:</span>
       <input id="img-picker-url" type="text" placeholder="https://..." style="flex:1;font-size:11px;padding:4px 8px;border:1px solid #dee2e6;border-radius:5px;" />
       <button id="img-picker-url-insert" class="btn btn-sm btn-success" style="font-size:11px;">Insert</button>
+    </div>
+  </div>
+</div>
+<!-- Timeline Panel (collapsible, below canvas) -->
+<div id="timeline-panel" style="display:none;background:#fff;border-top:2px solid #e2e8f0;flex-shrink:0;max-height:240px;overflow:hidden;">
+  <div id="timeline-header" style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid #f0f0f0;cursor:pointer;user-select:none;">
+    <i class="bi bi-film" style="color:#6366f1;font-size:14px;"></i>
+    <span style="font-size:11px;font-weight:700;color:#334155;letter-spacing:0.3px;">TIMELINE</span>
+    <div style="margin-left:auto;display:flex;gap:4px;align-items:center;">
+      <button id="tl-play" class="btn btn-sm p-0 px-1" style="font-size:14px;color:#22c55e;border:none;background:none;" title="Play"><i class="bi bi-play-fill"></i></button>
+      <button id="tl-stop" class="btn btn-sm p-0 px-1" style="font-size:14px;color:#ef4444;border:none;background:none;" title="Stop"><i class="bi bi-stop-fill"></i></button>
+      <span id="tl-time" style="font-size:10px;font-weight:600;color:#64748b;min-width:40px;text-align:right;">0ms</span>
+      <span style="font-size:10px;color:#94a3b8;">/</span>
+      <input id="tl-duration" type="number" value="3000" min="500" max="30000" step="100" style="width:56px;font-size:10px;padding:1px 4px;border:1px solid #dee2e6;border-radius:4px;text-align:right;" title="Total duration (ms)" />
+      <span style="font-size:10px;color:#94a3b8;">ms</span>
+      <label style="font-size:10px;color:#64748b;display:flex;align-items:center;gap:2px;margin-left:8px;cursor:pointer;">
+        <input id="tl-loop" type="checkbox" style="width:12px;height:12px;cursor:pointer;" /> Loop
+      </label>
+    </div>
+  </div>
+  <div id="timeline-body" style="display:flex;overflow:auto;max-height:190px;">
+    <!-- Layer labels column -->
+    <div id="tl-labels" style="width:120px;flex-shrink:0;border-right:1px solid #f0f0f0;background:#fafafa;"></div>
+    <!-- Keyframe tracks area -->
+    <div id="tl-tracks" style="flex:1;position:relative;overflow-x:auto;">
+      <!-- Time ruler -->
+      <div id="tl-ruler" style="height:20px;border-bottom:1px solid #e2e8f0;position:sticky;top:0;background:#fff;z-index:1;"></div>
+      <!-- Playhead -->
+      <div id="tl-playhead" style="position:absolute;top:0;left:0;width:2px;height:100%;background:#ef4444;z-index:2;pointer-events:none;display:none;"></div>
+      <!-- Track rows rendered by JS -->
+      <div id="tl-rows"></div>
     </div>
   </div>
 </div>
@@ -3468,6 +3501,200 @@
       document.getElementById('artboard').style.transform='scale('+state.zoom+')';
       document.getElementById('zoom-label').textContent=Math.round(state.zoom*100)+'%';
     },{passive:false});
+    // ── Timeline Panel Logic ────────────────────────────────────────────────
+    var _tlVisible=false;
+    var _tlPlaying=false;
+    var _tlPlayRaf=null;
+    var _tlPlayStart=0;
+    function toggleTimeline(){
+      _tlVisible=!_tlVisible;
+      document.getElementById('timeline-panel').style.display=_tlVisible?'flex':'none';
+      document.getElementById('btn-toggle-timeline').classList.toggle('btn-primary',_tlVisible);
+      document.getElementById('btn-toggle-timeline').classList.toggle('btn-outline-secondary',!_tlVisible);
+      if(_tlVisible)renderTimeline();
+    }
+    document.getElementById('btn-toggle-timeline').addEventListener('click',toggleTimeline);
+
+    function _tlGetDuration(){return parseInt(document.getElementById('tl-duration').value)||3000;}
+    function _tlGetLoop(){return document.getElementById('tl-loop').checked;}
+    var _tlPxPerMs=0.15; // pixels per millisecond
+
+    function renderTimeline(){
+      if(!_tlVisible)return;
+      var labels=document.getElementById('tl-labels');
+      var rows=document.getElementById('tl-rows');
+      var ruler=document.getElementById('tl-ruler');
+      while(labels.firstChild)labels.removeChild(labels.firstChild);
+      while(rows.firstChild)rows.removeChild(rows.firstChild);
+      while(ruler.firstChild)ruler.removeChild(ruler.firstChild);
+
+      var dur=_tlGetDuration();
+      var totalW=dur*_tlPxPerMs;
+
+      // Render time ruler (marks every 500ms)
+      ruler.style.width=totalW+'px';ruler.style.position='relative';
+      for(var t=0;t<=dur;t+=500){
+        var mk=document.createElement('div');mk.style.cssText='position:absolute;left:'+(t*_tlPxPerMs)+'px;top:0;height:100%;border-left:1px solid '+(t%1000===0?'#94a3b8':'#e2e8f0')+';';
+        var lb=document.createElement('span');lb.style.cssText='position:absolute;top:2px;left:3px;font-size:8px;color:#94a3b8;white-space:nowrap;';lb.textContent=t>=1000?(t/1000)+'s':t+'ms';
+        mk.appendChild(lb);ruler.appendChild(mk);
+      }
+
+      // Render a row per visible non-group layer
+      var visLayers=state.element.layers.filter(function(l){return l.type!=='group'&&l.boolRole!=='cutter'&&l.visible!==false;}).sort(function(a,b){return(b.zIndex||0)-(a.zIndex||0);});
+      visLayers.forEach(function(layer){
+        // Label
+        var lbl=document.createElement('div');lbl.style.cssText='height:28px;display:flex;align-items:center;padding:0 8px;font-size:10px;font-weight:600;color:#475569;border-bottom:1px solid #f0f0f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;';
+        lbl.textContent=layer.name||'Layer';
+        lbl.title=layer.name;
+        lbl.addEventListener('click',function(){selectLayer(layer.id);});
+        if(layer.id===state.selectedLayerId)lbl.style.background='#eff6ff';
+        labels.appendChild(lbl);
+
+        // Track row
+        var row=document.createElement('div');row.style.cssText='height:28px;position:relative;border-bottom:1px solid #f8f8f8;width:'+totalW+'px;';
+        row.dataset.layerId=layer.id;
+
+        // Track background (subtle zebra)
+        if(layer.id===state.selectedLayerId)row.style.background='#eff6ff';
+
+        // Click on track to add keyframe
+        row.addEventListener('dblclick',function(e){
+          e.stopPropagation();
+          var rect=row.getBoundingClientRect();
+          var xPos=e.clientX-rect.left;
+          var time=Math.round(xPos/_tlPxPerMs/50)*50; // snap to 50ms
+          if(time<0)time=0;if(time>dur)time=dur;
+          pushHistory();
+          if(!layer.timeline)layer.timeline={keyframes:[],duration:dur,loop:_tlGetLoop(),autoplay:true};
+          layer.timeline.keyframes.push({time:time,props:{opacity:layer.opacity,translateX:0,translateY:0,scaleX:1,scaleY:1,rotate:0}});
+          layer.timeline.keyframes.sort(function(a,b){return a.time-b.time;});
+          markDirty();renderTimeline();renderProps();
+        });
+
+        // Render existing keyframes as diamonds
+        if(layer.timeline&&layer.timeline.keyframes){
+          layer.timeline.keyframes.forEach(function(kf,ki){
+            var diamond=document.createElement('div');
+            diamond.style.cssText='position:absolute;left:'+(kf.time*_tlPxPerMs-5)+'px;top:6px;width:10px;height:10px;background:#6366f1;transform:rotate(45deg);border-radius:2px;cursor:pointer;z-index:3;border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.2);';
+            diamond.title=kf.time+'ms';
+            // Click to select keyframe (show props in panel)
+            diamond.addEventListener('click',function(e){
+              e.stopPropagation();
+              selectLayer(layer.id);
+              _showKeyframeProps(layer,ki);
+            });
+            // Drag to reposition
+            diamond.addEventListener('mousedown',function(e2){
+              e2.stopPropagation();e2.preventDefault();
+              var startX=e2.clientX;var origTime=kf.time;
+              function onMove(me){
+                var dx=me.clientX-startX;
+                var newTime=Math.round((origTime+dx/_tlPxPerMs)/50)*50;
+                if(newTime<0)newTime=0;if(newTime>dur)newTime=dur;
+                kf.time=newTime;
+                diamond.style.left=(kf.time*_tlPxPerMs-5)+'px';
+                diamond.title=kf.time+'ms';
+              }
+              function onUp(){
+                document.removeEventListener('mousemove',onMove);
+                document.removeEventListener('mouseup',onUp);
+                layer.timeline.keyframes.sort(function(a,b){return a.time-b.time;});
+                pushHistory();markDirty();renderTimeline();
+              }
+              document.addEventListener('mousemove',onMove);
+              document.addEventListener('mouseup',onUp);
+            });
+            // Right-click delete
+            diamond.addEventListener('contextmenu',function(e3){
+              e3.preventDefault();e3.stopPropagation();
+              if(confirm('Delete keyframe at '+kf.time+'ms?')){
+                pushHistory();layer.timeline.keyframes.splice(ki,1);
+                if(layer.timeline.keyframes.length===0)delete layer.timeline;
+                markDirty();renderTimeline();renderProps();
+              }
+            });
+            row.appendChild(diamond);
+          });
+        }
+        rows.appendChild(row);
+      });
+    }
+
+    // Show keyframe property editor in a floating mini-panel
+    function _showKeyframeProps(layer,kfIndex){
+      var existing=document.getElementById('kf-props-popup');if(existing)existing.remove();
+      var kf=layer.timeline&&layer.timeline.keyframes[kfIndex];if(!kf)return;
+      var popup=document.createElement('div');popup.id='kf-props-popup';
+      popup.style.cssText='position:fixed;bottom:260px;left:50%;transform:translateX(-50%);background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:9999;font-size:11px;display:flex;gap:8px;align-items:center;';
+      var fields=[['opacity','Op',kf.props.opacity!=null?kf.props.opacity:1,0,1,0.05],['translateX','X',kf.props.translateX||0,-200,200,1],['translateY','Y',kf.props.translateY||0,-200,200,1],['scaleX','Sx',kf.props.scaleX!=null?kf.props.scaleX:1,0,5,0.1],['scaleY','Sy',kf.props.scaleY!=null?kf.props.scaleY:1,0,5,0.1],['rotate','Rot',kf.props.rotate||0,-360,360,1]];
+      fields.forEach(function(f){
+        var wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;align-items:center;';
+        var lbl=document.createElement('span');lbl.style.cssText='font-size:8px;font-weight:700;color:#94a3b8;text-transform:uppercase;';lbl.textContent=f[1];
+        var inp=document.createElement('input');inp.type='number';inp.value=f[2];inp.min=f[3];inp.max=f[4];inp.step=f[5];
+        inp.style.cssText='width:48px;font-size:10px;padding:2px 4px;border:1px solid #dee2e6;border-radius:4px;text-align:center;';
+        inp.addEventListener('input',function(){kf.props[f[0]]=parseFloat(inp.value);markDirty();});
+        inp.addEventListener('change',function(){pushHistory();});
+        wrap.appendChild(lbl);wrap.appendChild(inp);popup.appendChild(wrap);
+      });
+      // Ease selector
+      var eWrap=document.createElement('div');eWrap.style.cssText='display:flex;flex-direction:column;align-items:center;';
+      var eLbl=document.createElement('span');eLbl.style.cssText='font-size:8px;font-weight:700;color:#94a3b8;';eLbl.textContent='Ease';
+      var eSel=document.createElement('select');eSel.style.cssText='font-size:9px;padding:2px;border:1px solid #dee2e6;border-radius:4px;';
+      ['linear','easeInQuad','easeOutQuad','easeInOutQuad','easeInCubic','easeOutCubic','easeInOutCubic','easeInOutBack','easeOutElastic','easeOutBounce'].forEach(function(e){var o=document.createElement('option');o.value=e;o.textContent=e.replace('ease','');if((kf.ease||'easeInOutQuad')===e)o.selected=true;eSel.appendChild(o);});
+      eSel.addEventListener('change',function(){pushHistory();kf.ease=eSel.value;markDirty();});
+      eWrap.appendChild(eLbl);eWrap.appendChild(eSel);popup.appendChild(eWrap);
+      // Close button
+      var cls=document.createElement('button');cls.textContent='×';cls.style.cssText='font-size:16px;border:none;background:none;color:#94a3b8;cursor:pointer;padding:0 4px;';
+      cls.addEventListener('click',function(){popup.remove();});
+      popup.appendChild(cls);
+      document.body.appendChild(popup);
+    }
+
+    // Timeline play/stop
+    document.getElementById('tl-play').addEventListener('click',function(){
+      if(_tlPlaying)return;_tlPlaying=true;
+      var dur=_tlGetDuration();
+      var playhead=document.getElementById('tl-playhead');
+      var timeLabel=document.getElementById('tl-time');
+      playhead.style.display='block';
+      _tlPlayStart=performance.now();
+      function frame(now){
+        if(!_tlPlaying){playhead.style.display='none';return;}
+        var elapsed=now-_tlPlayStart;
+        if(elapsed>dur){
+          if(_tlGetLoop()){_tlPlayStart=now;elapsed=0;}
+          else{_tlPlaying=false;playhead.style.display='none';timeLabel.textContent=dur+'ms';return;}
+        }
+        playhead.style.left=(elapsed*_tlPxPerMs)+'px';
+        timeLabel.textContent=Math.round(elapsed)+'ms';
+        _tlPlayRaf=requestAnimationFrame(frame);
+      }
+      _tlPlayRaf=requestAnimationFrame(frame);
+    });
+    document.getElementById('tl-stop').addEventListener('click',function(){
+      _tlPlaying=false;
+      if(_tlPlayRaf)cancelAnimationFrame(_tlPlayRaf);
+      document.getElementById('tl-playhead').style.display='none';
+      document.getElementById('tl-time').textContent='0ms';
+    });
+    document.getElementById('tl-duration').addEventListener('change',function(){
+      // Sync duration to all layers with timeline
+      var dur=_tlGetDuration();
+      state.element.layers.forEach(function(l){if(l.timeline)l.timeline.duration=dur;});
+      markDirty();renderTimeline();
+    });
+    document.getElementById('tl-loop').addEventListener('change',function(){
+      var loop=_tlGetLoop();
+      state.element.layers.forEach(function(l){if(l.timeline)l.timeline.loop=loop;});
+      markDirty();
+    });
+
+    // Re-render timeline when layers change
+    var _origRenderAll=typeof renderAll==='function'?renderAll:null;
+    // Hook into renderAll to also refresh timeline
+    var _origRenderLayers=renderLayers;
+    renderLayers=function(){_origRenderLayers.apply(this,arguments);if(_tlVisible)renderTimeline();};
+
     // ── Keyboard ──────────────────────────────────────────────────────────────
     document.addEventListener('keydown',function(e){
       if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
@@ -3479,6 +3706,7 @@
       if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key==='z'){e.preventDefault();undo();return;}
       if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){e.preventDefault();redo();return;}
       if((e.ctrlKey||e.metaKey)&&e.key==='g'){e.preventDefault();groupSelectedLayers();return;}
+      if((e.ctrlKey||e.metaKey)&&e.key==='t'){e.preventDefault();toggleTimeline();return;}
       if((e.key==='Delete'||e.key==='Backspace')&&state.selectedLayerId)document.getElementById('btn-delete-layer').click();
       // Copy/Paste (Ctrl+C / Ctrl+V)
       if((e.ctrlKey||e.metaKey)&&e.key==='c'&&state.selectedLayerId){e.preventDefault();var _cl=state.element.layers.find(function(l){return l.id===state.selectedLayerId;});if(_cl)state._clipboard=JSON.parse(JSON.stringify(_cl));return;}
