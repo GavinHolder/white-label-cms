@@ -58,6 +58,28 @@ export default function VoltRenderer({ voltElement, slots = {}, instanceOverride
   const tiltMaxDeg     = voltElement.tiltMaxDeg ?? 8
   const tiltPerspective = voltElement.tiltPerspective ?? 800
 
+  // ── Load Google Fonts used by text layers ──────────────────────────────────
+  useEffect(() => {
+    const systemFonts = new Set(['Arial', 'Georgia', 'Times New Roman', 'Helvetica', 'Courier New', 'system-ui', 'inherit'])
+    const fonts = new Set<string>()
+    for (const layer of layers) {
+      if (layer.type === 'text' && layer.textLayerData?.fontFamily) {
+        const family = layer.textLayerData.fontFamily.split(',')[0].trim().replace(/['"]/g, '')
+        if (family && !systemFonts.has(family)) fonts.add(family)
+      }
+    }
+    if (fonts.size === 0) return
+    const families = [...fonts].map(f => `family=${encodeURIComponent(f)}:wght@300;400;500;600;700;800;900`).join('&')
+    const href = `https://fonts.googleapis.com/css2?${families}&display=swap`
+    // Check if link already exists
+    const existing = document.querySelector(`link[href="${href}"]`)
+    if (existing) return
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = href
+    document.head.appendChild(link)
+  }, [layers])
+
   useEffect(() => {
     const el = containerRef.current
     if (!el) return

@@ -2115,6 +2115,23 @@
     function clrEl(el){while(el.firstChild)el.removeChild(el.firstChild);}
     function mkLbl(t){var d=document.createElement('div');d.className='prop-label';d.textContent=t;return d;}
     function mkSec(){var d=document.createElement('div');d.className='prop-section';return d;}
+    // ── Brand token colours (fetched from CMS) ────────────────────────────────
+    var _brandColors=null;
+    (function(){try{fetch('/api/admin/brand-tokens').then(function(r){return r.json();}).then(function(d){if(d&&d.data&&d.data.colors)_brandColors=d.data.colors;}).catch(function(){});}catch(e){}})();
+    /** Create a row of brand colour swatches. onClick sets the colour. */
+    function mkBrandSwatches(onSelect){
+      if(!_brandColors)return null;
+      var row=document.createElement('div');row.style.cssText='display:flex;gap:3px;margin-bottom:6px;flex-wrap:wrap;';
+      var lbl=document.createElement('span');lbl.style.cssText='font-size:8px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;width:100%;margin-bottom:1px;';lbl.textContent='Brand';row.appendChild(lbl);
+      Object.entries(_brandColors).forEach(function(e){
+        var sw=document.createElement('div');sw.title=e[0]+': '+e[1];sw.style.cssText='width:18px;height:18px;border-radius:4px;cursor:pointer;border:1.5px solid #dee2e6;background:'+e[1]+';transition:transform 0.1s;';
+        sw.addEventListener('mouseenter',function(){sw.style.transform='scale(1.2)';});
+        sw.addEventListener('mouseleave',function(){sw.style.transform='scale(1)';});
+        sw.addEventListener('click',function(){onSelect(e[1]);});
+        row.appendChild(sw);
+      });
+      return row;
+    }
     function renderProps(){
       var body=document.getElementById('props-body');clrEl(body);
       var layer=state.element.layers.find(function(l){return l.id===state.selectedLayerId;});
@@ -2381,29 +2398,62 @@
       var fSel=document.createElement('select');fSel.className='form-select form-select-sm';fSel.style.fontSize='11px';
       // [cssValue, display label, google font slug or null if system]
       var _fonts=[
+        // ── Sans-serif (modern) ──
         ['Inter, system-ui, sans-serif','Inter','Inter'],
-        ['system-ui, sans-serif','System UI',null],
-        ['Georgia, serif','Georgia',null],
-        ['Playfair Display, serif','Playfair Display','Playfair+Display'],
         ['Roboto, sans-serif','Roboto','Roboto'],
+        ['Open Sans, sans-serif','Open Sans','Open+Sans'],
+        ['Lato, sans-serif','Lato','Lato'],
         ['Montserrat, sans-serif','Montserrat','Montserrat'],
         ['Poppins, sans-serif','Poppins','Poppins'],
         ['Raleway, sans-serif','Raleway','Raleway'],
+        ['Nunito, sans-serif','Nunito','Nunito'],
         ['DM Sans, sans-serif','DM Sans','DM+Sans'],
         ['Space Grotesk, sans-serif','Space Grotesk','Space+Grotesk'],
-        ['Lato, sans-serif','Lato','Lato'],
-        ['Nunito, sans-serif','Nunito','Nunito'],
         ['Rubik, sans-serif','Rubik','Rubik'],
         ['Outfit, sans-serif','Outfit','Outfit'],
+        ['Work Sans, sans-serif','Work Sans','Work+Sans'],
         ['Plus Jakarta Sans, sans-serif','Plus Jakarta Sans','Plus+Jakarta+Sans'],
         ['Sora, sans-serif','Sora','Sora'],
+        ['Manrope, sans-serif','Manrope','Manrope'],
+        ['Lexend, sans-serif','Lexend','Lexend'],
+        ['Figtree, sans-serif','Figtree','Figtree'],
+        ['Be Vietnam Pro, sans-serif','Be Vietnam Pro','Be+Vietnam+Pro'],
         ['Bricolage Grotesque, sans-serif','Bricolage Grotesque','Bricolage+Grotesque'],
+        ['Source Sans 3, sans-serif','Source Sans 3','Source+Sans+3'],
+        ['PT Sans, sans-serif','PT Sans','PT+Sans'],
+        ['Noto Sans, sans-serif','Noto Sans','Noto+Sans'],
+        ['Ubuntu, sans-serif','Ubuntu','Ubuntu'],
+        ['Oswald, sans-serif','Oswald','Oswald'],
+        ['Barlow, sans-serif','Barlow','Barlow'],
+        ['Quicksand, sans-serif','Quicksand','Quicksand'],
+        ['Cabin, sans-serif','Cabin','Cabin'],
+        ['Karla, sans-serif','Karla','Karla'],
+        ['Urbanist, sans-serif','Urbanist','Urbanist'],
+        // ── Serif (elegant) ──
+        ['Playfair Display, serif','Playfair Display','Playfair+Display'],
+        ['Merriweather, serif','Merriweather','Merriweather'],
         ['Cormorant Garamond, serif','Cormorant Garamond','Cormorant+Garamond'],
         ['Libre Baskerville, serif','Libre Baskerville','Libre+Baskerville'],
-        ['Merriweather, serif','Merriweather','Merriweather'],
         ['Crimson Text, serif','Crimson Text','Crimson+Text'],
+        ['Lora, serif','Lora','Lora'],
+        ['EB Garamond, serif','EB Garamond','EB+Garamond'],
+        ['Bitter, serif','Bitter','Bitter'],
+        ['Spectral, serif','Spectral','Spectral'],
+        ['DM Serif Display, serif','DM Serif Display','DM+Serif+Display'],
+        // ── Display (headlines) ──
+        ['Bebas Neue, sans-serif','Bebas Neue','Bebas+Neue'],
+        ['Anton, sans-serif','Anton','Anton'],
+        ['Righteous, cursive','Righteous','Righteous'],
+        ['Archivo Black, sans-serif','Archivo Black','Archivo+Black'],
+        ['Russo One, sans-serif','Russo One','Russo+One'],
+        // ── Monospace ──
         ['JetBrains Mono, monospace','JetBrains Mono','JetBrains+Mono'],
         ['Fira Code, monospace','Fira Code','Fira+Code'],
+        ['Source Code Pro, monospace','Source Code Pro','Source+Code+Pro'],
+        // ── System ──
+        ['system-ui, sans-serif','System UI',null],
+        ['Georgia, serif','Georgia',null],
+        ['Arial, sans-serif','Arial',null],
         ['Courier New, monospace','Courier New',null],
       ];
       var _loadedFonts={};
@@ -2442,6 +2492,8 @@
       stG.appendChild(ttSel);stRow.appendChild(stG);body.appendChild(stRow);
       // Color
       var colSec=mkSec();colSec.appendChild(mkLbl('Color'));
+      var _bsText=mkBrandSwatches(function(c){pushHistory();updT('color',c);colInp.value=c;colHex.value=c;});
+      if(_bsText)colSec.appendChild(_bsText);
       var colRow=document.createElement('div');colRow.className='d-flex align-items-center gap-2';
       var colInp=document.createElement('input');colInp.type='color';colInp.className='form-control form-control-color';colInp.value=td.color||'#ffffff';colInp.style.width='44px';
       var colHex=document.createElement('input');colHex.type='text';colHex.className='form-control form-control-sm flex-1';colHex.value=td.color||'#ffffff';colHex.style.fontSize='11px';
@@ -2737,6 +2789,8 @@
           borOp.addEventListener('change',function(){pushHistory();markDirty();});
         } else {
           // Solid fill: existing controls
+          var _bsFill=mkBrandSwatches(function(c){var i=state.element.layers.findIndex(function(l){return l.id===layer.id;});if(i<0)return;pushHistory();_mutFill0(i,function(f){f.color=c;});var _fpk=document.getElementById('prop-fill-color-picker');var _ftx=document.getElementById('prop-fill-color');if(_fpk)_fpk.value=c;if(_ftx)_ftx.value=c;renderCanvas();markDirty();});
+          if(_bsFill)sec.appendChild(_bsFill);
           var r=document.createElement('div');r.className='d-flex align-items-center gap-2';
           var pk=document.createElement('input');pk.type='color';pk.id='prop-fill-color-picker';pk.value=fill.color||'#6366f1';pk.style.cssText='width:26px;height:26px;border-radius:4px;border:2px solid #dee2e6;padding:0;cursor:pointer;';
           var tx=document.createElement('input');tx.type='text';tx.id='prop-fill-color';tx.className='form-control form-control-sm';tx.value=fill.color||'#6366f1';tx.style.cssText='font-family:monospace;font-size:11px;';
