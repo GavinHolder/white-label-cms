@@ -75,6 +75,12 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
+    id: "forms",
+    label: "Form Inbox",
+    icon: "bi-inbox",
+    href: "/admin/forms",
+  },
+  {
     id: "users",
     label: "Users",
     icon: "bi-people",
