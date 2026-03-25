@@ -1,10 +1,10 @@
 {
-  "version": "1.12.7",
+  "version": "1.12.8",
   "date": "2026-03-25",
   "changelog": {
     "features": [],
     "bugfixes": [
-      "handle modify/delete merge conflicts in client deploy template"
+      "brand fonts scoped to public site only + email icon"
     ],
     "breaking": []
   }
