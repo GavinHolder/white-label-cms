@@ -38,7 +38,7 @@ const BASE_CATEGORIES: Array<{
   { id: "preview", label: "Preview", icon: "bi-eye" },
   { id: "scroll", label: "Scroll Behavior", icon: "bi-arrows-vertical" },
   { id: "data", label: "Data Management", icon: "bi-database" },
-  { id: "email", label: "Email & SMTP", icon: "bi-envelope-gear" },
+  { id: "email", label: "Email & SMTP", icon: "bi-envelope-at" },
   { id: "calculator", label: "Calculator", icon: "bi-calculator" },
   { id: "about", label: "About", icon: "bi-info-circle" },
 ];
