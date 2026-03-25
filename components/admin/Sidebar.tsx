@@ -256,7 +256,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       <style>{`
         .admin-sidebar {
           width: 260px;
-          min-height: 100vh;
+          height: 100vh;
           position: fixed;
           top: 0;
           left: 0;

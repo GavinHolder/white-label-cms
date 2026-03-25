@@ -4193,6 +4193,262 @@ When the main CMS repo publishes a new version:
 `;
 
 // ─────────────────────────────────────────────
+// ACTIVITY LOG
+// ─────────────────────────────────────────────
+
+const ACTIVITY_LOG_DOCS = `
+# Activity Log
+
+Track every admin action with a comprehensive audit trail.
+
+---
+
+## Accessing the Log
+
+Go to **Activity Log** in the admin sidebar.
+
+## What's Logged
+
+Every admin action is automatically recorded:
+
+| Action | Examples |
+|--------|---------|
+| **Auth** | Login, logout, failed login attempts |
+| **Pages** | Create, update, delete, publish, unpublish |
+| **Sections** | Create, update, delete, reorder |
+| **Media** | Upload, delete, rename |
+| **Users** | Create, update role, deactivate, delete |
+| **Settings** | Any settings change (site config, SEO, email, etc.) |
+
+## Log Entry Details
+
+Each entry records:
+- **Timestamp** — exact time of the action
+- **User** — who performed the action
+- **Action** — what was done (create, update, delete, login, etc.)
+- **Resource** — what was affected (page, section, user, etc.)
+- **IP Address** — where the request came from
+
+## Filtering
+
+Use the resource type filter at the top to narrow results:
+- All, Auth, Pages, Sections, Media, Users, Settings
+
+## Pagination
+
+Logs are displayed 50 per page with pagination controls at the bottom.
+`;
+
+// ─────────────────────────────────────────────
+// REDIRECTS
+// ─────────────────────────────────────────────
+
+const REDIRECTS_DOCS = `
+# Redirects
+
+Manage HTTP redirects for URL migrations and link management.
+
+---
+
+## Accessing Redirects
+
+Go to **Redirects** in the admin sidebar.
+
+## Creating a Redirect
+
+1. Click **Add Redirect**
+2. Enter the **From** path (e.g. \`/old-page\`)
+3. Enter the **To** path or URL (e.g. \`/new-page\` or \`https://example.com\`)
+4. Select the **Status Code**:
+   - **301** — Permanent redirect (SEO-friendly, search engines update their index)
+   - **302** — Temporary redirect (search engines keep the old URL)
+   - **307** — Temporary redirect (preserves request method)
+5. Click **Save**
+
+## Managing Redirects
+
+- **Hit Count** — see how many times each redirect has been triggered
+- **Enable/Disable** — toggle redirects on/off without deleting them
+- **Edit** — change the destination or status code
+- **Delete** — permanently remove a redirect
+
+## Use Cases
+
+- Page URL changed after redesign
+- Old marketing campaign URLs
+- Merging duplicate pages
+- External link forwarding
+`;
+
+// ─────────────────────────────────────────────
+// SITE CONFIGURATION
+// ─────────────────────────────────────────────
+
+const SITE_CONFIG_DOCS = `
+# Site Configuration
+
+Configure your company's identity and contact information used across the website.
+
+---
+
+## Accessing Site Config
+
+Go to **Settings → Site Config** in the admin sidebar.
+
+## Fields
+
+### Company Info
+- **Company Name** — displayed in navbar, footer, and SEO
+- **Tagline** — short description shown in header areas
+- **Logo URL** — main logo displayed in the navbar
+- **Favicon URL** — browser tab icon
+
+### Contact Details
+- **Phone** — displayed in footer and contact sections
+- **Email** — public contact email
+- **Address, City, Postal Code, Country** — used in footer and structured data
+
+### Social Media Links
+- Facebook, Instagram, Twitter/X, LinkedIn, YouTube, TikTok
+- Enter full URLs — these appear as social icons in the navbar and footer
+
+### Display Options
+- **Navbar Style** — choose the navigation layout
+- **Copyright Text** — footer copyright line
+- **Show Regulatory Links** — toggle compliance/regulatory section in footer
+`;
+
+// ─────────────────────────────────────────────
+// API KEYS
+// ─────────────────────────────────────────────
+
+const API_KEYS_DOCS = `
+# API Keys
+
+Manage API keys for third-party integrations like the Blender 3D addon.
+
+---
+
+## Accessing API Keys
+
+Go to **Settings → API Keys** in the admin sidebar.
+
+## Creating a Key
+
+1. Click **Generate New Key**
+2. Enter a **label** (e.g. "Blender Addon", "External Script")
+3. The key is displayed **once** — copy it immediately
+4. Click **Done**
+
+## Managing Keys
+
+- **Label** — descriptive name for the key
+- **Last Used** — timestamp of the most recent API call using this key
+- **Delete** — revoke the key permanently
+
+## Security
+
+- Keys are shown in full only once at creation time
+- After creation, only a prefix is visible in the list
+- Deleting a key immediately revokes all access
+- Use separate keys for each integration so you can revoke individually
+`;
+
+// ─────────────────────────────────────────────
+// FEATURES SYSTEM
+// ─────────────────────────────────────────────
+
+const FEATURES_SYSTEM_DOCS = `
+# Features
+
+Toggle optional CMS features on or off for your site.
+
+---
+
+## Accessing Features
+
+Go to **Features → Manage Features** in the admin sidebar.
+
+## Available Features
+
+| Feature | Description | Settings Page |
+|---------|-------------|---------------|
+| **Concrete Calculator** | Volume and cost calculator for concrete orders | Features → Concrete Calculator |
+| **Coverage Maps** | Interactive service area maps with regions | Features → Coverage Maps |
+| **Projects** | Portfolio/case study gallery with categories | Features → Projects |
+
+## How It Works
+
+Each feature is a toggle switch:
+- **Enabled** — the feature's public pages are visible, and its admin settings appear in the sidebar
+- **Disabled** — the feature is completely hidden from the public site and admin sidebar
+
+Feature state is stored in the \`ClientFeature\` database table and can be toggled by SUPER_ADMIN users only.
+
+## Concrete Calculator
+
+When enabled, provides a concrete volume calculator at \`/calculator\`:
+- Configure price per cubic meter
+- Set quote reference prefix and counter
+- Manage materials library
+- Generate PDF quotes
+
+## Coverage Maps
+
+When enabled, provides interactive maps showing service coverage:
+- Create multiple maps with regions
+- Define polygon boundaries for each region
+- Assign colours and labels to regions
+- Embed maps on any page
+
+## Projects Gallery
+
+When enabled, provides a portfolio gallery at \`/projects\`:
+- Create project entries with images and descriptions
+- Categorise projects
+- Toggle featured status
+- Published/draft workflow
+`;
+
+// ─────────────────────────────────────────────
+// NAVBAR LINKS
+// ─────────────────────────────────────────────
+
+const NAVBAR_LINKS_DOCS = `
+# Navbar Links
+
+Configure the navigation link structure for your site's top navigation bar.
+
+---
+
+## Accessing Navbar Links
+
+Go to **Settings → Navbar Links** in the admin sidebar, or use the **Navbar** editor under Content.
+
+## Link Types
+
+| Type | Description |
+|------|-------------|
+| **Page Link** | Links to a CMS page by slug (e.g. \`/about\`) |
+| **Section Anchor** | Scrolls to a section on the homepage (e.g. \`#services\`) |
+| **External URL** | Links to any external website |
+
+## Managing Links
+
+- **Add Link** — create a new navigation link with label and destination
+- **Reorder** — drag and drop to rearrange link order
+- **Edit** — change label, destination, or link type
+- **Delete** — remove a link
+
+## CTA Button
+
+The navbar supports an optional call-to-action button:
+- **Label** — button text (e.g. "Contact Us")
+- **URL** — destination when clicked
+- **Variant** — button style (primary, outline, etc.)
+`;
+
+// ─────────────────────────────────────────────
 // TOPIC TREE
 // ─────────────────────────────────────────────
 
@@ -4341,6 +4597,7 @@ export const DOC_TOPICS: DocTopic[] = [
     icon: "bi-compass",
     children: [
       { id: "nav-overview", label: "Navbar Settings", icon: "bi-layout-text-window-reverse", content: NAVIGATION },
+      { id: "nav-links", label: "Navbar Links", icon: "bi-link-45deg", content: NAVBAR_LINKS_DOCS },
     ],
   },
   {
@@ -4357,13 +4614,18 @@ export const DOC_TOPICS: DocTopic[] = [
     icon: "bi-speedometer2",
     children: [
       { id: "settings", label: "Settings", icon: "bi-gear", content: SETTINGS_PAGE },
+      { id: "site-config", label: "Site Configuration", icon: "bi-building", content: SITE_CONFIG_DOCS },
       { id: "brand-tokens", label: "Brand Tokens", icon: "bi-palette2", content: BRAND_TOKENS_DOCS },
       { id: "maintenance-mode", label: "Maintenance Mode", icon: "bi-cone-striped", content: MAINTENANCE_MODE_DOCS },
       { id: "security", label: "Security Hardening", icon: "bi-shield-check", content: SECURITY_HARDENING_DOCS },
       { id: "cms-updates", label: "CMS Update System", icon: "bi-arrow-up-circle", content: CMS_UPDATES_DOCS },
       { id: "update-channels", label: "Update Channels", icon: "bi-broadcast", content: UPDATE_CHANNELS_DOCS },
+      { id: "api-keys", label: "API Keys", icon: "bi-key", content: API_KEYS_DOCS },
       { id: "media", label: "Media Library", icon: "bi-image", content: MEDIA_LIBRARY },
       { id: "users", label: "Users & Roles", icon: "bi-people", content: USERS },
+      { id: "activity-log", label: "Activity Log", icon: "bi-clock-history", content: ACTIVITY_LOG_DOCS },
+      { id: "redirects", label: "Redirects", icon: "bi-signpost-split", content: REDIRECTS_DOCS },
+      { id: "features-system", label: "Features", icon: "bi-toggles", content: FEATURES_SYSTEM_DOCS },
     ],
   },
   {
