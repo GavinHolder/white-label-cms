@@ -81,11 +81,12 @@ jobs:
             async function dispatch(client) {
               const { org, repo, auto_deploy, workflow } = client;
               const workflowFile = workflow || 'deploy.yml';
+              const clientRef = client.ref || 'main';
               const mergeUpstream = auto_deploy ? 'true' : 'false';
 
               const url = 'https://api.github.com/repos/' + org + '/' + repo + '/actions/workflows/' + workflowFile + '/dispatches';
 
-              console.log('[' + org + '/' + repo + '] Dispatching ' + workflowFile + ' (merge_upstream=' + mergeUpstream + ', version=' + version + ')');
+              console.log('[' + org + '/' + repo + '] Dispatching ' + workflowFile + ' (ref=' + clientRef + ', merge_upstream=' + mergeUpstream + ', version=' + version + ')');
 
               if (dryRun) {
                 console.log('  → DRY RUN: would POST to ' + url);
@@ -102,7 +103,7 @@ jobs:
                     'Content-Type': 'application/json',
                   },
                   body: JSON.stringify({
-                    ref: 'main',
+                    ref: clientRef,
                     inputs: { merge_upstream: mergeUpstream },
                   }),
                 });
