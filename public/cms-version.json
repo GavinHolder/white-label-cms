@@ -1,11 +1,11 @@
 {
-  "version": "1.12.0",
+  "version": "1.12.1",
   "date": "2026-03-25",
   "changelog": {
-    "features": [
-      "seed CMS update defaults (upstream URL, channel, workflow)"
+    "features": [],
+    "bugfixes": [
+      "move client-deploy template out of workflows dir"
     ],
-    "bugfixes": [],
     "breaking": []
   }
 }
