@@ -18,6 +18,9 @@ name: Build & Deploy
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "public/cms-version.json"    # skip redundant build on version bump
+      - "public/versions/**"
   workflow_dispatch:
 
 env:
