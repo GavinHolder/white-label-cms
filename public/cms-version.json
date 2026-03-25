@@ -1,11 +1,11 @@
 {
-  "version": "1.12.9",
+  "version": "1.13.0",
   "date": "2026-03-25",
   "changelog": {
-    "features": [],
-    "bugfixes": [
-      "uniform height for maintenance template preview cards"
+    "features": [
+      "visual icon picker, help text system, remove calculator from settings"
     ],
+    "bugfixes": [],
     "breaking": []
   }
 }
