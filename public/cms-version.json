@@ -1,9 +1,9 @@
 {
-  "version": "1.10.0",
+  "version": "1.11.0",
   "date": "2026-03-25",
   "changelog": {
     "features": [
-      "scrollable sidebar + complete in-app docs for all features"
+      "per-client PATs in notify-clients workflow"
     ],
     "bugfixes": [],
     "breaking": []
