@@ -6,10 +6,12 @@
 # merge upstream and redeploy automatically (or just be notified).
 #
 # Client repos are registered in CLIENTS.json at the repo root.
-# Each entry needs: org, repo, and an optional auto_deploy flag.
+# Each entry has a "secret" field naming the GitHub secret that holds
+# that client's PAT (e.g. "OVB_PAT", "SONIC_PAT").
 #
-# Required Secret:
-#   CLIENT_DISPATCH_PAT — PAT with actions:write scope on all client repos
+# Required Secrets (one per client):
+#   OVB_PAT   — PAT with repo+workflow scope for ovbreadymix-cms
+#   SONIC_PAT — PAT with repo+workflow scope for sonic-website
 # =============================================================================
 
 name: Notify Clients
@@ -37,8 +39,6 @@ jobs:
   notify:
     name: Notify Client Repos
     runs-on: ubuntu-latest
-    # Only run if CLIENT_DISPATCH_PAT is configured
-    if: ${{ secrets.CLIENT_DISPATCH_PAT != '' }}
 
     steps:
       - name: Checkout
@@ -61,32 +61,39 @@ jobs:
           echo "Registered clients:"
           cat CLIENTS.json | node -e "
             const clients = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-            clients.forEach(c => console.log('  - ' + c.org + '/' + c.repo + (c.auto_deploy ? ' (auto-deploy)' : ' (notify only)')));
+            clients.forEach(c => console.log('  - ' + c.org + '/' + c.repo + ' (secret: ' + c.secret + ')'));
           "
 
       - name: Dispatch to client repos
         if: steps.read.outputs.has_clients == 'true'
         env:
-          PAT: ${{ secrets.CLIENT_DISPATCH_PAT }}
+          OVB_PAT: ${{ secrets.OVB_PAT }}
+          SONIC_PAT: ${{ secrets.SONIC_PAT }}
           VERSION: ${{ steps.read.outputs.version }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
         run: |
           node -e "
             const fs = require('fs');
             const clients = JSON.parse(fs.readFileSync('CLIENTS.json', 'utf8'));
-            const pat = process.env.PAT;
             const version = process.env.VERSION;
             const dryRun = process.env.DRY_RUN === 'true';
 
             async function dispatch(client) {
-              const { org, repo, auto_deploy, workflow } = client;
+              const { org, repo, auto_deploy, workflow, secret } = client;
               const workflowFile = workflow || 'deploy.yml';
               const clientRef = client.ref || 'main';
               const mergeUpstream = auto_deploy ? 'true' : 'false';
 
+              // Look up the PAT from environment using the secret name
+              const pat = process.env[secret];
+              if (!pat) {
+                console.error('[' + org + '/' + repo + '] Secret ' + secret + ' not set — skipping');
+                return { repo: org + '/' + repo, status: 'failed', error: 'Secret ' + secret + ' not configured' };
+              }
+
               const url = 'https://api.github.com/repos/' + org + '/' + repo + '/actions/workflows/' + workflowFile + '/dispatches';
 
-              console.log('[' + org + '/' + repo + '] Dispatching ' + workflowFile + ' (ref=' + clientRef + ', merge_upstream=' + mergeUpstream + ', version=' + version + ')');
+              console.log('[' + org + '/' + repo + '] Dispatching ' + workflowFile + ' (ref=' + clientRef + ', merge_upstream=' + mergeUpstream + ')');
 
               if (dryRun) {
                 console.log('  → DRY RUN: would POST to ' + url);

@@ -4,17 +4,17 @@
     "org": "GavinHolder",
     "repo": "ovbreadymix-cms",
     "workflow": "deploy.yml",
+    "secret": "OVB_PAT",
     "auto_deploy": false,
-    "channel": "stable",
-    "notes": "Production client — notify only, admin triggers update manually"
+    "channel": "stable"
   },
   {
     "name": "Sonic Internet",
     "org": "GavinHolder",
     "repo": "sonic-website",
     "workflow": "deploy.yml",
+    "secret": "SONIC_PAT",
     "auto_deploy": false,
-    "channel": "stable",
-    "notes": "Original fork — notify only, admin triggers update manually"
+    "channel": "stable"
   }
 ]
