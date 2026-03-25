@@ -55,7 +55,7 @@ jobs:
             echo "No version change — nothing to commit."
           else
             VERSION=$(node -e "const v=require('./public/cms-version.json');console.log(v.version)")
-            git commit -m "chore: auto-bump version to v${VERSION} [skip ci]"
+            git commit -m "chore: auto-bump version to v${VERSION}"
             git push origin main
             echo "Pushed version bump to v${VERSION}"
           fi
