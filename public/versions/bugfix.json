@@ -1,10 +1,10 @@
 {
-  "version": "1.8.2",
-  "date": "2026-03-23",
+  "version": "1.9.1",
+  "date": "2026-03-25",
   "changelog": {
     "features": [],
     "bugfixes": [
-      "remember me now controls cookie persistence"
+      "support per-client ref in notify-clients dispatch"
     ],
     "breaking": []
   }
