@@ -1,10 +1,10 @@
 {
-  "version": "1.16.1",
+  "version": "1.17.1",
   "date": "2026-03-25",
   "changelog": {
     "features": [],
     "bugfixes": [
-      "always show Manage Types link in Content submenu regardless of content type count"
+      "accept 204 from Portainer webhook (OVB returns 204 not 200)"
     ],
     "breaking": []
   }

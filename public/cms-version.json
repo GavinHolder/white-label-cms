@@ -1,18 +1,11 @@
 {
-  "version": "1.17.0",
+  "version": "1.17.1",
   "date": "2026-03-25",
   "changelog": {
-    "features": [
-      "auto-version affects tags, boot-time plugin seeding, registry tests",
-      "sidebar Plugin Manager link + update modal impact analysis",
-      "Plugin Manager admin page — card grid with enable/disable toggles",
-      "plugin API routes — list, seed, get, enable/disable, public",
-      "plugin registry — seed, query, enable/disable, impact analysis, migration",
-      "built-in plugin manifests for all 16 features",
-      "Plugin prisma model for plugin registry",
-      "plugin manifest type definitions"
+    "features": [],
+    "bugfixes": [
+      "accept 204 from Portainer webhook (OVB returns 204 not 200)"
     ],
-    "bugfixes": [],
     "breaking": []
   }
 }
