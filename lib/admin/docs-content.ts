@@ -3315,11 +3315,11 @@ See **Admin → API Keys** for key management.
 const VOLT_ANIMATION = `
 # Volt Designer — Animation
 
-Each layer has an **Animation** configuration that controls how it enters the viewport when the Volt element is revealed.
+Each layer has a full **Animation** system covering entrance effects, exit effects, hover transitions, scroll-triggered states, and timeline keyframes.
 
 ---
 
-## Animation Properties
+## Animation Personality (Legacy Sliders)
 
 | Property | Range | Description |
 |----------|-------|-------------|
@@ -3328,9 +3328,7 @@ Each layer has an **Animation** configuration that controls how it enters the vi
 | **Style** | 0–100 | Animation curve / easing style |
 | **Character** | 0–100 | Amount of "personality" in the motion |
 
----
-
-## Animates Flags
+### Animates Flags
 
 Toggle which CSS/SVG properties are animated on entrance:
 
@@ -3344,12 +3342,284 @@ Toggle which CSS/SVG properties are animated on entrance:
 
 ---
 
+## Entrance Animations
+
+Each layer can have an entrance animation that plays when the element first appears.
+
+| Type | Description |
+|------|-------------|
+| \`fadeIn\` | Simple opacity fade from 0 to 1 |
+| \`slideInLeft\` | Slide in from the left edge |
+| \`slideInRight\` | Slide in from the right edge |
+| \`slideInUp\` | Slide in from below |
+| \`slideInDown\` | Slide in from above |
+| \`scaleIn\` | Scale up from 0 to full size |
+| \`rotateIn\` | Rotate in from a specified angle |
+| \`flipInX\` | 3D flip on the X axis |
+| \`flipInY\` | 3D flip on the Y axis |
+
+### Entrance Properties
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| **Duration** | 600ms | How long the entrance takes |
+| **Delay** | 0ms | Wait before starting |
+| **Easing** | \`easeOutCubic\` | Timing curve |
+| **Distance** | 100px | How far slide/flip animations travel |
+
+---
+
+## Exit Animations
+
+Exit animations play when the element leaves the viewport or is removed.
+
+| Type | Description |
+|------|-------------|
+| \`fadeOut\` | Opacity fade from 1 to 0 |
+| \`slideOutLeft\` | Slide out to the left |
+| \`slideOutRight\` | Slide out to the right |
+| \`slideOutUp\` | Slide out upward |
+| \`slideOutDown\` | Slide out downward |
+| \`scaleOut\` | Scale down to 0 |
+| \`rotateOut\` | Rotate out to a specified angle |
+
+Exit animations share the same duration/delay/easing properties as entrance animations.
+
+---
+
+## Hover State Transitions
+
+Each layer can define hover overrides that animate when the user hovers over the Volt element:
+
+| Property | Description |
+|----------|-------------|
+| **Opacity** | Change opacity on hover (e.g. dim or reveal) |
+| **Scale** | Grow or shrink on hover |
+| **Position (X/Y)** | Translate layer on hover |
+| **Rotation** | Rotate layer on hover |
+| **Fill** | Change colour/fill on hover |
+
+Hover transitions animate smoothly between rest and hover states using the layer's configured easing.
+
+---
+
+## Scroll-Triggered States
+
+Layers can change properties as the user scrolls past defined thresholds:
+
+| Threshold | Trigger Point |
+|-----------|---------------|
+| \`scroll-25\` | Element is 25% through the viewport |
+| \`scroll-50\` | Element is 50% through the viewport |
+| \`scroll-75\` | Element is 75% through the viewport |
+| \`scroll-100\` | Element has fully scrolled past |
+
+Each threshold can override opacity, scale, position, rotation, and fill. States are tracked using **IntersectionObserver** with the corresponding threshold ratios. As the user scrolls, layers transition smoothly between states.
+
+---
+
+## Timeline Keyframes
+
+The timeline system gives fine-grained control over complex multi-step animations.
+
+### VoltKeyframe System
+
+Each layer's timeline is a sequence of **VoltKeyframe** objects:
+
+| Keyframe Property | Description |
+|-------------------|-------------|
+| **Time (%)** | Position on the timeline (0–100%) |
+| **Opacity** | Opacity at this keyframe |
+| **Scale X / Y** | Scale at this keyframe |
+| **Position X / Y** | Translation at this keyframe |
+| **Rotation** | Rotation angle at this keyframe |
+| **Easing** | Per-keyframe easing curve |
+
+### Timeline Controls
+
+| Action | How |
+|--------|-----|
+| **Add keyframe** | Click the + button on the timeline track |
+| **Remove keyframe** | Select a keyframe and press Delete |
+| **Move keyframe** | Drag a keyframe left/right on the timeline |
+| **Edit values** | Click a keyframe to edit its properties in the panel |
+| **Play preview** | Click the Play button to see the full animation |
+| **Scrub** | Drag the playhead to preview any point in time |
+| **Loop mode** | Toggle loop to repeat the animation continuously |
+| **Duration** | Set total timeline duration (ms) in the duration field |
+| **Toggle panel** | \`Ctrl+T\` opens/closes the timeline panel |
+
+### Tips
+
+- Keyframes interpolate between each other — you only need to set the properties that change
+- Use per-keyframe easing to create complex motion curves (ease-in at start, ease-out at end)
+- Combine timeline keyframes with entrance animations for layered effects
+
+---
+
 ## Notes
 
 - Animation is powered by **Anime.js 4.x** using the named \`animate\` export
-- Animations are triggered when the element scrolls into view
+- Entrance/exit animations are triggered when the element scrolls into/out of view
 - Each layer animates independently — use **Delay** to stagger a sequence
 - Use **Speed** = 0 for instant reveal, 100 for very slow
+- Keyboard shortcut: **Ctrl+T** to toggle the timeline panel
+`;
+
+// ─────────────────────────────────────────────
+// VOLT UX, SHORTCUTS & FEATURES
+// ─────────────────────────────────────────────
+
+const VOLT_UX_DOCS = `
+# Volt Designer — UX, Shortcuts & Features
+
+A complete reference for keyboard shortcuts, alignment tools, and advanced features in Volt Studio.
+
+---
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| \`V\` | Select tool |
+| \`R\` | Rectangle tool |
+| \`E\` | Ellipse tool |
+| \`L\` | Line tool |
+| \`B\` | Pen/Bezier tool |
+| \`P\` | Polygon tool |
+| \`T\` | Text tool |
+| \`S\` | Slot tool |
+| \`Ctrl+Z\` | Undo |
+| \`Ctrl+Y\` | Redo |
+| \`Ctrl+C\` | Copy selected layer |
+| \`Ctrl+V\` | Paste copied layer |
+| \`Ctrl+D\` | Duplicate selected layer |
+| \`Ctrl+G\` | Group selected layers |
+| \`Ctrl+T\` | Toggle timeline panel |
+| \`Delete / Backspace\` | Delete selected layer |
+| \`Arrow keys\` | Nudge layer 1% |
+| \`Shift + Arrow keys\` | Nudge layer 5% |
+| \`Ctrl + Scroll wheel\` | Zoom in/out |
+| \`Escape\` | Cancel current tool / Exit vertex edit |
+
+---
+
+## Copy & Paste
+
+- **Ctrl+C** copies the selected layer to an internal clipboard
+- **Ctrl+V** pastes it as a new layer, offset +3% from the original
+- The pasted layer gets a new unique ID and name suffix " copy"
+- Works within the same design (cross-design paste not yet supported)
+
+## Arrow Key Nudging
+
+- Select any layer and use **arrow keys** to move it precisely
+- **1%** per press (single arrow key)
+- **5%** per press (Shift + arrow key)
+- Multiple rapid nudges are batched into a single undo step
+
+## Distribute Alignment
+
+- **Multi-select** 3 or more layers (Shift+click or marquee select)
+- Click **Distribute Horizontal** ⇄ to space them evenly on the X axis
+- Click **Distribute Vertical** ⇅ to space them evenly on the Y axis
+- Existing **Align** buttons (left/center/right/top/middle/bottom) align to canvas edges
+
+## Zoom
+
+- **Ctrl + scroll wheel** zooms the canvas (0.1× to 5×)
+- Zoom buttons (+/−) in the toolbar
+- **Fit** button auto-fits the canvas to the viewport
+
+---
+
+## Google Fonts
+
+52 Google Fonts available in the text property panel, organised by category:
+
+- **Sans-serif (modern):** Inter, Roboto, Open Sans, Lato, Montserrat, Poppins, Raleway, Nunito, DM Sans, Space Grotesk, Rubik, Outfit, Work Sans, Plus Jakarta Sans, Sora, Manrope, Lexend, Figtree, Be Vietnam Pro, and more
+- **Serif (elegant):** Playfair Display, Merriweather, Cormorant Garamond, Libre Baskerville, Crimson Text, Lora, EB Garamond, Bitter, Spectral, DM Serif Display
+- **Display (headlines):** Bebas Neue, Anton, Righteous, Archivo Black, Russo One
+- **Monospace:** JetBrains Mono, Fira Code, Source Code Pro
+- **System:** System UI, Georgia, Arial, Courier New
+
+Fonts are loaded dynamically from Google Fonts CDN. The renderer also auto-loads any non-system fonts used in text layers.
+
+## Brand Colour Swatches
+
+- Colour pickers (text colour, fill colour) show a **Brand** row of 8 swatches
+- Swatches are loaded from **Settings → Brand** tokens
+- Click any swatch to instantly apply that colour
+- Keeps designs consistent with your brand palette
+
+---
+
+## Unsplash Photo Search
+
+The image picker has two tabs: **Media Library** and **Unsplash**.
+
+1. Click the Unsplash tab
+2. Search for any topic (e.g., "mountains", "office", "food")
+3. Browse results in a grid with photographer credits
+4. Click a photo to insert it into the selected image layer
+5. "Load more" button for pagination
+
+> **Note:** Requires \`UNSPLASH_ACCESS_KEY\` in your environment. Get a free key at [unsplash.com/developers](https://unsplash.com/developers).
+
+---
+
+## Component / Symbol System
+
+Save and reuse groups of layers across designs.
+
+### Saving a Component
+1. Select one or more layers (Shift+click for multi-select)
+2. Right-click → **Save as Component**
+3. Enter a name → the layers are saved as a reusable VoltElement
+
+### Using a Component
+1. Click the **CMP** button in the toolbar
+2. Browse your component library (shows name + layer count)
+3. Click a component to insert its layers into the current design
+4. Inserted layers get new IDs and are stacked on top
+
+---
+
+## Responsive Breakpoints
+
+Design for mobile, tablet, and desktop in one Volt design.
+
+| Breakpoint | Icon | Canvas Width |
+|------------|------|-------------|
+| Desktop | 🖥 | 800px (default) |
+| Tablet | 📱 | 600px |
+| Mobile | 📱 | 375px |
+
+### How to Use
+1. Open the timeline (\`Ctrl+T\`) — breakpoint switcher appears
+2. Click a breakpoint button to resize the canvas
+3. Reposition/resize layers at the new size
+4. Overrides are saved per breakpoint (position, size, visibility, font size)
+5. Desktop layout is not affected by tablet/mobile edits
+
+The renderer uses a **ResizeObserver** to detect the container width and apply the matching breakpoint overrides automatically.
+
+---
+
+## Clip Mask
+
+Clip an image or text layer to the shape of a vector layer below it.
+
+### Setting a Clip Mask
+1. Draw a **vector shape** (rectangle, circle, custom path)
+2. Add an **image layer** above it
+3. Select the image layer → right-click → **Set Clip Mask**
+4. The image is clipped to the vector shape
+
+### Releasing a Clip Mask
+- Right-click the masked layer → **Release Mask**
+
+> The mask uses CSS \`clip-path\` with the vector's SVG path data.
 `;
 
 // ─────────────────────────────────────────────
@@ -3532,9 +3802,24 @@ Content Types let you define structured data collections beyond standard pages a
 ## How It Works
 
 1. **Define a Type** — Go to **Content → Types** and create a new content type (e.g. "Blog Post", "Team Member")
-2. **Add Fields** — Each type has a flexible field schema: text, rich text, image, date, select, number, boolean
+2. **Add Fields** — Each type has a flexible field schema with many field types (see below)
 3. **Create Entries** — Add entries to your content type with the structured editor
 4. **Display on Site** — Entries are automatically available at \`/content/{type-slug}\` (listing) and \`/content/{type-slug}/{entry-slug}\` (detail)
+
+## Field Types
+
+| Field Type | Description | Example Use |
+|------------|-------------|-------------|
+| \`text\` | Single-line plain text | Title, name, tagline |
+| \`richtext\` | Rich text editor with formatting | Body content, bio |
+| \`image\` | Image upload via media picker | Featured image, avatar |
+| \`date\` | Date/time picker | Published date, event date |
+| \`number\` | Numeric input | Price, display order, rating |
+| \`boolean\` | Toggle switch (true/false) | Featured flag, active status |
+| \`select\` | Dropdown single-select | Category, status |
+| \`multiselect\` | Multi-choice select | Tags, categories |
+| \`url\` | URL input with validation | Website link, social profile |
+| \`color\` | Colour picker | Theme colour, accent |
 
 ## Built-in Content Types
 
@@ -3555,6 +3840,26 @@ The CMS comes seeded with two content types:
 
 An RSS 2.0 feed is automatically generated at \`/api/rss\` from all published blog post entries. The feed includes title, description, link, publication date, and excerpt for each post. Feed metadata (site name, description) comes from your SEO settings.
 
+## Tags & Search
+
+- Entries support **tags** — add tags when editing any entry to enable filtering
+- The public listing pages include a **search bar** to filter entries by title or content
+- Tag-based filtering is available on listing pages (click a tag to filter)
+
+## Version History
+
+Every time an entry is saved, a **version snapshot** is created automatically. You can:
+- View all previous versions via the **History** button on any entry
+- Preview any past version
+- **Restore** a previous version (creates a new version — history is never deleted)
+
+## Content Scheduling
+
+Entries can be **scheduled** for future publication:
+1. In the entry editor, click **Schedule** instead of **Publish**
+2. Pick a future date and time
+3. The entry stays in draft until the scheduled time, then auto-publishes
+
 ## Admin UI
 
 - **Content → Types** — Create, edit, delete content types and their field schemas
@@ -3569,25 +3874,74 @@ An RSS 2.0 feed is automatically generated at \`/api/rss\` from all published bl
 const BRAND_TOKENS_DOCS = `
 # Brand Tokens
 
-Brand Tokens define your site's visual identity as CSS custom properties — colours, fonts, and spacing that cascade through every page and component automatically.
+Brand Tokens define your site's visual identity as CSS custom properties — colours, fonts, spacing, and borders that cascade through every page and component automatically.
 
 ---
 
 ## How It Works
 
-Go to **Settings → Brand** to manage your brand tokens:
+Go to **Settings → Brand** to manage your brand tokens.
 
-### Colours
-Define primary, secondary, accent, and neutral colour palettes. Each colour is injected as a CSS custom property (e.g. \`--brand-primary\`, \`--brand-secondary\`) and automatically available in all sections, Volt designs, and components.
+---
 
-### Typography
-Select Google Fonts for headings and body text. The chosen fonts are:
-- Auto-loaded via \`<link>\` tag (no manual font installation)
-- Applied as \`--brand-font-heading\` and \`--brand-font-body\` custom properties
-- Visible instantly across the entire site
+## Colour Tokens
 
-### Colour Swatches
-The Brand editor includes a swatch picker for quick colour selection, plus a full colour picker for custom values. Expanded Google Fonts integration provides 100+ curated font families.
+8 colour tokens define your palette:
+
+| Token | CSS Variable | Purpose |
+|-------|-------------|---------|
+| **Primary** | \`--brand-primary\` | Main brand colour (buttons, links, accents) |
+| **Primary Light** | \`--brand-primary-light\` | Lighter variant for hover states, backgrounds |
+| **Primary Dark** | \`--brand-primary-dark\` | Darker variant for active states |
+| **Secondary** | \`--brand-secondary\` | Supporting brand colour |
+| **Accent** | \`--brand-accent\` | Highlight / call-to-action colour |
+| **Neutral** | \`--brand-neutral\` | Text and border defaults |
+| **Background** | \`--brand-background\` | Page background |
+| **Surface** | \`--brand-surface\` | Card/panel backgrounds |
+
+Each token has a swatch picker for quick selection plus a full colour picker for custom hex/rgb values.
+
+---
+
+## Typography
+
+| Setting | CSS Variable | Description |
+|---------|-------------|-------------|
+| **Heading Font** | \`--brand-font-heading\` | Google Font for h1–h6 headings |
+| **Body Font** | \`--brand-font-body\` | Google Font for body text and paragraphs |
+| **Base Font Size** | \`--brand-font-size-base\` | Root font size (default: 16px) |
+| **Scale Ratio** | — | Type scale multiplier for heading sizes (e.g. 1.25 = Major Third) |
+
+- Fonts are auto-loaded from Google Fonts via \`<link>\` tag — no manual installation
+- The font picker provides 100+ curated Google Font families
+- Changes are visible instantly across the entire site
+
+---
+
+## Spacing
+
+| Setting | CSS Variable | Description |
+|---------|-------------|-------------|
+| **Section Padding** | \`--brand-section-padding\` | Default vertical padding for sections (0–200px) |
+| **Container Max Width** | \`--brand-container-max\` | Maximum content width (e.g. 1200px, 1400px) |
+
+---
+
+## Borders
+
+| Setting | CSS Variable | Description |
+|---------|-------------|-------------|
+| **Border Radius** | \`--brand-radius\` | Default corner radius for cards, buttons, inputs |
+
+---
+
+## How CSS Variables Flow
+
+1. Brand tokens are stored in the \`BrandToken\` Prisma model
+2. On page load, the root layout injects all tokens as CSS custom properties on \`:root\`
+3. Bootstrap overrides pick up the variables (e.g. \`--bs-primary\` maps to \`--brand-primary\`)
+4. All sections, Volt designs, and components inherit the tokens automatically
+5. Volt Designer colour pickers show brand swatches for easy consistency
 
 ## Technical Details
 
@@ -4026,6 +4380,7 @@ export const DOC_TOPICS: DocTopic[] = [
       { id: "volt-boolean", label: "Boolean Operations", icon: "bi-intersect", content: VOLT_BOOLEAN },
       { id: "volt-3d", label: "3D Objects", icon: "bi-box", content: VOLT_3D },
       { id: "volt-animation", label: "Animation", icon: "bi-play-circle", content: VOLT_ANIMATION },
+      { id: "volt-ux", label: "UX & Shortcuts", icon: "bi-keyboard", content: VOLT_UX_DOCS },
     ],
   },
 ];
