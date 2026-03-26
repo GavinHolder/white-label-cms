@@ -1,11 +1,11 @@
 {
-  "version": "1.25.0",
+  "version": "1.25.1",
   "date": "2026-03-26",
   "changelog": {
-    "features": [
-      "context-aware floating action panel — align/size appears next to selected layer"
+    "features": [],
+    "bugfixes": [
+      "toolbar single-line — zoom moved to floating bar, key legend hidden, buttons compact"
     ],
-    "bugfixes": [],
     "breaking": []
   }
 }
