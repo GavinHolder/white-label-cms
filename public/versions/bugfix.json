@@ -1,10 +1,10 @@
 {
-  "version": "1.24.8",
+  "version": "1.25.1",
   "date": "2026-03-26",
   "changelog": {
     "features": [],
     "bugfixes": [
-      "revert Insert buttons to toolbar + fix full-canvas path remapping"
+      "toolbar single-line — zoom moved to floating bar, key legend hidden, buttons compact"
     ],
     "breaking": []
   }
