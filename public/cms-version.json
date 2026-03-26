@@ -1,10 +1,10 @@
 {
-  "version": "1.23.1",
+  "version": "1.23.2",
   "date": "2026-03-26",
   "changelog": {
     "features": [],
     "bugfixes": [
-      "Volt designer crash — wrong element ID for scroll zoom (artboard-container → canvas-wrap)"
+      "Volt designer — CW/CH undefined in mousedown handler + zoom uses applyZoom()"
     ],
     "breaking": []
   }
