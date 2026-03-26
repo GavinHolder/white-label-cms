@@ -8,9 +8,12 @@
 #
 # Setup checklist (one-time per deployment):
 #   1. Create stack in Portainer using deploy/app/docker-compose.yml
-#   2. Copy the stack webhook URL from Portainer → Stack → Webhook
-#   3. Add PORTAINER_WEBHOOK_URL to GitHub repo secrets
-#      (full URL, e.g. http://154.66.197.168:9000/api/stacks/webhooks/UUID)
+#   2. Add these 4 secrets to GitHub repo → Settings → Secrets → Actions:
+#      PORTAINER_URL          https://portainer.example.com (no trailing slash)
+#      PORTAINER_USERNAME     Portainer login user (default: admin)
+#      PORTAINER_PASSWORD     Portainer login password
+#      PORTAINER_STACK_ID     From Portainer URL: ?id=X
+#      PORTAINER_ENDPOINT_ID  From Portainer URL: #!/X/docker/...
 # =============================================================================
 
 name: Build & Deploy
@@ -85,26 +88,59 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ── Job 2: Trigger Portainer stack redeploy ──────────────────────────────────
+  # ── Job 2: Redeploy via Portainer API ────────────────────────────────────────
   deploy:
     name: Deploy via Portainer
     runs-on: ubuntu-latest
     needs: build
-    # Skips gracefully if PORTAINER_WEBHOOK_URL secret is not yet configured
-    if: always()
 
     steps:
-      - name: Trigger Portainer webhook
+      - name: Redeploy stack
         run: |
-          if [ -z "${{ secrets.PORTAINER_WEBHOOK_URL }}" ]; then
-            echo "PORTAINER_WEBHOOK_URL secret not set — skipping redeploy trigger"
+          # Skip if secrets not configured
+          if [ -z "${{ secrets.PORTAINER_URL }}" ] || [ -z "${{ secrets.PORTAINER_PASSWORD }}" ]; then
+            echo "⚠️ PORTAINER_URL or PORTAINER_PASSWORD not set — skipping deploy"
+            echo "Set these 4 secrets: PORTAINER_URL, PORTAINER_PASSWORD, PORTAINER_STACK_ID, PORTAINER_ENDPOINT_ID"
             exit 0
           fi
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-            "${{ secrets.PORTAINER_WEBHOOK_URL }}")
-          echo "Portainer response: $RESPONSE"
-          if [ "$RESPONSE" != "200" ] && [ "$RESPONSE" != "204" ]; then
-            echo "Webhook failed with HTTP $RESPONSE — check PORTAINER_WEBHOOK_URL secret"
+
+          # Authenticate with Portainer
+          PORTAINER_USER="${{ secrets.PORTAINER_USERNAME }}"
+          PORTAINER_USER="${PORTAINER_USER:-admin}"
+          echo "🔑 Authenticating with Portainer as $PORTAINER_USER..."
+          JWT=$(curl -s -X POST "${{ secrets.PORTAINER_URL }}/api/auth" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\":\"$PORTAINER_USER\",\"password\":\"${{ secrets.PORTAINER_PASSWORD }}\"}" \
+            | jq -r '.jwt')
+
+          if [ -z "$JWT" ] || [ "$JWT" = "null" ]; then
+            echo "❌ Portainer authentication failed — check PORTAINER_PASSWORD"
             exit 1
           fi
-          echo "Stack redeploy triggered"
+
+          # Trigger stack redeploy (pulls latest image)
+          echo "🚀 Triggering stack redeploy..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+            "${{ secrets.PORTAINER_URL }}/api/stacks/${{ secrets.PORTAINER_STACK_ID }}/git/redeploy?endpointId=${{ secrets.PORTAINER_ENDPOINT_ID }}" \
+            -H "Authorization: Bearer $JWT" \
+            -H "Content-Type: application/json" \
+            -d '{"pullImage":true}')
+
+          echo "Portainer response: $RESPONSE"
+
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ Stack redeploy triggered successfully"
+          elif [ "$RESPONSE" = "400" ]; then
+            echo "⚠️ Stack redeploy returned 400 — stack may not be a git-based stack."
+            echo "Trying alternative: stop + start stack..."
+            curl -s -X POST "${{ secrets.PORTAINER_URL }}/api/stacks/${{ secrets.PORTAINER_STACK_ID }}/stop?endpointId=${{ secrets.PORTAINER_ENDPOINT_ID }}" \
+              -H "Authorization: Bearer $JWT" > /dev/null
+            sleep 2
+            curl -s -X POST "${{ secrets.PORTAINER_URL }}/api/stacks/${{ secrets.PORTAINER_STACK_ID }}/start?endpointId=${{ secrets.PORTAINER_ENDPOINT_ID }}" \
+              -H "Authorization: Bearer $JWT" > /dev/null
+            echo "✅ Stack stop/start triggered"
+          else
+            echo "❌ Deploy failed with HTTP $RESPONSE"
+            echo "Check: PORTAINER_STACK_ID=${{ secrets.PORTAINER_STACK_ID }}, PORTAINER_ENDPOINT_ID=${{ secrets.PORTAINER_ENDPOINT_ID }}"
+            exit 1
+          fi
