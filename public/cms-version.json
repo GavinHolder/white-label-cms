@@ -1,10 +1,10 @@
 {
-  "version": "1.24.1",
+  "version": "1.24.2",
   "date": "2026-03-26",
   "changelog": {
     "features": [],
     "bugfixes": [
-      "Volt designer cursor forced to default — prevents white cursor from globals.css"
+      "align buttons now translate SVG pathData to match bounding box position"
     ],
     "breaking": []
   }
