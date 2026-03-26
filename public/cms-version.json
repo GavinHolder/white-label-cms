@@ -1,11 +1,11 @@
 {
-  "version": "1.18.0",
-  "date": "2026-03-25",
+  "version": "1.18.1",
+  "date": "2026-03-26",
   "changelog": {
-    "features": [
-      "canonical client deploy workflow template — ONE standard for all clients"
+    "features": [],
+    "bugfixes": [
+      "deploy template supports PORTAINER_USERNAME secret (defaults to admin)"
     ],
-    "bugfixes": [],
     "breaking": []
   }
 }
