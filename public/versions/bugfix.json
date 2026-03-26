@@ -1,10 +1,10 @@
 {
-  "version": "1.17.1",
-  "date": "2026-03-25",
+  "version": "1.18.1",
+  "date": "2026-03-26",
   "changelog": {
     "features": [],
     "bugfixes": [
-      "accept 204 from Portainer webhook (OVB returns 204 not 200)"
+      "deploy template supports PORTAINER_USERNAME secret (defaults to admin)"
     ],
     "breaking": []
   }
