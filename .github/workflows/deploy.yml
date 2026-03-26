@@ -155,11 +155,12 @@ jobs:
           if [ "$RESPONSE" = "200" ]; then
             echo "✅ Stack redeployed successfully (env vars preserved)"
           elif [ "$RESPONSE" = "400" ] || [ "$RESPONSE" = "500" ]; then
-            echo "⚠️ Git redeploy failed ($RESPONSE). Trying direct stack update..."
-            cat /tmp/portainer_response.txt 2>/dev/null
+            ERRDETAIL=$(cat /tmp/portainer_response.txt 2>/dev/null)
+            echo "⚠️ Git redeploy failed ($RESPONSE): $ERRDETAIL"
 
             COMPOSE=$(echo "$STACK_DATA" | jq -r '.StackFileContent // empty')
             if [ -n "$COMPOSE" ]; then
+              echo "Trying direct stack update..."
               UPDATE_BODY=$(jq -n \
                 --argjson env "$CURRENT_ENV" \
                 --arg compose "$COMPOSE" \
@@ -172,14 +173,24 @@ jobs:
                 -d "$UPDATE_BODY")
 
               if [ "$RESPONSE2" = "200" ]; then
-                echo "✅ Stack updated via fallback method (env vars preserved)"
+                echo "✅ Stack updated via direct method (env vars preserved)"
               else
-                echo "❌ Fallback also failed ($RESPONSE2)"
+                echo "⚠️ Direct update failed ($RESPONSE2)"
+              fi
+            fi
+
+            if [ "${RESPONSE2:-0}" != "200" ]; then
+              echo "Trying stop + start (works for all stack types)..."
+              curl -s -o /dev/null -w "" -X POST "$BASE_URL/api/stacks/$STACK_ID/stop?endpointId=$ENDPOINT_ID" -H "$AUTH"
+              sleep 3
+              START=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+                "$BASE_URL/api/stacks/$STACK_ID/start?endpointId=$ENDPOINT_ID" -H "$AUTH")
+              if [ "$START" = "200" ]; then
+                echo "✅ Stack restarted (stop + start)"
+              else
+                echo "❌ All deploy methods failed"
                 exit 1
               fi
-            else
-              echo "❌ Cannot read compose content for fallback"
-              exit 1
             fi
           else
             echo "❌ Deploy failed with HTTP $RESPONSE"
