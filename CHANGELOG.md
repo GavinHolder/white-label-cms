@@ -6,6 +6,16 @@ All notable changes to the White-Label CMS.
 
 ## Unreleased
 
+### Features
+- timeline — visible +Key/-Key buttons, enhanced keyframe editor, easing curves
+
+### Documentation
+- regenerate changelog
+
+---
+
+## v1.25.1 (2026-03-26)
+
 ### Bug Fixes
 - toolbar single-line — zoom moved to floating bar, key legend hidden, buttons compact
 
