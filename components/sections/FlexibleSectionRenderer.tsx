@@ -524,10 +524,9 @@ function DesignerBlocksRenderer({ designerData, darkBg, scrollStageZone }: { des
             gridTemplateColumns: `repeat(${cols}, 1fr)`,
             gridTemplateRows,
             gap: `${gap}px`,
-            height: gridH,
             minHeight: gridH,
-            // Center content rows vertically when auto rows don't consume full height
-            alignContent: "center",
+            // Start content from top — auto rows size to content, 1fr rows fill remaining space
+            alignContent: "start",
           }}
         >
           {filteredBlocks.map((block) => {

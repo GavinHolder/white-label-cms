@@ -82,6 +82,19 @@ async function main() {
   if (!homePage) throw new Error('No home page found — run db:seed first')
   const homePageId = homePage.id
 
+  // Remove empty FLEXIBLE placeholder sections (content = {}) — left over from
+  // the Designer's "New Flexible Section" default. They show as blank screens.
+  const emptySections = await prisma.section.findMany({
+    where: { pageId: homePageId, type: 'FLEXIBLE', displayName: 'New Flexible Section' },
+  })
+  for (const s of emptySections) {
+    const c = s.content as Record<string, unknown>
+    if (!c || Object.keys(c).length === 0) {
+      await prisma.section.delete({ where: { id: s.id } })
+      console.log(`🗑️  Removed empty placeholder section (${s.id})`)
+    }
+  }
+
   // Find footer if it exists; if not, insert at a high order number
   const footer = await prisma.section.findFirst({
     where: { type: 'FOOTER', pageId: homePageId },
@@ -115,7 +128,7 @@ async function main() {
       contentMode: 'multi',
       designerData: {
         contentMode: 'multi',
-        multiLimit: 3,           // 300vh — enough room for the content to breathe
+        multiLimit: 1,
         layoutType: 'grid',
         gridGap: 40,
         edgePad: 60,
@@ -123,7 +136,7 @@ async function main() {
           cols: 2,
           rows: 2,
           gap: 40,
-          rowHeights: ['1.6fr', '1fr'],
+
         },
         blocks: [
 
