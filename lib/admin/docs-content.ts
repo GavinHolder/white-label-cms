@@ -952,7 +952,7 @@ Each zone boundary is a CSS scroll-snap point — scrolling snaps cleanly to eac
 const FLEXIBLE_ELEMENTS = `
 # Flexible Sections — Element Types
 
-The block panel on the left contains **13 element types**. **Card, Banner, and Stats** now use the same free-positioning sub-element system as Text Block — all content is draggable, dblclick editable, and the block auto-resizes in all directions.
+The block panel on the left contains **14 element types**. **Card, Banner, and Stats** now use the same free-positioning sub-element system as Text Block — all content is draggable, dblclick editable, and the block auto-resizes in all directions.
 
 ---
 
@@ -1328,7 +1328,50 @@ The **Layer Colors** section in the Properties panel lists every vector layer in
 
 ---
 
+## 14. Editorial 📰
+
+Magazine-style text layout powered by **[@chenglou/pretext](https://github.com/chenglou/pretext)**. Text flows around obstacle images using precise alpha hull tracing — the actual shape of the image, not just its bounding box.
+
+### How it works
+
+- Text is measured using the browser's own font engine (via Canvas) — no DOM reflow
+- Each line is laid out individually, routing around any obstacles
+- Text is real DOM content: **fully selectable and copyable**
+- Layout re-runs instantly on resize (~0.09ms hot path)
+
+### Adding text
+
+Type or paste your body copy in the **Body Text** textarea in the Properties panel. Choose a **Font Family** and adjust **Font Size** and **Line Height** to match your design.
+
+### Obstacles
+
+Obstacles are images that text flows around. Text routes around the actual shape of the image (alpha channel tracing), not just its rectangular bounds.
+
+| Property | Description |
+|----------|-------------|
+| **Image** | Upload an image — PNG with transparency works best |
+| **Alpha Hull** | When checked, traces the image's actual alpha contour. When unchecked, uses the bounding rectangle |
+| **X / Y** | Fractional position within the block (0–100%) — drag in canvas or use sliders |
+| **W / H** | Fractional width/height relative to block size |
+| **Padding** | Extra space between the image shape and the nearest text line (px) |
+
+### Dragging obstacles
+
+In the Designer canvas, obstacle images show a **dashed blue outline** and a move cursor. Drag them to reposition — text reflows instantly around the new position.
+
+### Supported fonts
+
+Any **Google Font** works. The font is loaded automatically before layout runs. Popular editorial choices:
+- **Merriweather** (default) — classic serif for long-form reading
+- **Lora**, **EB Garamond**, **Libre Baskerville** — traditional editorial serifs
+- **Inter**, **Open Sans** — clean sans-serif for modern layouts
+
+> **Tip:** Use a PNG image with a transparent background and enable Alpha Hull for the most dramatic text-wrapping effect.
+
+---
+
 `;
+
 
 const FLEXIBLE_STYLING = `
 # Flexible Sections — Element Styling

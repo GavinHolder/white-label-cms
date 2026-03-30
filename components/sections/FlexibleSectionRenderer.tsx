@@ -14,6 +14,7 @@ const ProjectsGallery    = dynamic(() => import("@/components/sections/ProjectsG
 const VoltBlock                = dynamic(() => import("@/components/sections/VoltBlock"), { ssr: false });
 const InteractiveProductCard   = dynamic(() => import("@/components/sections/blocks/InteractiveProductCard"), { ssr: false });
 const ScrollStoryBlock         = dynamic(() => import("@/components/sections/blocks/ScrollStoryBlock"), { ssr: false });
+const EditorialBlock           = dynamic(() => import("@/components/sections/blocks/EditorialBlock"), { ssr: false });
 
 interface FlexibleSectionRendererProps {
   section: FlexibleSection;
@@ -1029,6 +1030,21 @@ function DesignerBlock({ block, darkBg }: {
       case "scroll-story":
         return (
           <ScrollStoryBlock block={block} />
+        );
+
+      // ── editorial: magazine-style text layout with obstacle-avoidance (pretext) ─
+      case "editorial":
+        return (
+          <EditorialBlock props={{
+            text:        (p.text        as string)  ?? '',
+            fontFamily:  (p.fontFamily  as string)  ?? 'Merriweather',
+            fontSize:    (p.fontSize    as number)  ?? 18,
+            lineHeight:  (p.lineHeight  as number)  ?? 1.6,
+            textColor:   (p.textColor   as string)  ?? '#212529',
+            bgColor:     (p.bgColor     as string)  ?? 'transparent',
+            obstacles:   Array.isArray(p.obstacles) ? p.obstacles : [],
+            customCss:   (p.customCss   as string)  ?? '',
+          }} />
         );
 
       // ── default: unknown block type — render the type name as a placeholder ─
