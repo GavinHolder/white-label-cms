@@ -1,12 +1,14 @@
 {
-  "version": "1.27.0",
-  "date": "2026-03-28",
+  "version": "1.28.0",
+  "date": "2026-03-31",
   "changelog": {
     "features": [
-      "Google integration tab — step-by-step checklist for Search Console, Analytics, Business Profile"
+      "add canvas overflow/bleed and carousel multi-slide to Volt Studio",
+      "add editorial FLEXIBLE block with pretext text-flow engine"
     ],
     "bugfixes": [
-      "SEO Wizard crash — early return before useCallback/useEffect violated React hooks rules"
+      "editorial seed layout — alignContent start and remove multiLimit 3",
+      "add local SVG obstacles and seed script for editorial demo"
     ],
     "breaking": []
   }
