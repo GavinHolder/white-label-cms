@@ -68,7 +68,7 @@ export default async function RootLayout({
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
   const isAdminRoute = pathname.startsWith("/admin");
-  const isIsolatedRoute = pathname.startsWith("/volt-preview") || pathname.startsWith("/maintenance-preview");
+  const isIsolatedRoute = pathname.startsWith("/volt-preview") || pathname.startsWith("/maintenance-preview") || pathname.startsWith("/standalone");
 
   // Maintenance mode — check DB only for public routes (skip admin, api, volt-preview)
   const isPublicRoute = !isAdminRoute && !isIsolatedRoute && !pathname.startsWith("/api");

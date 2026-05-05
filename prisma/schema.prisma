@@ -52,6 +52,7 @@ model Page {
   ogTitle         String?
   enabled         Boolean          @default(true)
   formConfig      Json?
+  customHtml      String?
   navLabel        String?
   navOrder        Int?
   showOnNavbar    Boolean          @default(false)
@@ -446,6 +447,7 @@ enum PageType {
   FORM
   PDF
   DESIGNER
+  STANDALONE
 }
 
 enum PageStatus {
