@@ -535,6 +535,7 @@ function MosaicLayout({ elements, layout, darkBg }: {
         const preset = el.position.mosaicPreset ? MOSAIC_PRESETS[el.position.mosaicPreset] : null;
         const colSpan = el.position.colSpan ?? (preset ? preset[0] : 12);
         const rowSpan = el.position.rowSpan ?? (preset ? preset[1] : 1);
+        const elStyle = (el as any).style || {};
         return (
           <div
             key={el.id}
@@ -542,7 +543,14 @@ function MosaicLayout({ elements, layout, darkBg }: {
               gridColumn: `span ${colSpan}`,
               gridRow: `span ${rowSpan}`,
               overflow: "hidden",
-              borderRadius: "4px",
+              borderRadius: elStyle.borderRadius ?? 4,
+              position: "relative",
+              ...(elStyle.backgroundColor ? { backgroundColor: elStyle.backgroundColor } : {}),
+              ...(elStyle.backgroundImage ? {
+                backgroundImage: `url(${elStyle.backgroundImage})`,
+                backgroundSize: elStyle.backgroundSize || "cover",
+                backgroundPosition: elStyle.backgroundPosition || "center",
+              } : {}),
             }}
           >
             <FlexibleElementRenderer element={el} darkBg={darkBg} />
@@ -569,12 +577,24 @@ function FlexibleElementRenderer({ element, darkBg }: { element: FlexibleElement
     case "image": return c.imageSrc ? (
       <div style={{ width: "100%", height: "100%", backgroundImage: `url(${c.imageSrc})`, backgroundSize: c.imageFit || "cover", backgroundPosition: "center" }} />
     ) : null;
-    default: return (
-      <div style={{ padding: "20px", color: tc, height: "100%" }}>
-        {c.heading && <h3 style={{ margin: "0 0 8px", fontSize: "20px" }}>{c.heading}</h3>}
-        {c.text && <p style={{ margin: 0, opacity: 0.75 }}>{c.text}</p>}
-      </div>
-    );
+    default: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cx = c as any;
+      const hasImg = !!(element as any).style?.backgroundImage;
+      return (
+        <div style={{
+          height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end",
+          ...(hasImg ? { background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.1) 55%, transparent 100%)" } : { padding: "20px", color: tc }),
+        }}>
+          <div style={{ padding: hasImg ? "16px 20px" : 0 }}>
+            {cx.eyebrow    && <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--bs-success, #22c55e)", margin: "0 0 4px" }}>{cx.eyebrow}</p>}
+            {cx.heading    && <h3 style={{ margin: "0 0 4px", fontSize: "clamp(14px, 1.8vw, 18px)", fontWeight: 700, color: hasImg ? "#fff" : tc }}>{cx.heading}</h3>}
+            {cx.subheading && <p style={{ margin: "0 0 2px", opacity: 0.8, fontSize: "13px", color: hasImg ? "rgba(255,255,255,0.85)" : tc }}>{cx.subheading}</p>}
+            {cx.text       && <p style={{ margin: 0, opacity: hasImg ? 0.6 : 0.75, fontSize: "12px", color: hasImg ? "#fff" : tc }}>{cx.text}</p>}
+          </div>
+        </div>
+      );
+    }
   }
 }
 

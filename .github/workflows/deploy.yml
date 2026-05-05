@@ -1,14 +1,27 @@
 # =============================================================================
 # White-Label CMS — Build & Publish Docker Image
 # =============================================================================
-# Triggers: push to main, or manual "Run workflow"
+# Triggers: ONLY when public/cms-version.json changes, or manual "Run workflow"
 #
-# Job 1 (build): GitHub runners → builds Docker image → pushes to ghcr.io
-# Job 2 (deploy): Calls Portainer webhook to pull new image and restart stack
+# Deployment chain (prevents version mismatch in Docker image):
+#   1. Developer pushes code to main
+#   2. auto-version.yml fires → bumps cms-version.json → commits + pushes
+#   3. That commit triggers THIS workflow (watches cms-version.json)
+#   4. Docker image is built with the NEW version already baked in
+#   5. Deployed clients report the correct version → update badge clears
+#
+# WHY: Previously deploy.yml triggered simultaneously with auto-version.yml,
+# racing to build before the version bump committed. Docker image got the OLD
+# version baked in, so the "Update available" badge never cleared after deploy.
+#
+# REQUIREMENT: auto-version.yml must use AUTO_VERSION_PAT (not GITHUB_TOKEN)
+# so its push to main triggers this workflow. GITHUB_TOKEN pushes do not
+# trigger other workflows in GitHub Actions.
 #
 # Setup checklist (one-time per deployment):
 #   1. Create stack in Portainer using deploy/app/docker-compose.yml
-#   2. Add these 4 secrets to GitHub repo → Settings → Secrets → Actions:
+#   2. Add these secrets to GitHub repo → Settings → Secrets → Actions:
+#      AUTO_VERSION_PAT       Personal Access Token with repo write scope
 #      PORTAINER_URL          https://portainer.example.com (no trailing slash)
 #      PORTAINER_USERNAME     Portainer login user (default: admin)
 #      PORTAINER_PASSWORD     Portainer login password
@@ -21,9 +34,8 @@ name: Build & Deploy
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "public/cms-version.json"    # skip redundant build on version bump
-      - "public/versions/**"
+    paths:
+      - "public/cms-version.json"    # deploy ONLY after version is bumped
   workflow_dispatch:
 
 env:
@@ -68,6 +80,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Assert version is current
+        run: |
+          VERSION=$(node -e "const v=require('./public/cms-version.json');console.log(v.version)")
+          echo "Building Docker image with version: v${VERSION}"
+          if [ -z "$VERSION" ] || [ "$VERSION" = "undefined" ]; then
+            echo "❌ cms-version.json has no version field — aborting build"
+            exit 1
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
