@@ -1,15 +1,13 @@
 {
-  "version": "1.28.0",
-  "date": "2026-03-31",
+  "version": "1.29.0",
+  "date": "2026-05-05",
   "changelog": {
     "features": [
-      "add canvas overflow/bleed and carousel multi-slide to Volt Studio",
-      "add editorial FLEXIBLE block with pretext text-flow engine"
+      "add STANDALONE page type with raw HTML editor",
+      "advanced layout geometry — mosaic grid, steps, photo-strip, theme toggle, hero enhancements",
+      "advanced layout geometry — mosaic grid, steps, counter stats, photo strip, silhouette parallax, theme toggle, hero enhancements"
     ],
-    "bugfixes": [
-      "editorial seed layout — alignContent start and remove multiLimit 3",
-      "add local SVG obstacles and seed script for editorial demo"
-    ],
+    "bugfixes": [],
     "breaking": []
   }
 }
