@@ -1,9 +1,9 @@
 {
-  "version": "1.33.0",
+  "version": "1.34.0",
   "date": "2026-05-05",
   "changelog": {
     "features": [
-      "harden template library — built-in templates, tags fix, accurate docs"
+      "multi-entry-point routing — standalone pages serve at /{slug}"
     ],
     "bugfixes": [],
     "breaking": []
