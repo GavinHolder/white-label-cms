@@ -1,9 +1,9 @@
 {
-  "version": "1.34.0",
+  "version": "1.35.0",
   "date": "2026-05-05",
   "changelog": {
     "features": [
-      "multi-entry-point routing — standalone pages serve at /{slug}"
+      "Use as Page button — create standalone page directly from template"
     ],
     "bugfixes": [],
     "breaking": []
