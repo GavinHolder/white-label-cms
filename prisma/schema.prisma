@@ -427,6 +427,7 @@ model SiteConfig {
   updatedAt      DateTime @updatedAt
   navbarStyle    String   @default("standard")
   tiktok         String   @default("")
+  defaultTheme   String   @default("dark")
 
   @@map("site_config")
 }

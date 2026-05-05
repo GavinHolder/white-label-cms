@@ -14,6 +14,7 @@ import { fetchSeoConfig, buildMetadata, buildStructuredData } from "@/lib/metada
 import prisma from "@/lib/prisma";
 import MaintenancePage from "@/components/MaintenancePage";
 import { getBrandTokens, brandTokensToCss, brandTokensToFontUrl } from "@/lib/brand-tokens";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -124,6 +125,11 @@ export default async function RootLayout({
       style={{ "--navbar-height": `${navbarHeight}px`, height: "100%" } as React.CSSProperties}
     >
       <head>
+        {/* Theme flash prevention — reads localStorage before first paint to set data-theme.
+            Uses next/script beforeInteractive so it runs before hydration. */}
+        <Script id="cms-theme-init" strategy="beforeInteractive">{`
+          (function(){try{var t=localStorage.getItem('cms-theme')||'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+        `}</Script>
         {/* Brand tokens — CSS custom properties for site-wide theming.
             Safe: brandCss is server-generated from validated hex colors + numbers only,
             never user-controlled HTML/JS. Same pattern as JSON-LD injection below. */}
