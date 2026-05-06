@@ -1,11 +1,14 @@
 {
-  "version": "1.37.0",
-  "date": "2026-05-05",
+  "version": "1.37.1",
+  "date": "2026-05-06",
   "changelog": {
     "features": [
-      "universal homepage routing — any page type serves at / via internal rewrite"
+      "universal homepage routing — any page type serves at / via internal rewrite",
+      "cms-forms.js — standalone page form helper with OTP + leads pipeline"
     ],
-    "bugfixes": [],
+    "bugfixes": [
+      "homepage cache not invalidating when homePage config is updated — Set as Homepage now takes effect immediately"
+    ],
     "breaking": []
   }
 }
