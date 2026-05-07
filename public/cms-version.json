@@ -1,11 +1,11 @@
 {
-  "version": "1.37.4",
+  "version": "1.38.0",
   "date": "2026-05-07",
   "changelog": {
-    "features": [],
-    "bugfixes": [
-      "move standalone redirect to useEffect — no side effects in render"
+    "features": [
+      "homepage entry point dropdown in Site Config — pick any page as root without entering slugs"
     ],
+    "bugfixes": [],
     "breaking": []
   }
 }
