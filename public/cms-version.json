@@ -1,11 +1,11 @@
 {
-  "version": "1.39.0",
+  "version": "1.39.1",
   "date": "2026-05-07",
   "changelog": {
-    "features": [
-      "Use as Page modal — auto-set as homepage checkbox (on by default)"
+    "features": [],
+    "bugfixes": [
+      "middleware uses localhost for internal API calls — avoids hairpin NAT failure in Docker/Traefik"
     ],
-    "bugfixes": [],
     "breaking": []
   }
 }

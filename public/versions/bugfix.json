@@ -1,10 +1,10 @@
 {
-  "version": "1.37.4",
+  "version": "1.39.1",
   "date": "2026-05-07",
   "changelog": {
     "features": [],
     "bugfixes": [
-      "move standalone redirect to useEffect — no side effects in render"
+      "middleware uses localhost for internal API calls — avoids hairpin NAT failure in Docker/Traefik"
     ],
     "breaking": []
   }
