@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireRole } from "@/lib/api-middleware";
-import { analyzeHtml } from "@/lib/template-import-utils";
-import { processZip } from "@/app/api/templates/import/route";
+import { analyzeHtml, processZip } from "@/lib/template-import-utils";
 
 interface Ctx { params: Promise<{ id: string }> }
 
@@ -57,7 +56,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (!file.name.toLowerCase().endsWith(".zip"))
     return NextResponse.json({ error: "Only .zip files are supported for re-import" }, { status: 400 });
 
-  const importResult = await processZip(null, await file.arrayBuffer());
+  const importResult = await processZip(await file.arrayBuffer());
   if (!importResult.ok) return importResult;
 
   const importJson = await importResult.json() as {
