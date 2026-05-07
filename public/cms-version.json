@@ -1,11 +1,13 @@
 {
-  "version": "1.43.0",
+  "version": "1.44.0",
   "date": "2026-05-07",
   "changelog": {
     "features": [
-      "template analyze button — integration checklist + ZIP re-import"
+      "interactive analyse modal — inline fix UI, no manual HTML editing"
     ],
-    "bugfixes": [],
+    "bugfixes": [
+      "move processZip to shared lib — resolve cross-route import build failure"
+    ],
     "breaking": []
   }
 }
