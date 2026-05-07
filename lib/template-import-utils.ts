@@ -12,6 +12,7 @@ export interface ImportAnalysisItem {
   type: string;
   detail: string;
   suggestion?: string;
+  occurrences?: string[];  // raw values (paths, numbers, etc.) — powers inline fix UI
 }
 
 export interface ImportAnalysis {
@@ -82,59 +83,70 @@ export function analyzeHtml(html: string): { needsAttention: ImportAnalysisItem[
     items.push({
       type: "FORM",
       detail: `${formMatches.length} <form> element${formMatches.length > 1 ? "s" : ""} found`,
-      suggestion: "Replace each <form> with {{cms.form.YOUR-FORM-SLUG}} to wire up a CMS-managed form. Create your form first in Content → Forms.",
+      suggestion: "Select a CMS form from the dropdown to replace the form HTML automatically.",
     });
   }
 
-  const videoSrcs = [...html.matchAll(/<(?:video|source)\b[^>]*\bsrc=["']([^"']+)["']/gi)]
-    .map(m => m[1])
-    .filter(isLocalPath);
-  if (videoSrcs.length > 0) {
+  const uniqueVideoSrcs = [...new Set(
+    [...html.matchAll(/<(?:video|source)\b[^>]*\bsrc=["']([^"']+)["']/gi)]
+      .map(m => m[1]).filter(isLocalPath)
+  )];
+  if (uniqueVideoSrcs.length > 0) {
     items.push({
       type: "VIDEO",
-      detail: `${videoSrcs.length} video source${videoSrcs.length > 1 ? "s" : ""} with local path (${videoSrcs.slice(0, 2).join(", ")}${videoSrcs.length > 2 ? "…" : ""})`,
-      suggestion: "Upload each video via Media Library, then add a named media slot and use {{cms.media.SLOTNAME}} as the src.",
+      detail: `${uniqueVideoSrcs.length} video source${uniqueVideoSrcs.length > 1 ? "s" : ""} with local path`,
+      suggestion: "Pick a video from the Media Library to replace each source.",
+      occurrences: uniqueVideoSrcs,
     });
   }
 
-  const telLinks = [...html.matchAll(/href=["']tel:([^"']+)["']/gi)].map(m => m[1]);
-  if (telLinks.length > 0) {
+  const uniquePhones = [...new Set(
+    [...html.matchAll(/href=["']tel:([^"']+)["']/gi)].map(m => m[1])
+  )];
+  if (uniquePhones.length > 0) {
     items.push({
       type: "PHONE",
-      detail: `Hardcoded phone number${telLinks.length > 1 ? "s" : ""} in tel: link${telLinks.length > 1 ? "s" : ""}: ${telLinks.slice(0, 2).join(", ")}`,
-      suggestion: 'Replace with href="tel:{{cms.phone}}" — value comes from Site Config → Contact Info.',
+      detail: `Hardcoded phone${uniquePhones.length > 1 ? "s" : ""}: ${uniquePhones.join(", ")}`,
+      suggestion: 'One click replaces all tel: links with {{cms.phone}}.',
+      occurrences: uniquePhones,
     });
   }
 
-  const mailLinks = [...html.matchAll(/href=["']mailto:([^"'?]+)/gi)].map(m => m[1]);
-  if (mailLinks.length > 0) {
+  const uniqueEmails = [...new Set(
+    [...html.matchAll(/href=["']mailto:([^"'?]+)/gi)].map(m => m[1])
+  )];
+  if (uniqueEmails.length > 0) {
     items.push({
       type: "EMAIL",
-      detail: `Hardcoded email${mailLinks.length > 1 ? "s" : ""} in mailto: link${mailLinks.length > 1 ? "s" : ""}: ${mailLinks.slice(0, 2).join(", ")}`,
-      suggestion: 'Replace with href="mailto:{{cms.email}}" — value comes from Site Config → Contact Info.',
+      detail: `Hardcoded email${uniqueEmails.length > 1 ? "s" : ""}: ${uniqueEmails.join(", ")}`,
+      suggestion: 'One click replaces all mailto: links with {{cms.email}}.',
+      occurrences: uniqueEmails,
     });
   }
 
-  const bgMatches = [...html.matchAll(/background(?:-image)?:\s*url\(["']?([^"')]+)["']?\)/gi)]
-    .map(m => m[1])
-    .filter(isLocalPath);
-  if (bgMatches.length > 0) {
+  const uniqueBgSrcs = [...new Set(
+    [...html.matchAll(/background(?:-image)?:\s*url\(["']?([^"')]+)["']?\)/gi)]
+      .map(m => m[1]).filter(isLocalPath)
+  )];
+  if (uniqueBgSrcs.length > 0) {
     items.push({
       type: "BACKGROUND",
-      detail: `${bgMatches.length} inline background-image URL${bgMatches.length > 1 ? "s" : ""} with local path`,
-      suggestion: "These should already be wired as {{cms.media.SLOTNAME}} if their image file was in the ZIP. If not, upload via Media Library and add a media slot.",
+      detail: `${uniqueBgSrcs.length} background-image${uniqueBgSrcs.length > 1 ? "s" : ""} with local path`,
+      suggestion: "Pick an image from the Media Library for each background.",
+      occurrences: uniqueBgSrcs,
     });
   }
 
-  // Remaining local <img> src references (not already using {{cms.media.*}})
-  const localImgSrcs = [...html.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["']/gi)]
-    .map(m => m[1])
-    .filter(src => isLocalPath(src) && !src.includes("{{cms."));
-  if (localImgSrcs.length > 0) {
+  const uniqueLocalImgSrcs = [...new Set(
+    [...html.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["']/gi)]
+      .map(m => m[1]).filter(src => isLocalPath(src) && !src.includes("{{cms."))
+  )];
+  if (uniqueLocalImgSrcs.length > 0) {
     items.push({
       type: "LOCAL_IMG",
-      detail: `${localImgSrcs.length} <img> src${localImgSrcs.length > 1 ? "s" : ""} still pointing to local path${localImgSrcs.length > 1 ? "s" : ""}: ${localImgSrcs.slice(0, 2).join(", ")}${localImgSrcs.length > 2 ? "…" : ""}`,
-      suggestion: "Re-import with a ZIP containing these image files to auto-upload and wire them. Or upload manually via Media Library and replace src with {{cms.media.SLOTNAME}}.",
+      detail: `${uniqueLocalImgSrcs.length} image src${uniqueLocalImgSrcs.length > 1 ? "s" : ""} with local path`,
+      suggestion: "Pick from the Media Library to replace each image source.",
+      occurrences: uniqueLocalImgSrcs,
     });
   }
 
@@ -143,8 +155,8 @@ export function analyzeHtml(html: string): { needsAttention: ImportAnalysisItem[
   if (cdnLinks.length > 0) {
     items.push({
       type: "CDN",
-      detail: `${cdnLinks.length} external CDN stylesheet${cdnLinks.length > 1 ? "s" : ""} referenced`,
-      suggestion: "CDN links (Bootstrap, FontAwesome, etc.) work fine as-is. Optionally copy the URL into the CSS Files tab in the Standalone Editor for centralized management.",
+      detail: `${cdnLinks.length} external CDN stylesheet${cdnLinks.length > 1 ? "s" : ""} (no action needed)`,
+      suggestion: "CDN links work fine as-is. Optionally move them to the CSS Files tab in the Standalone Editor.",
     });
   }
 
