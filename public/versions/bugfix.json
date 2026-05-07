@@ -1,10 +1,10 @@
 {
-  "version": "1.44.3",
+  "version": "1.49.1",
   "date": "2026-05-07",
   "changelog": {
     "features": [],
     "bugfixes": [
-      "clear homePage + invalidate cache when homepage page is deleted"
+      "standalone page hydration crash + coverage map in import modal"
     ],
     "breaking": []
   }

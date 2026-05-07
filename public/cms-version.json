@@ -1,11 +1,11 @@
 {
-  "version": "1.49.0",
+  "version": "1.49.1",
   "date": "2026-05-07",
   "changelog": {
-    "features": [
-      "hero carousel editor — starter slide, auto-expand, fix toggle switches"
+    "features": [],
+    "bugfixes": [
+      "standalone page hydration crash + coverage map in import modal"
     ],
-    "bugfixes": [],
     "breaking": []
   }
 }
