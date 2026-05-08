@@ -1644,6 +1644,16 @@ function snapshotState() {
     nextId:       state.nextId,
     mosaicRowH:   parseInt(document.getElementById('mosaicRowH')?.value||'200'),
     mosaicGap:    parseInt(document.getElementById('mosaicGap')?.value||'10'),
+    // Section header / footer fields
+    sectionEyebrow:        document.getElementById('sectionEyebrow')?.value  || '',
+    sectionHeading:        document.getElementById('sectionHeading')?.value  || '',
+    sectionSubheading:     document.getElementById('sectionSubheading')?.value || '',
+    sectionHeaderVariant:  document.getElementById('sectionHeaderVariant')?.value || 'centered',
+    sectionLead:           document.getElementById('sectionLead')?.value    || '',
+    sectionFooterEnabled:  !!document.getElementById('sectionFooterEnabled')?.checked,
+    sectionFooterLeft:     document.getElementById('sectionFooterLeft')?.value || '',
+    sectionFooterBtnLabel: document.getElementById('sectionFooterBtnLabel')?.value || '',
+    sectionFooterBtnHref:  document.getElementById('sectionFooterBtnHref')?.value || '',
     // Deep clone blocks so history entries are independent from live state
     blocks:       JSON.parse(JSON.stringify(state.blocks))
   });
@@ -1758,6 +1768,26 @@ function applySnapshot(snap, addToHistory) {
   const activePresetBtn = [...document.querySelectorAll('#preset-config .preset-btn')]
     .find(b => b.getAttribute('onclick')?.includes(`'${state.preset}'`));
   if (activePresetBtn) activePresetBtn.classList.add('active');
+  // Restore section header/footer fields
+  const eid = document.getElementById('sectionEyebrow');    if (eid) eid.value = s.sectionEyebrow || '';
+  const hid = document.getElementById('sectionHeading');    if (hid) hid.value = s.sectionHeading || '';
+  const sid = document.getElementById('sectionSubheading'); if (sid) sid.value = s.sectionSubheading || '';
+  const vid = document.getElementById('sectionHeaderVariant'); if (vid) { vid.value = s.sectionHeaderVariant || 'centered'; }
+  const hvCentered = document.getElementById('hv-centered');
+  const hvSplit    = document.getElementById('hv-split');
+  const leadRow    = document.getElementById('sectionLeadRow');
+  const isSplit    = (s.sectionHeaderVariant === 'split');
+  if (hvCentered) hvCentered.classList.toggle('active', !isSplit);
+  if (hvSplit)    hvSplit.classList.toggle('active', isSplit);
+  if (leadRow)    leadRow.style.display = isSplit ? '' : 'none';
+  const lid = document.getElementById('sectionLead');       if (lid) lid.value = s.sectionLead || '';
+  const fEnabled = document.getElementById('sectionFooterEnabled');
+  const fFields  = document.getElementById('sectionFooterFields');
+  if (fEnabled) fEnabled.checked = !!s.sectionFooterEnabled;
+  if (fFields)  fFields.style.display = s.sectionFooterEnabled ? '' : 'none';
+  const flid = document.getElementById('sectionFooterLeft');     if (flid) flid.value = s.sectionFooterLeft || '';
+  const fblid = document.getElementById('sectionFooterBtnLabel'); if (fblid) fblid.value = s.sectionFooterBtnLabel || '';
+  const fbhid = document.getElementById('sectionFooterBtnHref');  if (fbhid) fbhid.value = s.sectionFooterBtnHref || '';
   // Clear selection — the previously selected block may not exist in the snapshot
   state.selectedBlockId = null;
   state.selectedSubId   = null;
@@ -6130,6 +6160,17 @@ function applyPresetById(presetId) {
   state.blocks     = JSON.parse(JSON.stringify(preset.blocks));
   state.selectedBlockId = null;
   state.selectedSubId   = null;
+  // Clear section header/footer when applying a preset (stale copy would be confusing)
+  ['sectionEyebrow','sectionHeading','sectionSubheading','sectionLead',
+   'sectionFooterLeft','sectionFooterBtnLabel','sectionFooterBtnHref'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  var fv = document.getElementById('sectionHeaderVariant'); if (fv) fv.value = 'centered';
+  var hvc = document.getElementById('hv-centered'); if (hvc) hvc.classList.add('active');
+  var hvs = document.getElementById('hv-split');    if (hvs) hvs.classList.remove('active');
+  var lr  = document.getElementById('sectionLeadRow'); if (lr) lr.style.display = 'none';
+  var fe  = document.getElementById('sectionFooterEnabled'); if (fe) fe.checked = false;
+  var ff  = document.getElementById('sectionFooterFields'); if (ff) ff.style.display = 'none';
   renderCanvas();
   renderProps();
   autoSaveDraft();
@@ -6461,8 +6502,10 @@ function buildJson() {
     sectionEyebrow:       document.getElementById('sectionEyebrow')?.value.trim() || undefined,
     sectionHeading:       document.getElementById('sectionHeading')?.value.trim() || undefined,
     sectionSubheading:    document.getElementById('sectionSubheading')?.value.trim() || undefined,
-    sectionHeaderVariant: document.getElementById('sectionHeaderVariant')?.value || undefined,
-    sectionLead:          document.getElementById('sectionLead')?.value.trim() || undefined,
+    sectionHeaderVariant: (document.getElementById('sectionHeaderVariant')?.value === 'split') ? 'split' : undefined,
+    sectionLead: (document.getElementById('sectionHeaderVariant')?.value === 'split')
+      ? (document.getElementById('sectionLead')?.value.trim() || undefined)
+      : undefined,
     sectionFooter: (function() {
       if (!document.getElementById('sectionFooterEnabled')?.checked) return undefined;
       const left  = document.getElementById('sectionFooterLeft')?.value.trim();
@@ -6680,6 +6723,7 @@ function toggleSectionConfig() {
 //  SECTION HEADER VARIANT
 // ───────────────────────────────────────────────────────────
 function setHeaderVariant(v) {
+  pushHistory();
   const sel = document.getElementById('sectionHeaderVariant');
   if (sel) sel.value = v;
   const btnC = document.getElementById('hv-centered');
@@ -6695,6 +6739,7 @@ function setHeaderVariant(v) {
 //  SECTION FOOTER TOGGLE
 // ───────────────────────────────────────────────────────────
 function toggleSectionFooter() {
+  pushHistory();
   const enabled = document.getElementById('sectionFooterEnabled')?.checked;
   const fields  = document.getElementById('sectionFooterFields');
   if (fields) fields.style.display = enabled ? '' : 'none';
