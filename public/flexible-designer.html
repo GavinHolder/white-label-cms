@@ -1147,6 +1147,7 @@
               <select class="form-select form-select-sm" id="layoutType" onchange="onLayoutChange()">
                 <option value="grid">Grid Layout</option>
                 <option value="preset">Preset Layout</option>
+                <option value="mosaic">Mosaic / Bento Gallery</option>
               </select>
             </div>
 
@@ -1176,6 +1177,24 @@
                 <input type="range" class="form-range" id="edgePad" min="0" max="60" value="0"
                   oninput="document.getElementById('edgePadVal').textContent=this.value+'px'; renderCanvas(); autoSave();">
                 <span class="slider-value" id="edgePadVal">0px</span>
+              </div>
+            </div>
+
+            <!-- Mosaic Config -->
+            <div class="config-box" id="mosaic-config" style="display:none;">
+              <div class="config-box-label">Mosaic Configuration</div>
+              <div style="font-size:11px;color:#6c757d;margin-bottom:8px;">12-column auto-flow bento grid. Each block gets a size preset.</div>
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <label class="form-label mb-0 small" style="min-width:72px;">Row height</label>
+                <input type="range" class="form-range" id="mosaicRowH" min="80" max="500" value="200"
+                  oninput="document.getElementById('mosaicRowHVal').textContent=this.value+'px'; autoSave();">
+                <span class="slider-value" id="mosaicRowHVal">200px</span>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <label class="form-label mb-0 small" style="min-width:72px;">Gap</label>
+                <input type="range" class="form-range" id="mosaicGap" min="0" max="32" value="10"
+                  oninput="document.getElementById('mosaicGapVal').textContent=this.value+'px'; autoSave();">
+                <span class="slider-value" id="mosaicGapVal">10px</span>
               </div>
             </div>
 
@@ -1565,6 +1584,8 @@ function snapshotState() {
     preset:       state.preset,
     positionMode: state.positionMode,
     nextId:       state.nextId,
+    mosaicRowH:   parseInt(document.getElementById('mosaicRowH')?.value||'200'),
+    mosaicGap:    parseInt(document.getElementById('mosaicGap')?.value||'10'),
     // Deep clone blocks so history entries are independent from live state
     blocks:       JSON.parse(JSON.stringify(state.blocks))
   });
@@ -1666,6 +1687,15 @@ function applySnapshot(snap, addToHistory) {
   document.getElementById('edgePadVal').textContent = state.edgePad + 'px';
   document.getElementById('multiLimit').value   = s.multiLimit;
   document.getElementById('multiLimitVal').textContent = s.multiLimit;
+  // Restore mosaic config if present
+  if (s.mosaicRowH !== undefined) {
+    document.getElementById('mosaicRowH').value = s.mosaicRowH;
+    document.getElementById('mosaicRowHVal').textContent = s.mosaicRowH + 'px';
+  }
+  if (s.mosaicGap !== undefined) {
+    document.getElementById('mosaicGap').value = s.mosaicGap;
+    document.getElementById('mosaicGapVal').textContent = s.mosaicGap + 'px';
+  }
   updatePositionModeBadge();
   // Restore active preset button highlight based on the saved preset key
   document.querySelectorAll('#preset-config .preset-btn').forEach(b => b.classList.remove('active'));
@@ -1874,13 +1904,15 @@ function renderCanvas() {
     badge.textContent = `Multi Section — ${state.multiLimit}×100vh`;
   }
 
-  // Show the appropriate config panel (grid sliders vs preset buttons)
+  // Show the appropriate config panel (grid sliders vs preset buttons vs mosaic)
   document.getElementById('grid-config').style.display   = state.layoutType === 'grid'   ? 'block' : 'none';
   document.getElementById('preset-config').style.display = state.layoutType === 'preset' ? 'block' : 'none';
+  document.getElementById('mosaic-config').style.display = state.layoutType === 'mosaic' ? 'block' : 'none';
 
   // In grid mode: re-snap blocks to grid metrics (clamp positions/spans to new bounds).
-  // In free mode: blocks keep their stored x/y/w/h — no grid snap applied here.
-  if (state.positionMode !== 'free') {
+  // In free mode or mosaic mode: blocks keep their stored x/y/w/h — no grid snap applied here.
+  // Mosaic positioning is handled entirely in renderMosaicBlocks().
+  if (state.positionMode !== 'free' && state.layoutType !== 'mosaic') {
     const maxSection = state.contentMode === 'multi' ? state.multiLimit - 1 : 0;
     state.blocks.forEach(b => {
       // Clamp all grid coordinates to valid bounds after grid dimension changes
@@ -1990,6 +2022,8 @@ function renderGridOverlay() {
   if (!state.showGuides) return;
   // In free mode the grid doesn't apply — hide grid cells entirely
   if (state.positionMode === 'free') return;
+  // In mosaic mode the 12-col auto-flow grid is handled by renderMosaicBlocks
+  if (state.layoutType === 'mosaic') return;
   // In mobile preview the blocks are stacked full-width — grid overlay is meaningless
   if (state.devicePreview === 'mobile') return;
 
@@ -2037,10 +2071,21 @@ function renderGridOverlay() {
  * Replaces all .container-block DOM elements with freshly created ones
  * from state.blocks. Called as part of renderCanvas() and after any
  * structural block mutation (add, remove, move).
+ * In mosaic mode, delegates to renderMosaicBlocks() for bento-grid preview.
  */
 function renderBlocks() {
   // Remove stale block elements before rebuilding from state
   document.querySelectorAll('.container-block').forEach(el => el.remove());
+
+  // Mosaic mode: render bento-grid tiles instead of the absolute-positioned canvas
+  if (state.positionMode !== 'free' && state.layoutType === 'mosaic') {
+    renderMosaicBlocks();
+    const hint = document.getElementById('canvas-empty-hint');
+    if (hint) hint.style.display = state.blocks.length === 0 ? 'flex' : 'none';
+    updateMiniToolbar();
+    return;
+  }
+
   state.blocks.forEach(block => {
     document.getElementById('canvas').appendChild(createBlockElement(block));
   });
@@ -2049,6 +2094,151 @@ function renderBlocks() {
   if (hint) hint.style.display = state.blocks.length === 0 ? 'flex' : 'none';
   // Reposition mini-toolbar for selected block
   updateMiniToolbar();
+}
+
+/**
+ * Renders the mosaic canvas as a bento-grid preview.
+ * Simulates CSS auto-flow placement (row-major, 12 columns) using the
+ * block's mosaicPreset to determine colSpan and rowSpan.
+ * Each tile shows the block type icon, label, and an inline preset select.
+ * Uses safe DOM construction — no dynamic innerHTML.
+ */
+function renderMosaicBlocks() {
+  var MOSAIC_PRESETS = { 's-lg':[6,2], 's-md':[4,2], 's-sm':[4,1], 's-tall':[4,2], 's-wide':[8,1], 's-mid':[6,1] };
+  var PRESET_LABELS  = { 's-lg':'Large 6×2', 's-md':'Medium 4×2', 's-sm':'Small 4×1', 's-tall':'Tall 4×2', 's-wide':'Wide 8×1', 's-mid':'Mid 6×1' };
+  var TYPE_ICONS     = { hero:'🎬', card:'🃏', 'text-block':'📝', banner:'📢', stats:'📊', image:'🖼️', video:'🎥', divider:'—', volt:'⚡', editorial:'✍️' };
+
+  var canvas = document.getElementById('canvas');
+  var canvasW = canvas.offsetWidth || 1200;
+  var rowH = parseInt(document.getElementById('mosaicRowH').value) || 200;
+  var gap  = parseInt(document.getElementById('mosaicGap').value)  || 10;
+  var colW = (canvasW - gap * 11) / 12;
+
+  var curCol = 0, curRow = 0;
+
+  state.blocks.forEach(function(block) {
+    var preset = block.mosaicPreset || 's-sm';
+    var dims   = MOSAIC_PRESETS[preset] || [4, 1];
+    var cols   = dims[0], rows = dims[1];
+
+    if (curCol + cols > 12) { curRow++; curCol = 0; }
+
+    var x = curCol * (colW + gap);
+    var y = curRow * (rowH + gap);
+    var w = cols * colW + (cols - 1) * gap;
+    var h = rows * rowH + (rows - 1) * gap;
+
+    curCol += cols;
+    if (curCol >= 12) { curRow++; curCol = 0; }
+
+    block.x = x; block.y = y; block.w = w; block.h = h;
+
+    var isSelected = state.selectedBlockId === block.id;
+
+    var el = document.createElement('div');
+    el.className = 'container-block mosaic-tile' + (isSelected ? ' selected cb-selected' : '');
+    el.dataset.blockId = block.id;
+    el.style.position  = 'absolute';
+    el.style.left      = x + 'px';
+    el.style.top       = y + 'px';
+    el.style.width     = w + 'px';
+    el.style.height    = h + 'px';
+    el.style.boxSizing = 'border-box';
+    el.style.overflow  = 'hidden';
+    el.style.borderRadius = '6px';
+    el.style.background   = '#f8f9fa';
+    el.style.border    = '2px solid ' + (isSelected ? '#0d6efd' : '#dee2e6');
+
+    // Drag handle bar
+    var handle = document.createElement('div');
+    handle.style.position   = 'absolute';
+    handle.style.top        = '0';
+    handle.style.left       = '0';
+    handle.style.right      = '0';
+    handle.style.height     = '24px';
+    handle.style.cursor     = 'grab';
+    handle.style.background = 'rgba(0,0,0,0.06)';
+    handle.style.display    = 'flex';
+    handle.style.alignItems = 'center';
+    handle.style.justifyContent = 'center';
+    handle.style.zIndex     = '2';
+    var grip = document.createElement('i');
+    grip.className   = 'bi bi-grip-horizontal';
+    grip.style.fontSize = '12px';
+    grip.style.color    = '#6c757d';
+    handle.appendChild(grip);
+    el.appendChild(handle);
+
+    // Centre: icon + type label
+    var centre = document.createElement('div');
+    centre.style.position       = 'absolute';
+    centre.style.inset          = '0';
+    centre.style.display        = 'flex';
+    centre.style.flexDirection  = 'column';
+    centre.style.alignItems     = 'center';
+    centre.style.justifyContent = 'center';
+    centre.style.gap            = '4px';
+    centre.style.paddingTop     = '24px';
+    centre.style.pointerEvents  = 'none';
+    var iconEl = document.createElement('div');
+    iconEl.style.fontSize   = '28px';
+    iconEl.style.lineHeight = '1';
+    iconEl.textContent = TYPE_ICONS[block.type] || '📦';
+    var labelEl = document.createElement('div');
+    labelEl.style.fontSize  = '11px';
+    labelEl.style.fontWeight = '600';
+    labelEl.style.color     = '#495057';
+    labelEl.style.textAlign = 'center';
+    labelEl.style.padding   = '0 8px';
+    labelEl.textContent = block.type;
+    centre.appendChild(iconEl);
+    centre.appendChild(labelEl);
+    el.appendChild(centre);
+
+    // Preset selector at bottom
+    var selectWrap = document.createElement('div');
+    selectWrap.style.position = 'absolute';
+    selectWrap.style.bottom   = '6px';
+    selectWrap.style.left     = '6px';
+    selectWrap.style.right    = '6px';
+    selectWrap.style.zIndex   = '3';
+    var sel = document.createElement('select');
+    sel.className = 'form-select form-select-sm';
+    sel.style.fontSize = '10px';
+    sel.style.padding  = '1px 4px';
+    sel.style.height   = 'auto';
+    Object.keys(MOSAIC_PRESETS).forEach(function(k) {
+      var opt = document.createElement('option');
+      opt.value = k;
+      opt.textContent = PRESET_LABELS[k];
+      if (k === preset) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', function(ev) {
+      ev.stopPropagation();
+      setMosaicPreset(block.id, sel.value);
+    });
+    sel.addEventListener('click', function(ev) { ev.stopPropagation(); });
+    selectWrap.appendChild(sel);
+    el.appendChild(selectWrap);
+
+    // Click tile to select block
+    el.addEventListener('click', function(ev) {
+      if (ev.target === sel || ev.target.tagName === 'OPTION') return;
+      state.selectedBlockId = block.id;
+      state.selectedSubId   = null;
+      renderBlocks();
+      renderPropsPanel();
+    });
+
+    canvas.appendChild(el);
+  });
+
+  // Expand canvas to fit all mosaic tiles
+  var finalRows = curRow + (curCol > 0 ? 1 : 0);
+  var totalH = Math.max(finalRows * (rowH + gap) - gap, 0);
+  canvas.style.height    = Math.max(totalH + 40, 300) + 'px';
+  canvas.style.minHeight = Math.max(totalH + 40, 300) + 'px';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -3270,6 +3460,7 @@ function onCanvasDrop(e) {
       id: `block-${state.nextId++}`,
       type: 'volt',
       section: 0, gridRow: 1, gridCol: 1, colSpan: 1, rowSpan: 1,
+      mosaicPreset: state.layoutType === 'mosaic' ? 's-sm' : undefined,
       x: blockX, y: blockY, w: blockW, h: blockH,
       zIndex: 1,
       props: { ...BLOCK_DEFAULTS['volt'], voltId: src.voltId, voltName: src.voltName, voltThumbnail: src.voltThumbnail },
@@ -3301,6 +3492,10 @@ function onCanvasDrop(e) {
       blockX = Math.max(0, Math.min(canvas.offsetWidth  - blockW, x - blockW/2));
       blockY = Math.max(0, Math.min(canvas.offsetHeight - blockH, y - blockH/2));
       row = 1; col = 1; section = 0;
+    } else if (state.layoutType === 'mosaic') {
+      // Mosaic mode: block position is computed by renderMosaicBlocks; use placeholder
+      blockX = 0; blockY = 0; blockW = 300; blockH = 200;
+      row = 1; col = 1; section = 0;
     } else {
       const cell = findCell(x, y);
       row = cell.row; col = cell.col; section = cell.section;
@@ -3312,6 +3507,7 @@ function onCanvasDrop(e) {
       id: `block-${state.nextId++}`,
       type: bType,
       section, gridRow: row, gridCol: col, colSpan: 1, rowSpan: 1,
+      mosaicPreset: state.layoutType === 'mosaic' ? 's-sm' : undefined,
       x: blockX, y: blockY, w: blockW, h: blockH,
       zIndex: 1,
       props: { ...BLOCK_DEFAULTS[bType] },
@@ -3341,8 +3537,8 @@ function onCanvasDrop(e) {
       ];
     }
     // text-block starts empty — user chooses heading levels and content
-    // Conflict check only in grid mode (free mode allows overlapping)
-    if (state.positionMode !== 'free' && wouldOverlapExisting(row, col, 1, 1, section)) {
+    // Conflict check only in grid mode (free mode and mosaic mode allow overlapping / auto-placement)
+    if (state.positionMode !== 'free' && state.layoutType !== 'mosaic' && wouldOverlapExisting(row, col, 1, 1, section)) {
       showDropConflictPopup(e.clientX, e.clientY, { block, isMove: false });
       return;
     }
@@ -3935,6 +4131,26 @@ function renderBlockProps(block) {
         <button class="action-btn full-h mb-0" style="flex:1;" onclick="setBlockPosFull('${block.id}','fullHeight')">↕ Full Height</button>
       </div>
       <button class="action-btn reset mt-2" onclick="setBlockPosFull('${block.id}','center')">⊕ Center on Canvas</button>
+    </div>`;
+  } else if (state.layoutType === 'mosaic') {
+    // ── Mosaic mode: size preset picker ───────────────────────────────────
+    const mPreset = block.mosaicPreset || 's-sm';
+    const mOpts = [
+      ['s-lg',   'Large (6 cols × 2 rows) — Feature'],
+      ['s-md',   'Medium (4 cols × 2 rows) — Portrait'],
+      ['s-sm',   'Small (4 cols × 1 row) — Landscape'],
+      ['s-tall', 'Tall (4 cols × 2 rows)'],
+      ['s-wide', 'Wide (8 cols × 1 row) — Banner'],
+      ['s-mid',  'Mid (6 cols × 1 row)'],
+    ];
+    h+=`<div class="props-section">
+      <div class="props-label"><i class="bi bi-grid-3x3-gap"></i> Block Size (Mosaic Preset)</div>
+      <div style="font-size:11px;color:#6c757d;margin-bottom:6px;">12-column auto-flow grid. Select how many columns and rows this block spans.</div>
+      <div class="props-row"><label>Preset</label>
+        <select class="props-input" onchange="setMosaicPreset('${block.id}',this.value)">
+          ${mOpts.map(([v,lbl])=>`<option value="${v}"${mPreset===v?' selected':''}>${lbl}</option>`).join('')}
+        </select>
+      </div>
     </div>`;
   } else {
     // ── Grid mode: row/col/span controls ──────────────────────────────────
@@ -4682,6 +4898,17 @@ function updateSubProp(bId,sId,k,v) { const b=state.blocks.find(b=>b.id===bId); 
  */
 function setBlockGrid(bId,k,v) { const b=state.blocks.find(b=>b.id==bId); if(b) { b[k]=v; autoSave(); } } // eslint-disable-line eqeqeq
 
+/**
+ * Sets the mosaicPreset for a block in mosaic layout mode,
+ * then re-renders the canvas and auto-saves.
+ * @param {string} bId - Block ID.
+ * @param {string} preset - Mosaic preset key (e.g. 's-lg', 's-sm').
+ */
+function setMosaicPreset(bId, preset) {
+  const b = state.blocks.find(b => b.id === bId);
+  if (b) { b.mosaicPreset = preset; renderBlocks(); renderPropsPanel(); autoSave(); }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  CELL OCCUPANCY & OVERLAP DETECTION
 // ─────────────────────────────────────────────────────────────────────────────
@@ -5317,8 +5544,15 @@ function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'
 // ═══════════════════════════════════════════════════════════
 /** Called when the content mode radio changes (single/multi). Re-renders and saves. */
 function onModeChange()   { renderCanvas(); autoSave(); }
-/** Called when the layout type radio changes (grid/preset/free). Re-renders and saves. */
-function onLayoutChange() { renderCanvas(); autoSave(); }
+/** Called when the layout type radio changes (grid/preset/mosaic/free). Re-renders and saves. */
+function onLayoutChange() {
+  const v = document.getElementById('layoutType').value;
+  state.layoutType = v;
+  document.getElementById('grid-config').style.display   = (v === 'grid')   ? '' : 'none';
+  document.getElementById('preset-config').style.display = (v === 'preset') ? '' : 'none';
+  document.getElementById('mosaic-config').style.display = (v === 'mosaic') ? '' : 'none';
+  renderCanvas(); autoSave();
+}
 
 // ═══════════════════════════════════════════════════════════
 //  FREE-MODE HELPERS
@@ -6166,11 +6400,14 @@ function buildJson() {
     layoutType:    state.positionMode==='free' ? 'free' : state.layoutType,
     grid:          state.positionMode!=='free' && state.layoutType==='grid' ? {rows:state.gridRows,cols:state.gridCols,gap:state.gridGap} : undefined,
     preset:        state.positionMode!=='free' && state.layoutType==='preset' ? state.preset : undefined,
+    layout:        state.positionMode!=='free' && state.layoutType==='mosaic'
+      ? { layoutMode:'mosaic', gridAutoRows: parseInt(document.getElementById('mosaicRowH')?.value||'200'), gridGap: parseInt(document.getElementById('mosaicGap')?.value||'10') }
+      : undefined,
     blocks:        state.blocks.map(b => ({
       id:          b.id,
       type:        b.type,
       // Grid position (used for CSS Grid renderer in grid mode)
-      position:    { row:b.gridRow, col:b.gridCol, colSpan:b.colSpan||1, rowSpan:b.rowSpan||1, section:b.section||0 },
+      position:    { row:b.gridRow, col:b.gridCol, colSpan:b.colSpan||1, rowSpan:b.rowSpan||1, section:b.section||0, mosaicPreset: b.mosaicPreset || undefined },
       // Vertical alignment within the grid cell: "top" | "center" | "bottom"
       verticalAlign: b.verticalAlign || undefined,
       // Pixel position (used for absolute renderer in free mode)
@@ -6275,15 +6512,19 @@ window.addEventListener('message', function(e) {
     const layout = typeof e.data.payload === 'string' ? JSON.parse(e.data.payload) : e.data.payload;
     if (layout && layout.blocks) {
       const isFreeMode = layout.positionMode === 'free' || layout.layoutType === 'free';
+      const isMosaicMode = layout.layout?.layoutMode === 'mosaic' || layout.layoutType === 'mosaic';
+      const resolvedLayoutType = isFreeMode ? 'grid' : (isMosaicMode ? 'mosaic' : (layout.layoutType || 'grid'));
       applySnapshot(JSON.stringify({
         contentMode:  layout.contentMode  || 'single',
-        positionMode: isFreeMode ? 'free' : (layout.positionMode || (layout.layoutType === 'grid' || layout.layoutType === 'preset' ? 'grid' : 'free')),
-        layoutType:   isFreeMode ? 'grid' : (layout.layoutType   || 'grid'),
+        positionMode: isFreeMode ? 'free' : (layout.positionMode || (layout.layoutType === 'grid' || layout.layoutType === 'preset' || layout.layoutType === 'mosaic' ? 'grid' : 'free')),
+        layoutType:   resolvedLayoutType,
         gridRows:     layout.grid ? layout.grid.rows : (layout.gridRows || 2),
         gridCols:     layout.grid ? layout.grid.cols : (layout.gridCols || 3),
         gridGap:      layout.grid ? layout.grid.gap  : (layout.gridGap  || 16),
         multiLimit:   layout.multiLimit || 3,
         preset:       layout.preset     || 'full-width',
+        mosaicRowH:   layout.layout?.gridAutoRows || 200,
+        mosaicGap:    layout.layout?.gridGap      || 10,
         nextId:       layout.nextId || (layout.blocks.length > 0 ? layout.blocks.length + 100 : 1),
         blocks:       layout.blocks.map(b => {
           const pp = b.pixelPos || {};
@@ -6295,6 +6536,7 @@ window.addEventListener('message', function(e) {
             gridCol:  b.position ? b.position.col : (b.gridCol||1),
             colSpan:  b.position ? (b.position.colSpan||1) : (b.colSpan||1),
             rowSpan:  b.position ? (b.position.rowSpan||1) : (b.rowSpan||1),
+            mosaicPreset: b.position?.mosaicPreset || b.mosaicPreset || undefined,
             // Restore pixel positions from pixelPos or existing x/y/w/h
             x: pp.x !== undefined ? pp.x : (b.x || 0),
             y: pp.y !== undefined ? pp.y : (b.y || 0),
