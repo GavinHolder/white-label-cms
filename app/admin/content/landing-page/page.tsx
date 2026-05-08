@@ -9,7 +9,7 @@ import CTASectionEditor from "@/components/admin/CTASectionEditor";
 import NormalSectionEditor from "@/components/admin/NormalSectionEditor";
 import FlexibleSectionEditorModal from "@/components/admin/FlexibleSectionEditorModal";
 import PresetsGalleryModal from "@/components/admin/PresetsGalleryModal";
-import { DESIGNER_PRESETS } from "@/lib/designer-presets";
+import { SECTION_PRESETS, type SectionPreset } from "@/lib/designer-presets";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import type { SectionConfig, SectionType, HeroSection, FooterSection, CTASection, NormalSection, FlexibleSection } from "@/types/section";
 import SaveTemplateModal from "@/components/admin/SaveTemplateModal";
@@ -231,7 +231,7 @@ export default function LandingPageManager() {
 
   const handlePresetsGallerySelect = async (presetId: string | null) => {
     setShowPresetsGallery(false);
-    const preset = presetId ? DESIGNER_PRESETS.find(p => p.id === presetId) : null;
+    const preset = presetId ? SECTION_PRESETS.find(p => p.id === presetId) : null;
     const content: Record<string, unknown> = preset
       ? { designerData: JSON.stringify(preset.designerData) }
       : {};

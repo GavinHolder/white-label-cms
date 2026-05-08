@@ -1,230 +1,206 @@
-// All 7 Flexible Designer preset definitions.
-// Each preset is a complete designerData JSON object — apply by injecting into a FLEXIBLE section.
-
 export interface SectionPreset {
   id: string;
   name: string;
   description: string;
-  thumbnailId: string; // CSS class for wireframe thumbnail
-  designerData: object; // JSON-serialisable designerData value
+  thumbnailId: string;
+  designerData: object;
 }
 
-const mkId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
-
-export const DESIGNER_PRESETS: SectionPreset[] = [
-  // ─── 1. About Grid ──────────────────────────────────────────────────────────
+export const SECTION_PRESETS: SectionPreset[] = [
+  // 1. About Grid
   {
     id: "about-grid",
     name: "About Grid",
-    description: "Tall photo left, company story + four stats on the right.",
-    thumbnailId: "preset-thumb-about-grid",
+    description: "Tall image left, heading + text + 4 stats right",
+    thumbnailId: "thumb-about-grid",
     designerData: {
       layoutType: "grid",
-      grid: { rows: 4, cols: 4, gap: 32 },
+      grid: { cols: 4, rows: 4, gap: 32 },
       blocks: [
         {
-          id: mkId("img"),
-          type: "image",
+          id: 1, type: "image",
           position: { row: 1, col: 1, colSpan: 2, rowSpan: 4, section: 0 },
-          props: { src: "", alt: "About us", objectFit: "cover" },
+          props: { imageSrc: "/images/placeholder-tall.jpg", imageFit: "cover" },
           subElements: [],
         },
         {
-          id: mkId("txt"),
-          type: "text",
+          id: 2, type: "text",
           position: { row: 1, col: 3, colSpan: 2, rowSpan: 1, section: 0 },
           props: {},
           subElements: [
-            { id: mkId("e"), type: "heading", props: { text: "OUR STORY", fontSize: 11, fontWeight: "700", color: "#22c55e", textTransform: "uppercase", letterSpacing: 2 } },
-            { id: mkId("e"), type: "heading", props: { text: "Built for the Region.", fontSize: 40, fontWeight: "800", lineHeight: 1.1 } },
+            { type: "eyebrow", props: { text: "ABOUT US", color: "#4caf50" } },
+            { type: "heading", props: { text: "Built for the Region.", fontSize: 42, fontWeight: 800, color: "#1a1a1a" } },
           ],
         },
         {
-          id: mkId("txt"),
-          type: "text",
+          id: 3, type: "text",
           position: { row: 2, col: 3, colSpan: 2, rowSpan: 1, section: 0 },
           props: {},
           subElements: [
-            { id: mkId("e"), type: "paragraph", props: { text: "We've been delivering quality products and services to our community for over two decades. Our commitment to excellence drives everything we do.", fontSize: 15 } },
-            { id: mkId("e"), type: "paragraph", props: { text: "Every project is an opportunity to make a difference — on time, on spec, and built to last.", fontSize: 15 } },
+            { type: "paragraph", props: { text: "We deliver quality and reliability on every project, from small residential pours to major commercial contracts.", fontSize: 15, color: "#444" } },
+            { type: "paragraph", props: { text: "Our team brings decades of hands-on experience to every mix.", fontSize: 15, color: "#444" } },
           ],
         },
         {
-          id: mkId("stat"),
-          type: "stats",
+          id: 4, type: "stats",
           position: { row: 3, col: 3, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { number: "23", statLabel: "Years Experience" },
+          props: { statNumber: "23", statLabel: "Years Experience", textColor: "#1a1a1a" },
           subElements: [],
         },
         {
-          id: mkId("stat"),
-          type: "stats",
+          id: 5, type: "stats",
           position: { row: 3, col: 4, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { number: "500+", statLabel: "Projects Completed" },
+          props: { statNumber: "500+", statLabel: "Projects Completed", textColor: "#1a1a1a" },
           subElements: [],
         },
         {
-          id: mkId("stat"),
-          type: "stats",
+          id: 6, type: "stats",
           position: { row: 4, col: 3, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { number: "4", statLabel: "Regional Plants" },
+          props: { statNumber: "4", statLabel: "Batching Plants", textColor: "#1a1a1a" },
           subElements: [],
         },
         {
-          id: mkId("stat"),
-          type: "stats",
+          id: 7, type: "stats",
           position: { row: 4, col: 4, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { number: "24hr", statLabel: "Quote Turnaround" },
+          props: { statNumber: "24hr", statLabel: "Quote Turnaround", textColor: "#1a1a1a" },
           subElements: [],
         },
       ],
     },
   },
 
-  // ─── 2. Services Grid ───────────────────────────────────────────────────────
+  // 2. Services Grid
   {
     id: "services-grid",
     name: "Services Grid",
-    description: "Centred heading + three service cards in a row.",
-    thumbnailId: "preset-thumb-services-grid",
+    description: "Centred heading + 3 feature cards in a row",
+    thumbnailId: "thumb-services-grid",
     designerData: {
       layoutType: "grid",
-      grid: { rows: 2, cols: 3, gap: 24 },
+      grid: { cols: 3, rows: 2, gap: 24 },
       blocks: [
         {
-          id: mkId("txt"),
-          type: "text",
+          id: 1, type: "text",
           position: { row: 1, col: 1, colSpan: 3, rowSpan: 1, section: 0 },
-          props: { textAlign: "center" },
+          props: {},
           subElements: [
-            { id: mkId("e"), type: "heading", props: { text: "WHAT WE OFFER", fontSize: 11, fontWeight: "700", color: "#22c55e", textTransform: "uppercase", letterSpacing: 2, textAlign: "center" } },
-            { id: mkId("e"), type: "heading", props: { text: "Our Services", fontSize: 36, fontWeight: "800", textAlign: "center" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "Everything you need, all in one place.", fontSize: 16, textAlign: "center", maxWidth: 560 } },
+            { type: "eyebrow", props: { text: "WHAT WE OFFER", color: "#4caf50", textAlign: "center" } },
+            { type: "heading", props: { text: "Our Services", fontSize: 40, fontWeight: 800, color: "#1a1a1a", textAlign: "center" } },
+            { type: "paragraph", props: { text: "Everything you need, delivered with precision.", fontSize: 16, color: "#666", textAlign: "center" } },
           ],
         },
         {
-          id: mkId("card"),
-          type: "card",
+          id: 2, type: "card",
           position: { row: 2, col: 1, colSpan: 1, rowSpan: 1, section: 0 },
-          props: {},
+          props: { bgColor: "#f8f9fa" },
           subElements: [
-            { id: mkId("e"), type: "icon", props: { iconName: "bi-lightning-charge-fill", size: 40, color: "#22c55e" } },
-            { id: mkId("e"), type: "heading", props: { text: "Fast Delivery", fontSize: 18, fontWeight: "700" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "We deliver quickly and reliably to keep your project on schedule.", fontSize: 14 } },
+            { type: "eyebrow", props: { text: "✦", color: "#4caf50", fontSize: 22 } },
+            { type: "heading", props: { text: "Readymix Concrete", fontSize: 20, fontWeight: 700, color: "#1a1a1a" } },
+            { type: "paragraph", props: { text: "All strength classes. Consistent mix, on-time delivery.", fontSize: 14, color: "#555" } },
           ],
         },
         {
-          id: mkId("card"),
-          type: "card",
+          id: 3, type: "card",
           position: { row: 2, col: 2, colSpan: 1, rowSpan: 1, section: 0 },
-          props: {},
+          props: { bgColor: "#f8f9fa" },
           subElements: [
-            { id: mkId("e"), type: "icon", props: { iconName: "bi-shield-check-fill", size: 40, color: "#22c55e" } },
-            { id: mkId("e"), type: "heading", props: { text: "Quality Guaranteed", fontSize: 18, fontWeight: "700" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "Our products meet the highest industry standards every single time.", fontSize: 14 } },
+            { type: "eyebrow", props: { text: "✦", color: "#4caf50", fontSize: 22 } },
+            { type: "heading", props: { text: "Pump Hire", fontSize: 20, fontWeight: 700, color: "#1a1a1a" } },
+            { type: "paragraph", props: { text: "Transit and pump trucks available for any pour size.", fontSize: 14, color: "#555" } },
           ],
         },
         {
-          id: mkId("card"),
-          type: "card",
+          id: 4, type: "card",
           position: { row: 2, col: 3, colSpan: 1, rowSpan: 1, section: 0 },
-          props: {},
+          props: { bgColor: "#f8f9fa" },
           subElements: [
-            { id: mkId("e"), type: "icon", props: { iconName: "bi-headset", size: 40, color: "#22c55e" } },
-            { id: mkId("e"), type: "heading", props: { text: "Expert Support", fontSize: 18, fontWeight: "700" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "Our team is on hand to answer questions and solve problems fast.", fontSize: 14 } },
+            { type: "eyebrow", props: { text: "✦", color: "#4caf50", fontSize: 22 } },
+            { type: "heading", props: { text: "Technical Support", fontSize: 20, fontWeight: 700, color: "#1a1a1a" } },
+            { type: "paragraph", props: { text: "Expert mix design and on-site guidance from our team.", fontSize: 14, color: "#555" } },
           ],
         },
       ],
     },
   },
 
-  // ─── 3. How It Works ────────────────────────────────────────────────────────
+  // 3. How It Works
   {
     id: "how-it-works",
     name: "How It Works",
-    description: "Numbered step cards in a horizontal row with connector lines.",
-    thumbnailId: "preset-thumb-how-it-works",
+    description: "Centred heading + 4 numbered process steps",
+    thumbnailId: "thumb-how-it-works",
     designerData: {
       layoutType: "grid",
-      grid: { rows: 2, cols: 4, gap: 24 },
+      grid: { cols: 4, rows: 2, gap: 24 },
       blocks: [
         {
-          id: mkId("txt"),
-          type: "text",
+          id: 1, type: "text",
           position: { row: 1, col: 1, colSpan: 4, rowSpan: 1, section: 0 },
-          props: { textAlign: "center" },
+          props: {},
           subElements: [
-            { id: mkId("e"), type: "heading", props: { text: "THE PROCESS", fontSize: 11, fontWeight: "700", color: "#22c55e", textTransform: "uppercase", letterSpacing: 2, textAlign: "center" } },
-            { id: mkId("e"), type: "heading", props: { text: "How It Works", fontSize: 36, fontWeight: "800", textAlign: "center" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "Simple steps, outstanding results.", fontSize: 16, textAlign: "center", maxWidth: 500 } },
+            { type: "eyebrow", props: { text: "THE PROCESS", color: "#4caf50", textAlign: "center" } },
+            { type: "heading", props: { text: "How It Works", fontSize: 40, fontWeight: 800, color: "#1a1a1a", textAlign: "center" } },
           ],
         },
         {
-          id: mkId("step"),
-          type: "how-steps",
+          id: 2, type: "how-steps",
           position: { row: 2, col: 1, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { stepNumber: "01", title: "Get in Touch", description: "Reach out via our contact form or call us directly to discuss your requirements.", isLast: false },
+          props: { stepNumber: "01", title: "Request a Quote", description: "Call or fill in our online form with your mix requirements and pour date.", accentColor: "#4caf50" },
           subElements: [],
         },
         {
-          id: mkId("step"),
-          type: "how-steps",
+          id: 3, type: "how-steps",
           position: { row: 2, col: 2, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { stepNumber: "02", title: "Receive a Quote", description: "We'll assess your needs and provide a detailed quote within 24 hours.", isLast: false },
+          props: { stepNumber: "02", title: "Mix Design", description: "Our team selects the right mix class, additives, and slump for your conditions.", accentColor: "#4caf50" },
           subElements: [],
         },
         {
-          id: mkId("step"),
-          type: "how-steps",
+          id: 4, type: "how-steps",
           position: { row: 2, col: 3, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { stepNumber: "03", title: "Confirm & Schedule", description: "Approve the quote and we'll lock in your delivery or service date.", isLast: false },
+          props: { stepNumber: "03", title: "Scheduled Delivery", description: "We dispatch your load at the agreed time — tracked from plant to site.", accentColor: "#4caf50" },
           subElements: [],
         },
         {
-          id: mkId("step"),
-          type: "how-steps",
+          id: 5, type: "how-steps",
           position: { row: 2, col: 4, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { stepNumber: "04", title: "Delivery & Done", description: "We deliver on time and follow up to make sure everything is perfect.", isLast: true },
+          props: { stepNumber: "04", title: "Pour & Support", description: "Our driver and plant team stay available through the pour for any adjustments.", accentColor: "#4caf50", isLast: true },
           subElements: [],
         },
       ],
     },
   },
 
-  // ─── 4. Contact Split ───────────────────────────────────────────────────────
+  // 4. Contact Split
   {
     id: "contact-split",
     name: "Contact Split",
-    description: "Contact details on the left, contact form on the right.",
-    thumbnailId: "preset-thumb-contact-split",
+    description: "Contact details left, enquiry form right",
+    thumbnailId: "thumb-contact-split",
     designerData: {
       layoutType: "grid",
-      grid: { rows: 1, cols: 2, gap: 48 },
+      grid: { cols: 2, rows: 1, gap: 48 },
       blocks: [
         {
-          id: mkId("txt"),
-          type: "text",
+          id: 1, type: "text",
           position: { row: 1, col: 1, colSpan: 1, rowSpan: 1, section: 0 },
           props: {},
           subElements: [
-            { id: mkId("e"), type: "heading", props: { text: "GET IN TOUCH", fontSize: 11, fontWeight: "700", color: "#22c55e", textTransform: "uppercase", letterSpacing: 2 } },
-            { id: mkId("e"), type: "heading", props: { text: "Let's Talk", fontSize: 36, fontWeight: "800" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "Have a question or want to place an order? We'd love to hear from you. Fill in the form and we'll get back to you within one business day.", fontSize: 15 } },
-            { id: mkId("e"), type: "paragraph", props: { text: "📞  +27 (0)00 000 0000", fontSize: 14, fontWeight: "600" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "✉  info@yourcompany.co.za", fontSize: 14, fontWeight: "600" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "📍  123 Main Street, Your Town, 0000", fontSize: 14 } },
+            { type: "eyebrow", props: { text: "GET IN TOUCH", color: "#4caf50" } },
+            { type: "heading", props: { text: "Let's Talk", fontSize: 40, fontWeight: 800, color: "#1a1a1a" } },
+            { type: "paragraph", props: { text: "We respond to all enquiries within 24 hours.", fontSize: 15, color: "#555" } },
+            { type: "paragraph", props: { text: "📞 +27 28 212 1234", fontSize: 15, color: "#333", fontWeight: "600" } },
+            { type: "paragraph", props: { text: "✉ info@company.co.za", fontSize: 15, color: "#333", fontWeight: "600" } },
+            { type: "paragraph", props: { text: "📍 123 Main Street, Overberg", fontSize: 15, color: "#333", fontWeight: "600" } },
           ],
         },
         {
-          id: mkId("form"),
-          type: "contact-form",
+          id: 2, type: "contact-form",
           position: { row: 1, col: 2, colSpan: 1, rowSpan: 1, section: 0 },
           props: {
-            formTitle: "Send Us a Message",
-            fields: { name: true, email: true, phone: false, message: true, subject: false },
+            formTitle: "Send us a message",
+            fields: { name: true, email: true, phone: true, message: true, subject: false },
             submitLabel: "Send Message",
-            successMessage: "Thank you! We'll be in touch shortly.",
+            successMessage: "Thank you — we'll be in touch within 24 hours.",
           },
           subElements: [],
         },
@@ -232,173 +208,158 @@ export const DESIGNER_PRESETS: SectionPreset[] = [
     },
   },
 
-  // ─── 5. Stats Banner ────────────────────────────────────────────────────────
+  // 5. Stats Banner
   {
     id: "stats-banner",
     name: "Stats Banner",
-    description: "Four bold stats side by side — ideal as a social-proof band.",
-    thumbnailId: "preset-thumb-stats-banner",
+    description: "4 large metrics in a full-width row",
+    thumbnailId: "thumb-stats-banner",
     designerData: {
       layoutType: "grid",
-      grid: { rows: 1, cols: 4, gap: 1 },
+      grid: { cols: 4, rows: 1, gap: 1 },
       blocks: [
         {
-          id: mkId("stat"),
-          type: "stats",
+          id: 1, type: "stats",
           position: { row: 1, col: 1, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { number: "500+", statLabel: "Projects Delivered" },
+          props: { statNumber: "23", statLabel: "Years in Business", textColor: "#fff", bgColor: "#1a1a1a" },
           subElements: [],
         },
         {
-          id: mkId("stat"),
-          type: "stats",
+          id: 2, type: "stats",
           position: { row: 1, col: 2, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { number: "23", statLabel: "Years in Business" },
+          props: { statNumber: "500+", statLabel: "Projects Delivered", textColor: "#fff", bgColor: "#2d2d2d" },
           subElements: [],
         },
         {
-          id: mkId("stat"),
-          type: "stats",
+          id: 3, type: "stats",
           position: { row: 1, col: 3, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { number: "98%", statLabel: "Client Satisfaction" },
+          props: { statNumber: "4", statLabel: "Batching Plants", textColor: "#fff", bgColor: "#1a1a1a" },
           subElements: [],
         },
         {
-          id: mkId("stat"),
-          type: "stats",
+          id: 4, type: "stats",
           position: { row: 1, col: 4, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { number: "24hr", statLabel: "Quote Turnaround" },
+          props: { statNumber: "100%", statLabel: "On-Site Reliability", textColor: "#fff", bgColor: "#2d2d2d" },
           subElements: [],
         },
       ],
     },
   },
 
-  // ─── 6. Features Alternating ────────────────────────────────────────────────
+  // 6. Features Alternating
   {
     id: "features-alternating",
     name: "Features Alternating",
-    description: "Section heading + alternating text/image rows for feature details.",
-    thumbnailId: "preset-thumb-features-alternating",
+    description: "Section heading + 2 alternating text/image rows",
+    thumbnailId: "thumb-features-alternating",
     designerData: {
       layoutType: "grid",
-      grid: { rows: 3, cols: 2, gap: 48 },
+      grid: { cols: 2, rows: 3, gap: 48 },
       blocks: [
         {
-          id: mkId("txt"),
-          type: "text",
+          id: 1, type: "text",
           position: { row: 1, col: 1, colSpan: 2, rowSpan: 1, section: 0 },
-          props: { textAlign: "center" },
+          props: {},
           subElements: [
-            { id: mkId("e"), type: "heading", props: { text: "WHAT SETS US APART", fontSize: 11, fontWeight: "700", color: "#22c55e", textTransform: "uppercase", letterSpacing: 2, textAlign: "center" } },
-            { id: mkId("e"), type: "heading", props: { text: "Why Choose Us", fontSize: 36, fontWeight: "800", textAlign: "center" } },
+            { type: "eyebrow", props: { text: "FEATURES", color: "#4caf50", textAlign: "center" } },
+            { type: "heading", props: { text: "Why Choose Us", fontSize: 40, fontWeight: 800, color: "#1a1a1a", textAlign: "center" } },
           ],
         },
         {
-          id: mkId("txt"),
-          type: "text",
+          id: 2, type: "text",
           position: { row: 2, col: 1, colSpan: 1, rowSpan: 1, section: 0 },
           props: {},
           subElements: [
-            { id: mkId("e"), type: "heading", props: { text: "FEATURE ONE", fontSize: 11, fontWeight: "700", color: "#22c55e", textTransform: "uppercase", letterSpacing: 2 } },
-            { id: mkId("e"), type: "heading", props: { text: "Precision & Reliability", fontSize: 28, fontWeight: "800" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "We take precision seriously. Every product is tested and verified before it leaves our facility to ensure it meets specification.", fontSize: 15 } },
-            { id: mkId("e"), type: "button", props: { text: "Learn More", navTarget: "#contact", bgColor: "#22c55e", textColor: "#fff" } },
+            { type: "eyebrow", props: { text: "QUALITY", color: "#4caf50" } },
+            { type: "heading", props: { text: "Consistent Mix, Every Pour", fontSize: 28, fontWeight: 800, color: "#1a1a1a" } },
+            { type: "paragraph", props: { text: "Every batch is tested to SANS standards. You get the strength you spec, guaranteed.", fontSize: 15, color: "#555" } },
+            { type: "button", props: { text: "Learn More →", navTarget: "#contact", bgColor: "#4caf50", textColor: "#fff" } },
           ],
         },
         {
-          id: mkId("img"),
-          type: "image",
+          id: 3, type: "image",
           position: { row: 2, col: 2, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { src: "", alt: "Feature one", objectFit: "cover" },
+          props: { imageSrc: "/images/placeholder-wide.jpg", imageFit: "cover" },
           subElements: [],
         },
         {
-          id: mkId("img"),
-          type: "image",
+          id: 4, type: "image",
           position: { row: 3, col: 1, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { src: "", alt: "Feature two", objectFit: "cover" },
+          props: { imageSrc: "/images/placeholder-wide.jpg", imageFit: "cover" },
           subElements: [],
         },
         {
-          id: mkId("txt"),
-          type: "text",
+          id: 5, type: "text",
           position: { row: 3, col: 2, colSpan: 1, rowSpan: 1, section: 0 },
           props: {},
           subElements: [
-            { id: mkId("e"), type: "heading", props: { text: "FEATURE TWO", fontSize: 11, fontWeight: "700", color: "#22c55e", textTransform: "uppercase", letterSpacing: 2 } },
-            { id: mkId("e"), type: "heading", props: { text: "Speed You Can Count On", fontSize: 28, fontWeight: "800" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "Fast turnaround without compromising quality. We operate seven days a week so your schedule is never held up by ours.", fontSize: 15 } },
-            { id: mkId("e"), type: "button", props: { text: "Get a Quote", navTarget: "#contact", bgColor: "#22c55e", textColor: "#fff" } },
+            { type: "eyebrow", props: { text: "RELIABILITY", color: "#4caf50" } },
+            { type: "heading", props: { text: "On Time, Every Time", fontSize: 28, fontWeight: 800, color: "#1a1a1a" } },
+            { type: "paragraph", props: { text: "We track every truck from plant to site. If your schedule changes, we adapt.", fontSize: 15, color: "#555" } },
+            { type: "button", props: { text: "See Our Record →", navTarget: "#contact", bgColor: "#4caf50", textColor: "#fff" } },
           ],
         },
       ],
     },
   },
 
-  // ─── 7. Team Grid ───────────────────────────────────────────────────────────
+  // 7. Team Grid
   {
     id: "team-grid",
     name: "Team Grid",
-    description: "Section heading + four team member cards with photo, name, and role.",
-    thumbnailId: "preset-thumb-team-grid",
+    description: "Centred heading + 4 team member cards",
+    thumbnailId: "thumb-team-grid",
     designerData: {
       layoutType: "grid",
-      grid: { rows: 2, cols: 4, gap: 16 },
+      grid: { cols: 4, rows: 2, gap: 16 },
       blocks: [
         {
-          id: mkId("txt"),
-          type: "text",
+          id: 1, type: "text",
           position: { row: 1, col: 1, colSpan: 4, rowSpan: 1, section: 0 },
-          props: { textAlign: "center" },
+          props: {},
           subElements: [
-            { id: mkId("e"), type: "heading", props: { text: "OUR TEAM", fontSize: 11, fontWeight: "700", color: "#22c55e", textTransform: "uppercase", letterSpacing: 2, textAlign: "center" } },
-            { id: mkId("e"), type: "heading", props: { text: "Meet the People Behind the Work", fontSize: 32, fontWeight: "800", textAlign: "center" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "Experienced, dedicated, and ready to help.", fontSize: 15, textAlign: "center" } },
+            { type: "eyebrow", props: { text: "OUR TEAM", color: "#4caf50", textAlign: "center" } },
+            { type: "heading", props: { text: "The People Behind the Mix", fontSize: 38, fontWeight: 800, color: "#1a1a1a", textAlign: "center" } },
           ],
         },
         {
-          id: mkId("card"),
-          type: "card",
+          id: 2, type: "card",
           position: { row: 2, col: 1, colSpan: 1, rowSpan: 1, section: 0 },
-          props: {},
+          props: { bgColor: "#f8f9fa" },
           subElements: [
-            { id: mkId("e"), type: "image", props: { src: "", alt: "Team member", elRadius: 8 } },
-            { id: mkId("e"), type: "heading", props: { text: "Jane Smith", fontSize: 16, fontWeight: "700" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "Operations Manager", fontSize: 13, color: "#6c757d" } },
+            { type: "image", props: { src: "/images/placeholder-portrait.jpg" } },
+            { type: "heading", props: { text: "Jan Lourens", fontSize: 18, fontWeight: 700, color: "#1a1a1a" } },
+            { type: "paragraph", props: { text: "General Manager", fontSize: 13, color: "#888" } },
           ],
         },
         {
-          id: mkId("card"),
-          type: "card",
+          id: 3, type: "card",
           position: { row: 2, col: 2, colSpan: 1, rowSpan: 1, section: 0 },
-          props: {},
+          props: { bgColor: "#f8f9fa" },
           subElements: [
-            { id: mkId("e"), type: "image", props: { src: "", alt: "Team member", elRadius: 8 } },
-            { id: mkId("e"), type: "heading", props: { text: "John Doe", fontSize: 16, fontWeight: "700" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "Lead Engineer", fontSize: 13, color: "#6c757d" } },
+            { type: "image", props: { src: "/images/placeholder-portrait.jpg" } },
+            { type: "heading", props: { text: "Marie du Toit", fontSize: 18, fontWeight: 700, color: "#1a1a1a" } },
+            { type: "paragraph", props: { text: "Technical Director", fontSize: 13, color: "#888" } },
           ],
         },
         {
-          id: mkId("card"),
-          type: "card",
+          id: 4, type: "card",
           position: { row: 2, col: 3, colSpan: 1, rowSpan: 1, section: 0 },
-          props: {},
+          props: { bgColor: "#f8f9fa" },
           subElements: [
-            { id: mkId("e"), type: "image", props: { src: "", alt: "Team member", elRadius: 8 } },
-            { id: mkId("e"), type: "heading", props: { text: "Sarah Lee", fontSize: 16, fontWeight: "700" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "Client Relations", fontSize: 13, color: "#6c757d" } },
+            { type: "image", props: { src: "/images/placeholder-portrait.jpg" } },
+            { type: "heading", props: { text: "Pieter Swart", fontSize: 18, fontWeight: 700, color: "#1a1a1a" } },
+            { type: "paragraph", props: { text: "Operations Manager", fontSize: 13, color: "#888" } },
           ],
         },
         {
-          id: mkId("card"),
-          type: "card",
+          id: 5, type: "card",
           position: { row: 2, col: 4, colSpan: 1, rowSpan: 1, section: 0 },
-          props: {},
+          props: { bgColor: "#f8f9fa" },
           subElements: [
-            { id: mkId("e"), type: "image", props: { src: "", alt: "Team member", elRadius: 8 } },
-            { id: mkId("e"), type: "heading", props: { text: "Mike Brown", fontSize: 16, fontWeight: "700" } },
-            { id: mkId("e"), type: "paragraph", props: { text: "Site Supervisor", fontSize: 13, color: "#6c757d" } },
+            { type: "image", props: { src: "/images/placeholder-portrait.jpg" } },
+            { type: "heading", props: { text: "Anri Botha", fontSize: 18, fontWeight: 700, color: "#1a1a1a" } },
+            { type: "paragraph", props: { text: "Plant Supervisor", fontSize: 13, color: "#888" } },
           ],
         },
       ],

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { DESIGNER_PRESETS } from "@/lib/designer-presets";
+import { SECTION_PRESETS, type SectionPreset } from "@/lib/designer-presets";
 
 interface PresetsGalleryModalProps {
   onSelect: (presetId: string | null) => void;
@@ -173,7 +173,7 @@ export default function PresetsGalleryModal({ onSelect, onClose }: PresetsGaller
               }}
             >
               {/* 7 preset cards */}
-              {DESIGNER_PRESETS.map((preset) => (
+              {SECTION_PRESETS.map((preset) => (
                 <button
                   key={preset.id}
                   type="button"
