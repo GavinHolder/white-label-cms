@@ -1,11 +1,11 @@
 {
-  "version": "1.51.3",
+  "version": "1.52.0",
   "date": "2026-05-08",
   "changelog": {
-    "features": [],
-    "bugfixes": [
-      "humanize form submissions UI + sidebar unread badge"
+    "features": [
+      "unified VerificationModal — auto-selects email OTP (desktop) or keypad (mobile)"
     ],
+    "bugfixes": [],
     "breaking": []
   }
 }
