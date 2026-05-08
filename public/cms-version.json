@@ -1,11 +1,11 @@
 {
-  "version": "1.52.0",
+  "version": "1.52.1",
   "date": "2026-05-08",
   "changelog": {
-    "features": [
-      "unified VerificationModal — auto-selects email OTP (desktop) or keypad (mobile)"
+    "features": [],
+    "bugfixes": [
+      "form-submissions API — add PUT handler (mark as read) and status filter on GET"
     ],
-    "bugfixes": [],
     "breaking": []
   }
 }
