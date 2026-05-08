@@ -20,7 +20,7 @@ export const SECTION_PRESETS: SectionPreset[] = [
         {
           id: 1, type: "image",
           position: { row: 1, col: 1, colSpan: 2, rowSpan: 4, section: 0 },
-          props: { imageSrc: "/images/placeholder-tall.jpg", imageFit: "cover" },
+          props: { imageSrc: "/images/placeholder-tall.svg", imageFit: "cover" },
           subElements: [],
         },
         {
@@ -279,13 +279,13 @@ export const SECTION_PRESETS: SectionPreset[] = [
         {
           id: 3, type: "image",
           position: { row: 2, col: 2, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { imageSrc: "/images/placeholder-wide.jpg", imageFit: "cover" },
+          props: { imageSrc: "/images/placeholder-wide.svg", imageFit: "cover" },
           subElements: [],
         },
         {
           id: 4, type: "image",
           position: { row: 3, col: 1, colSpan: 1, rowSpan: 1, section: 0 },
-          props: { imageSrc: "/images/placeholder-wide.jpg", imageFit: "cover" },
+          props: { imageSrc: "/images/placeholder-wide.svg", imageFit: "cover" },
           subElements: [],
         },
         {
@@ -327,7 +327,7 @@ export const SECTION_PRESETS: SectionPreset[] = [
           position: { row: 2, col: 1, colSpan: 1, rowSpan: 1, section: 0 },
           props: { bgColor: "#f8f9fa" },
           subElements: [
-            { type: "image", props: { src: "/images/placeholder-portrait.jpg" } },
+            { type: "image", props: { src: "/images/placeholder-portrait.svg" } },
             { type: "heading", props: { text: "Jan Lourens", fontSize: 18, fontWeight: 700, color: "#1a1a1a" } },
             { type: "paragraph", props: { text: "General Manager", fontSize: 13, color: "#888" } },
           ],
@@ -337,7 +337,7 @@ export const SECTION_PRESETS: SectionPreset[] = [
           position: { row: 2, col: 2, colSpan: 1, rowSpan: 1, section: 0 },
           props: { bgColor: "#f8f9fa" },
           subElements: [
-            { type: "image", props: { src: "/images/placeholder-portrait.jpg" } },
+            { type: "image", props: { src: "/images/placeholder-portrait.svg" } },
             { type: "heading", props: { text: "Marie du Toit", fontSize: 18, fontWeight: 700, color: "#1a1a1a" } },
             { type: "paragraph", props: { text: "Technical Director", fontSize: 13, color: "#888" } },
           ],
@@ -347,7 +347,7 @@ export const SECTION_PRESETS: SectionPreset[] = [
           position: { row: 2, col: 3, colSpan: 1, rowSpan: 1, section: 0 },
           props: { bgColor: "#f8f9fa" },
           subElements: [
-            { type: "image", props: { src: "/images/placeholder-portrait.jpg" } },
+            { type: "image", props: { src: "/images/placeholder-portrait.svg" } },
             { type: "heading", props: { text: "Pieter Swart", fontSize: 18, fontWeight: 700, color: "#1a1a1a" } },
             { type: "paragraph", props: { text: "Operations Manager", fontSize: 13, color: "#888" } },
           ],
@@ -357,7 +357,7 @@ export const SECTION_PRESETS: SectionPreset[] = [
           position: { row: 2, col: 4, colSpan: 1, rowSpan: 1, section: 0 },
           props: { bgColor: "#f8f9fa" },
           subElements: [
-            { type: "image", props: { src: "/images/placeholder-portrait.jpg" } },
+            { type: "image", props: { src: "/images/placeholder-portrait.svg" } },
             { type: "heading", props: { text: "Anri Botha", fontSize: 18, fontWeight: 700, color: "#1a1a1a" } },
             { type: "paragraph", props: { text: "Plant Supervisor", fontSize: 13, color: "#888" } },
           ],

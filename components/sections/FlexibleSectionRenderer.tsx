@@ -1615,7 +1615,7 @@ function DesignerBlock({ block, darkBg }: {
         return <ContactFormBlock p={p} darkBg={darkBg} />;
 
       case "how-steps": {
-        const accent = (p.accentColor as string) || "var(--brand-accent, #4caf50)";
+        const accent = (p.accentColor as string) || "var(--cms-accent, #4caf50)";
         const isLast = !!(p.isLast);
         const textColor = darkBg ? "#fff" : "#1a1a1a";
         return (
