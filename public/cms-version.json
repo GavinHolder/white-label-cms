@@ -1,17 +1,11 @@
 {
-  "version": "1.51.0",
+  "version": "1.51.1",
   "date": "2026-05-08",
   "changelog": {
-    "features": [
-      "add steps and photo-strip block types to flexible designer",
-      "section header/footer config in flexible designer — eyebrow, heading, variant, lead, footer",
-      "mosaic layout mode in flexible designer — preset selector per block, 12-col bento grid"
-    ],
+    "features": [],
     "bugfixes": [
-      "re-render canvas when photo-strip image added",
-      "correct undefined function calls in applyPresetById",
-      "section header/footer — undo coverage, preset clear, conditional buildJson emission",
-      "mosaic layout — correct auto-flow placement, slider re-render, undo history, init restoration"
+      "protect client config from demo seed wipes",
+      "SMTP test uses form values directly — no save required before testing"
     ],
     "breaking": []
   }

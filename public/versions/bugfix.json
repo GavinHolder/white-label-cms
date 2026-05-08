@@ -1,10 +1,11 @@
 {
-  "version": "1.49.1",
-  "date": "2026-05-07",
+  "version": "1.51.1",
+  "date": "2026-05-08",
   "changelog": {
     "features": [],
     "bugfixes": [
-      "standalone page hydration crash + coverage map in import modal"
+      "protect client config from demo seed wipes",
+      "SMTP test uses form values directly — no save required before testing"
     ],
     "breaking": []
   }
