@@ -6172,8 +6172,8 @@ function applyPresetById(presetId) {
   var fe  = document.getElementById('sectionFooterEnabled'); if (fe) fe.checked = false;
   var ff  = document.getElementById('sectionFooterFields'); if (ff) ff.style.display = 'none';
   renderCanvas();
-  renderProps();
-  autoSaveDraft();
+  renderPropsPanel();
+  autoSave();
 }
 
 // ─── Volt Library ────────────────────────────────────────────────────────────
