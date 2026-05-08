@@ -84,20 +84,20 @@ export default function StandalonePageEditorModal({ page, onSave, onCancel, save
     }).catch(() => {});
   }, [activeTab]);
 
+  const detectedSlots = useMemo(() => extractSlotNames(html), [html]);
+
   useEffect(() => {
-    const detected = extractSlotNames(html);
-    if (detected.length === 0) return;
+    if (detectedSlots.length === 0) return;
     setMediaSlots(prev => {
       const next = { ...prev };
       let changed = false;
-      for (const name of detected) {
+      for (const name of detectedSlots) {
         if (!(name in next)) { next[name] = ""; changed = true; }
       }
       return changed ? next : prev;
     });
-  }, [html]);
+  }, [detectedSlots]);
 
-  const detectedSlots = useMemo(() => extractSlotNames(html), [html]);
   const unsetSlots = detectedSlots.filter(name => !mediaSlots[name]);
   const showSlotWarning = page.enabled && unsetSlots.length > 0;
 
