@@ -1217,6 +1217,61 @@
               <button class="preset-btn" onclick="selectPreset('banner-content',this)">▬ Banner + Content</button>
               <button class="preset-btn" onclick="selectPreset('2-col-text',this)">⬛⬛ Two Column Text</button>
             </div>
+
+            <!-- Section Header Config -->
+            <div class="config-box">
+              <div class="config-box-label">Section Header</div>
+              <div class="mb-2">
+                <label class="form-label small mb-1">Eyebrow</label>
+                <input type="text" class="form-control form-control-sm" id="sectionEyebrow" placeholder='e.g. "OUR SERVICES"' oninput="autoSave()">
+              </div>
+              <div class="mb-2">
+                <label class="form-label small mb-1">Heading</label>
+                <textarea class="form-control form-control-sm" id="sectionHeading" rows="2" placeholder='e.g. "Three services.\nOne promise."' oninput="autoSave()"></textarea>
+              </div>
+              <div class="mb-2">
+                <label class="form-label small mb-1">Subheading <span style="color:#6c757d;font-weight:400;">(optional)</span></label>
+                <input type="text" class="form-control form-control-sm" id="sectionSubheading" placeholder="Small text below heading" oninput="autoSave()">
+              </div>
+              <div class="mb-2">
+                <label class="form-label small mb-1">Header Style</label>
+                <div style="display:flex;gap:4px;margin-bottom:6px;">
+                  <button class="preset-btn active" id="hv-centered" onclick="setHeaderVariant('centered')">&#9632; Centered</button>
+                  <button class="preset-btn" id="hv-split" onclick="setHeaderVariant('split')">&#9632;&#9632; Split</button>
+                </div>
+                <select id="sectionHeaderVariant" style="display:none;">
+                  <option value="centered">centered</option>
+                  <option value="split">split</option>
+                </select>
+              </div>
+              <div id="sectionLeadRow" style="display:none;">
+                <label class="form-label small mb-1">Lead Text</label>
+                <textarea class="form-control form-control-sm" id="sectionLead" rows="3" placeholder="Body copy shown beside the heading..." oninput="autoSave()"></textarea>
+              </div>
+            </div>
+
+            <!-- Section Footer Config -->
+            <div class="config-box">
+              <div class="config-box-label">Section Footer</div>
+              <div class="form-check form-switch mb-2" style="font-size:13px;">
+                <input class="form-check-input" type="checkbox" role="switch" id="sectionFooterEnabled" onchange="toggleSectionFooter()">
+                <label class="form-check-label" for="sectionFooterEnabled">Enable section footer</label>
+              </div>
+              <div id="sectionFooterFields" style="display:none;">
+                <div class="mb-2">
+                  <label class="form-label small mb-1">Footer left text</label>
+                  <input type="text" class="form-control form-control-sm" id="sectionFooterLeft" placeholder="Supports [em]accent[/em] syntax" oninput="autoSave()">
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small mb-1">Button label</label>
+                  <input type="text" class="form-control form-control-sm" id="sectionFooterBtnLabel" placeholder='e.g. "See All"' oninput="autoSave()">
+                </div>
+                <div>
+                  <label class="form-label small mb-1">Button href</label>
+                  <input type="text" class="form-control form-control-sm" id="sectionFooterBtnHref" placeholder='e.g. "#services"' oninput="autoSave()">
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -6403,6 +6458,21 @@ function buildJson() {
     layout:        state.positionMode!=='free' && state.layoutType==='mosaic'
       ? { layoutMode:'mosaic', gridAutoRows: parseInt(document.getElementById('mosaicRowH')?.value||'200'), gridGap: parseInt(document.getElementById('mosaicGap')?.value||'10') }
       : undefined,
+    sectionEyebrow:       document.getElementById('sectionEyebrow')?.value.trim() || undefined,
+    sectionHeading:       document.getElementById('sectionHeading')?.value.trim() || undefined,
+    sectionSubheading:    document.getElementById('sectionSubheading')?.value.trim() || undefined,
+    sectionHeaderVariant: document.getElementById('sectionHeaderVariant')?.value || undefined,
+    sectionLead:          document.getElementById('sectionLead')?.value.trim() || undefined,
+    sectionFooter: (function() {
+      if (!document.getElementById('sectionFooterEnabled')?.checked) return undefined;
+      const left  = document.getElementById('sectionFooterLeft')?.value.trim();
+      const label = document.getElementById('sectionFooterBtnLabel')?.value.trim();
+      const href  = document.getElementById('sectionFooterBtnHref')?.value.trim();
+      const obj = {};
+      if (left)  obj.leftText = left;
+      if (label && href) obj.rightButton = { label, href };
+      return Object.keys(obj).length ? obj : undefined;
+    })(),
     blocks:        state.blocks.map(b => ({
       id:          b.id,
       type:        b.type,
@@ -6553,6 +6623,32 @@ window.addEventListener('message', function(e) {
       }), false);
       // Cache desktop canvas width for responsive auto-scaling
       state._desktopCanvasW = layout.designerCanvasW || null;
+      // Restore section header/footer fields
+      if (layout.sectionEyebrow)    { const el = document.getElementById('sectionEyebrow');    if (el) el.value = layout.sectionEyebrow; }
+      if (layout.sectionHeading)    { const el = document.getElementById('sectionHeading');    if (el) el.value = layout.sectionHeading; }
+      if (layout.sectionSubheading) { const el = document.getElementById('sectionSubheading'); if (el) el.value = layout.sectionSubheading; }
+      if (layout.sectionHeaderVariant) {
+        const el = document.getElementById('sectionHeaderVariant');
+        if (el) el.value = layout.sectionHeaderVariant;
+        const leadRow = document.getElementById('sectionLeadRow');
+        if (leadRow) leadRow.style.display = layout.sectionHeaderVariant === 'split' ? '' : 'none';
+        const btnC = document.getElementById('hv-centered');
+        const btnS = document.getElementById('hv-split');
+        if (btnC) btnC.classList.toggle('active', layout.sectionHeaderVariant !== 'split');
+        if (btnS) btnS.classList.toggle('active', layout.sectionHeaderVariant === 'split');
+      }
+      if (layout.sectionLead) { const el = document.getElementById('sectionLead'); if (el) el.value = layout.sectionLead; }
+      if (layout.sectionFooter) {
+        const chk = document.getElementById('sectionFooterEnabled');
+        if (chk) chk.checked = true;
+        const fields = document.getElementById('sectionFooterFields');
+        if (fields) fields.style.display = '';
+        if (layout.sectionFooter.leftText) { const el = document.getElementById('sectionFooterLeft'); if (el) el.value = layout.sectionFooter.leftText; }
+        if (layout.sectionFooter.rightButton) {
+          const lbl = document.getElementById('sectionFooterBtnLabel'); if (lbl) lbl.value = layout.sectionFooter.rightButton.label || '';
+          const href = document.getElementById('sectionFooterBtnHref'); if (href) href.value = layout.sectionFooter.rightButton.href  || '';
+        }
+      }
       // Re-render after a paint frame so canvas has settled dimensions.
       // Without this, getCellRect reads offsetHeight=0 on the first render
       // (message fires before the browser paints the iframe layout), causing
@@ -6578,6 +6674,31 @@ function toggleSectionConfig() {
   if (!hdr || !body) return;
   hdr.classList.toggle('sc-collapsed');
   body.classList.toggle('sc-hidden');
+}
+
+// ───────────────────────────────────────────────────────────
+//  SECTION HEADER VARIANT
+// ───────────────────────────────────────────────────────────
+function setHeaderVariant(v) {
+  const sel = document.getElementById('sectionHeaderVariant');
+  if (sel) sel.value = v;
+  const btnC = document.getElementById('hv-centered');
+  const btnS = document.getElementById('hv-split');
+  if (btnC) btnC.classList.toggle('active', v === 'centered');
+  if (btnS) btnS.classList.toggle('active', v === 'split');
+  const leadRow = document.getElementById('sectionLeadRow');
+  if (leadRow) leadRow.style.display = v === 'split' ? '' : 'none';
+  autoSave();
+}
+
+// ───────────────────────────────────────────────────────────
+//  SECTION FOOTER TOGGLE
+// ───────────────────────────────────────────────────────────
+function toggleSectionFooter() {
+  const enabled = document.getElementById('sectionFooterEnabled')?.checked;
+  const fields  = document.getElementById('sectionFooterFields');
+  if (fields) fields.style.display = enabled ? '' : 'none';
+  autoSave();
 }
 
 // ═══════════════════════════════════════════════════════════
