@@ -1,11 +1,19 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import Editor from "@monaco-editor/react";
 import type { StandalonePageConfig } from "@/types/page";
 import SaveTemplateModal from "@/components/admin/SaveTemplateModal";
 import TemplatePickerModal, { type CmsTemplate } from "@/components/admin/TemplatePickerModal";
 import MediaPickerModal from "@/components/admin/MediaPickerModal";
+
+function extractSlotNames(html: string): string[] {
+  const seen = new Set<string>();
+  for (const m of html.matchAll(/\{\{cms\.media\.([a-z0-9_-]+)\}\}/g)) {
+    seen.add(m[1]);
+  }
+  return [...seen];
+}
 
 export interface StandaloneEditorSaveData {
   html: string;
