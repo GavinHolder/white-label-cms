@@ -5081,7 +5081,7 @@ function addStripImage(bId) {
   if (!b) return;
   if (!Array.isArray(b.props.images)) b.props.images = [];
   b.props.images = b.props.images.concat([{src:'', alt:''}]);
-  autoSave(); renderPropsPanel();
+  autoSave(); renderCanvas(); renderPropsPanel();
 }
 
 function removeStripImage(bId, idx) {
