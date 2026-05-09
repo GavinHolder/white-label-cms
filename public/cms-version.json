@@ -1,11 +1,11 @@
 {
-  "version": "1.55.5",
+  "version": "1.56.0",
   "date": "2026-05-09",
   "changelog": {
-    "features": [],
-    "bugfixes": [
-      "forward mediaSlots when creating page from standalone template"
+    "features": [
+      "gallery redesign — full scroll-by-category layout with masonry, TOC pills, lightbox"
     ],
+    "bugfixes": [],
     "breaking": []
   }
 }
