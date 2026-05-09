@@ -1,9 +1,9 @@
 {
-  "version": "1.59.0",
+  "version": "1.60.0",
   "date": "2026-05-09",
   "changelog": {
     "features": [
-      "media library overhaul — folders, drag-and-drop, pagination, search"
+      "media multi-select bulk ops, audit log clamping, consolidated changelog"
     ],
     "bugfixes": [],
     "breaking": []
