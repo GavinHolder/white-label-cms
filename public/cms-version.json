@@ -1,10 +1,10 @@
 {
-  "version": "1.61.2",
+  "version": "1.61.3",
   "date": "2026-05-09",
   "changelog": {
     "features": [],
     "bugfixes": [
-      "gallery TOC pills — collapse to dot at rest, expand on hover"
+      "template import — match image slots to existing {{cms.media.*}} tokens"
     ],
     "breaking": []
   }
