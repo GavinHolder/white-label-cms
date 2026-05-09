@@ -1,11 +1,11 @@
 {
-  "version": "1.56.0",
+  "version": "1.56.1",
   "date": "2026-05-09",
   "changelog": {
-    "features": [
-      "gallery redesign — full scroll-by-category layout with masonry, TOC pills, lightbox"
+    "features": [],
+    "bugfixes": [
+      "gallery — hide CMS navbar, use full img url, add height:auto to masonry images"
     ],
-    "bugfixes": [],
     "breaking": []
   }
 }
