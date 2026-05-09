@@ -1,10 +1,10 @@
 {
-  "version": "1.61.1",
+  "version": "1.61.2",
   "date": "2026-05-09",
   "changelog": {
     "features": [],
     "bugfixes": [
-      "media drag-to-folder now moves all selected items"
+      "gallery TOC pills — collapse to dot at rest, expand on hover"
     ],
     "breaking": []
   }
