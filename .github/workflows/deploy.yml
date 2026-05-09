@@ -117,31 +117,40 @@ jobs:
 
     steps:
       - name: Redeploy stack
+        env:
+          P_URL:      ${{ secrets.PORTAINER_URL }}
+          P_USER:     ${{ secrets.PORTAINER_USERNAME }}
+          P_PASS:     ${{ secrets.PORTAINER_PASSWORD }}
+          P_STACK:    ${{ secrets.PORTAINER_STACK_ID }}
+          P_ENDPOINT: ${{ secrets.PORTAINER_ENDPOINT_ID }}
         run: |
           # Skip if secrets not configured
-          if [ -z "${{ secrets.PORTAINER_URL }}" ] || [ -z "${{ secrets.PORTAINER_PASSWORD }}" ]; then
+          if [ -z "$P_URL" ] || [ -z "$P_PASS" ]; then
             echo "⚠️ PORTAINER_URL or PORTAINER_PASSWORD not set — skipping deploy"
             echo "Set these secrets: PORTAINER_URL, PORTAINER_USERNAME, PORTAINER_PASSWORD, PORTAINER_STACK_ID, PORTAINER_ENDPOINT_ID"
             exit 0
           fi
 
           # Authenticate with Portainer
-          PORTAINER_USER="${{ secrets.PORTAINER_USERNAME }}"
-          PORTAINER_USER="${PORTAINER_USER:-admin}"
+          PORTAINER_USER="${P_USER:-admin}"
           echo "🔑 Authenticating with Portainer as $PORTAINER_USER..."
-          JWT=$(curl -s -X POST "${{ secrets.PORTAINER_URL }}/api/auth" \
+          AUTH_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$P_URL/api/auth" \
             -H "Content-Type: application/json" \
-            -d "{\"username\":\"$PORTAINER_USER\",\"password\":\"${{ secrets.PORTAINER_PASSWORD }}\"}" \
-            | jq -r '.jwt')
+            --data-raw "{\"username\":\"$PORTAINER_USER\",\"password\":\"$P_PASS\"}")
+          AUTH_HTTP=$(echo "$AUTH_RESPONSE" | tail -n1)
+          AUTH_BODY=$(echo "$AUTH_RESPONSE" | sed '$d')
+          echo "  Auth HTTP status: $AUTH_HTTP"
+          JWT=$(echo "$AUTH_BODY" | jq -r '.jwt // empty')
 
           if [ -z "$JWT" ] || [ "$JWT" = "null" ]; then
-            echo "❌ Portainer authentication failed — check PORTAINER_PASSWORD"
+            echo "❌ Portainer authentication failed (HTTP $AUTH_HTTP) — check P_URL and PORTAINER_PASSWORD"
+            echo "  Response body: $AUTH_BODY"
             exit 1
           fi
 
-          STACK_ID="${{ secrets.PORTAINER_STACK_ID }}"
-          ENDPOINT_ID="${{ secrets.PORTAINER_ENDPOINT_ID }}"
-          BASE_URL="${{ secrets.PORTAINER_URL }}"
+          STACK_ID="$P_STACK"
+          ENDPOINT_ID="$P_ENDPOINT"
+          BASE_URL="$P_URL"
           AUTH="Authorization: Bearer $JWT"
 
           # Log current Docker image count on the host
