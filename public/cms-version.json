@@ -1,16 +1,11 @@
 {
-  "version": "1.53.0",
-  "date": "2026-05-08",
+  "version": "1.54.0",
+  "date": "2026-05-09",
   "changelog": {
     "features": [
-      "media slots warning banner and from-HTML badge in standalone editor",
-      "show warning indicator on Media tab when slots are unset",
-      "auto-merge media slot tokens from HTML into mediaSlots state",
-      "add extractSlotNames helper for media slot auto-detection"
+      "landing page preview route with auth gate"
     ],
-    "bugfixes": [
-      "warning banner spacing and badge font-weight via Bootstrap utility"
-    ],
+    "bugfixes": [],
     "breaking": []
   }
 }
