@@ -1,9 +1,9 @@
 {
-  "version": "1.60.0",
+  "version": "1.61.0",
   "date": "2026-05-09",
   "changelog": {
     "features": [
-      "media multi-select bulk ops, audit log clamping, consolidated changelog"
+      "backup system — schedule selector, missing tables, correct uploads path"
     ],
     "bugfixes": [],
     "breaking": []
