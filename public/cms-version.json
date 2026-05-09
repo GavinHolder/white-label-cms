@@ -1,11 +1,13 @@
 {
-  "version": "1.54.0",
+  "version": "1.55.0",
   "date": "2026-05-09",
   "changelog": {
     "features": [
-      "landing page preview route with auth gate"
+      "gallery feature — categories, lightbox, CTA block, multi-select media picker"
     ],
-    "bugfixes": [],
+    "bugfixes": [
+      "standalone pages now respect maintenance mode"
+    ],
     "breaking": []
   }
 }
