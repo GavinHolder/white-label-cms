@@ -58,6 +58,7 @@ export function truncateToWidth(
     if (c.measureText(text.slice(0, mid) + '…').width <= maxPx) lo = mid
     else hi = mid - 1
   }
+  // lo=0 means even a single char + ellipsis exceeded maxPx — returns bare '…'
   return { display: text.slice(0, lo) + '…', truncated: true }
 }
 
