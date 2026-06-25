@@ -1,11 +1,11 @@
 {
-  "version": "1.68.4",
-  "date": "2026-06-08",
+  "version": "1.69.0",
+  "date": "2026-06-25",
   "changelog": {
-    "features": [],
-    "bugfixes": [
-      "derive OAuth redirect origin from config, not req.nextUrl.origin"
+    "features": [
+      "SEO score dashboard, on-page crawler, scheduled audits + alerts"
     ],
+    "bugfixes": [],
     "breaking": []
   }
 }
