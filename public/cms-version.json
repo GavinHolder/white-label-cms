@@ -1,9 +1,9 @@
 {
-  "version": "1.69.0",
-  "date": "2026-06-25",
+  "version": "1.70.0",
+  "date": "2026-06-30",
   "changelog": {
     "features": [
-      "SEO score dashboard, on-page crawler, scheduled audits + alerts"
+      "noindex plugin pages when feature is disabled (calculator)"
     ],
     "bugfixes": [],
     "breaking": []
